@@ -31,15 +31,12 @@ jobs:
       run: |
         curl -sfL https://raw.githubusercontent.com/adorsys-gis/wazuh-agent/main/scripts/install.sh | sudo WAZUH_MANAGER=127.0.0.1 bash
 
+    - name: Make script executable
+      run: sudo chmod +x ./scripts/install.sh
+      
     - name: Install Suricata
       run: |
-        whoami
-        pwd
-        ls -l .
         sudo ./scripts/install.sh
-
-    - name: Make script executable
-      run: chmod +x ./scripts/install.sh
 
     - name: Run Bats tests
       run: sudo bats tests/
