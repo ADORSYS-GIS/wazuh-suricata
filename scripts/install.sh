@@ -103,8 +103,11 @@ create_launchd_plist_file() {
 </dict>
 </plist>
 "
+    info_message "Unloading previous plist file (if any)..."
+    maybe_sudo launchctl unload "$filepath" 2>/dev/null || true
+    
     info_message "Loading new daemon plist file..."
-    maybe_sudo launchctl bootstrap "system $filepath" 2>/dev/null || warn_message "Loading previous plist file failed: $filepath"
+     maybe_sudo launchctl load -w "$filepath" 2>/dev/null || warn_message "Loading previous plist file failed: $filepath"
     info_message "macOS Launchd plist file created and loaded: $filepath"
 }
 
