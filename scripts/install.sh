@@ -781,10 +781,10 @@ if [ "$OS" = "linux" ]; then
         error_exit "Suricata service is not running."
     fi
 elif [ "$OS" = "darwin" ]; then
-    if pgrep suricata > /dev/null; then
-        success_message "Suricata process is running."
+    if launchctl list | grep -q "com.suricata.suricata"; then
+        success_message "Suricata plist is active and running."
     else
-        error_exit "Suricata process is not running."
+        error_exit "Suricata plist is not active or running."
     fi
 fi
 
