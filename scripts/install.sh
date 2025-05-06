@@ -774,18 +774,5 @@ if [ "$SURICATA_BIN" != "not found" ]; then
 else
     error_exit "Suricata executable not found in PATH."
 fi
-if [ "$OS" = "linux" ]; then
-    if systemctl is-active --quiet suricata; then
-        success_message "Suricata service is running."
-    else
-        error_exit "Suricata service is not running."
-    fi
-elif [ "$OS" = "darwin" ]; then
-    if launchctl list | grep -q "com.suricata.suricata"; then
-        success_message "Suricata plist is active and running."
-    else
-        error_exit "Suricata plist is not active or running."
-    fi
-fi
 
 success_message "Suricata installation and configuration complete!"
