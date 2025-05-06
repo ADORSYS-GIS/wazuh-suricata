@@ -79,6 +79,7 @@ remove_file() {
 # macOS Launchd Plist File
 create_launchd_plist_file() {
     local filepath="$1"
+    local suricata_bin="$2"
     info_message "Creating plist file for Suricata..."
     create_file "$filepath" "
 <?xml version=\"1.0\" encoding=\"UTF-8\"?>
@@ -89,7 +90,7 @@ create_launchd_plist_file() {
     <string>com.suricata.suricata</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/usr/local/bin/suricata</string>
+        <string>$suricata_bin</string>
         <string>-c</string>
         <string>$CONFIG_FILE</string>
         <string>-i</string>
@@ -755,7 +756,7 @@ if [ "$OS" = "linux" ]; then
     maybe_sudo systemctl restart suricata
 elif [ "$OS" = "darwin" ]; then
     print_step_header 4 "Setting up Suricata to start at boot"
-    create_launchd_plist_file "$LAUNCH_AGENT_FILE"
+    create_launchd_plist_file "$LAUNCH_AGENT_FILE" "$SURICATA_BIN"
 fi
 
 print_step_header 5 "Validating installation"
