@@ -16,6 +16,65 @@ RULES_URL="https://rules.emergingthreats.net/open/suricata-6.0.8/emerging-all.ru
 RULES_DIR="/etc/suricata/rules"
 TAR_PATH="/tmp/emerging-all.rules.tar.gz"
 
+
+# OS and Architecture Detection
+case "$(uname)" in
+Linux)
+    OS="linux"
+    CONFIG_FILE="/etc/suricata/suricata.yaml"
+    INTERFACE="wlp0s20f3"
+    ;;
+Darwin)
+    BREW_PATH=$(brew --prefix)
+    OS="darwin"
+    CONFIG_FILE="$BREW_PATH/etc/suricata/suricata.yaml"
+    INTERFACE="en0"
+    ;;
+*) error_exit "Unsupported operating system: $(uname)" ;;
+esac
+
+ARCH=$(uname -m)
+case "$ARCH" in
+x86_64) ARCH="amd64" ;;
+arm64 | aarch64) ARCH="arm64" ;;
+*) error_exit "Unsupported architecture: $ARCH" ;;
+esac
+
+# Detect Linux Distribution
+if [ "$OS" = "linux" ]; then
+    detect_distro() {
+        if [ -f /etc/os-release ]; then
+            . /etc/os-release
+            echo $ID
+        elif [ -f /etc/redhat-release ]; then
+            echo "redhat"
+        elif [ -f /etc/debian_version ]; then
+            echo "debian"
+        else
+            error_exit "Unable to detect Linux distribution"
+        fi
+    }
+    DISTRO=$(detect_distro)
+    case "$DISTRO" in
+        ubuntu|debian)
+            PACKAGE_MANAGER="apt-get"
+            INSTALL_CMD="install -y"
+            ;;
+        centos|fedora|rhel)
+            PACKAGE_MANAGER="yum"
+            INSTALL_CMD="install -y"
+            ;;
+        *) error_exit "Unsupported Linux distribution: $DISTRO" ;;
+    esac
+fi
+
+# Check for systemd on Linux
+if [ "$OS" = "linux" ]; then
+    if ! command_exists systemctl; then
+        error_exit "This script requires systemd to manage services."
+    fi
+fi
+
 # Text Formatting
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -110,63 +169,6 @@ create_launchd_plist_file() {
      maybe_sudo launchctl load -w "$filepath" 2>/dev/null || warn_message "Loading previous plist file failed: $filepath"
     info_message "macOS Launchd plist file created and loaded: $filepath"
 }
-
-# OS and Architecture Detection
-case "$(uname)" in
-Linux)
-    OS="linux"
-    CONFIG_FILE="/etc/suricata/suricata.yaml"
-    INTERFACE="eth0"
-    ;;
-Darwin)
-    OS="darwin"
-    CONFIG_FILE="/usr/local/etc/suricata/suricata.yaml"
-    INTERFACE="en0"
-    ;;
-*) error_exit "Unsupported operating system: $(uname)" ;;
-esac
-
-ARCH=$(uname -m)
-case "$ARCH" in
-x86_64) ARCH="amd64" ;;
-arm64 | aarch64) ARCH="arm64" ;;
-*) error_exit "Unsupported architecture: $ARCH" ;;
-esac
-
-# Detect Linux Distribution
-if [ "$OS" = "linux" ]; then
-    detect_distro() {
-        if [ -f /etc/os-release ]; then
-            . /etc/os-release
-            echo $ID
-        elif [ -f /etc/redhat-release ]; then
-            echo "redhat"
-        elif [ -f /etc/debian_version ]; then
-            echo "debian"
-        else
-            error_exit "Unable to detect Linux distribution"
-        fi
-    }
-    DISTRO=$(detect_distro)
-    case "$DISTRO" in
-        ubuntu|debian)
-            PACKAGE_MANAGER="apt-get"
-            INSTALL_CMD="install -y"
-            ;;
-        centos|fedora|rhel)
-            PACKAGE_MANAGER="yum"
-            INSTALL_CMD="install -y"
-            ;;
-        *) error_exit "Unsupported Linux distribution: $DISTRO" ;;
-    esac
-fi
-
-# Check for systemd on Linux
-if [ "$OS" = "linux" ]; then
-    if ! command_exists systemctl; then
-        error_exit "This script requires systemd to manage services."
-    fi
-fi
 
 # Detect Wi-Fi Interface
 detect_wifi_interface() {
