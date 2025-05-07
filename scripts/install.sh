@@ -7,27 +7,51 @@ else
     set -eu
 fi
 
+# Command Existence Check
+command_exists() { command -v "$1" >/dev/null 2>&1; }
+
+# Execute with Root Privileges
+maybe_sudo() {
+    if [ "$(id -u)" -ne 0 ]; then
+        command_exists sudo && sudo "$@" || error_exit "This script requires root privileges. Run as root or use sudo."
+    else
+        "$@"
+    fi
+}
+
+sed_alternative() {
+    if command_exists gsed; then
+        maybe_sudo gsed "$@"
+    else
+        maybe_sudo sed "$@"
+    fi
+}
+
 # Environment Variables
 SURICATA_USER=${SURICATA_USER:-"root"}
 CONFIG_FILE=""
 INTERFACE=""
 LAUNCH_AGENT_FILE="/Library/LaunchDaemons/com.suricata.suricata.plist"
 RULES_URL="https://rules.emergingthreats.net/open/suricata-6.0.8/emerging-all.rules.tar.gz"
-RULES_DIR="/etc/suricata/rules"
 TAR_PATH="/tmp/emerging-all.rules.tar.gz"
-
 
 # OS and Architecture Detection
 case "$(uname)" in
 Linux)
     OS="linux"
-    CONFIG_FILE="/etc/suricata/suricata.yaml"
+    LOG_DIR="/var/log/suricata"
+    CONFIG_DIR="/etc/suricata"
+    CONFIG_FILE="$CONFIG_DIR/suricata.yaml"
+    RULES_DIR="/etc/suricata/rules"
     INTERFACE="wlp0s20f3"
     ;;
 Darwin)
-    BREW_PATH=$(brew --prefix)
     OS="darwin"
-    CONFIG_FILE="$BREW_PATH/etc/suricata/suricata.yaml"
+    BIN_FOLDER=$(brew --prefix)
+    LOG_DIR="$BIN_FOLDER/var/log/suricata"
+    CONFIG_DIR="$BIN_FOLDER/etc/suricata"
+    CONFIG_FILE="$BIN_FOLDER/etc/suricata/suricata.yaml"
+    RULES_DIR="$BIN_FOLDER/etc/suricata/rules"
     INTERFACE="en0"
     ;;
 *) error_exit "Unsupported operating system: $(uname)" ;;
@@ -57,7 +81,7 @@ if [ "$OS" = "linux" ]; then
     DISTRO=$(detect_distro)
     case "$DISTRO" in
         ubuntu|debian)
-            PACKAGE_MANAGER="apt-get"
+            PACKAGE_MANAGER="apt"
             INSTALL_CMD="install -y"
             ;;
         centos|fedora|rhel)
@@ -95,26 +119,6 @@ print_step_header() { echo -e "${BLUE}${BOLD}[STEP]${NORMAL}" "$1: $2"; }
 error_exit() {
     error_message "$1"
     exit 1
-}
-
-# Command Existence Check
-command_exists() { command -v "$1" >/dev/null 2>&1; }
-
-# Execute with Root Privileges
-maybe_sudo() {
-    if [ "$(id -u)" -ne 0 ]; then
-        command_exists sudo && sudo "$@" || error_exit "This script requires root privileges. Run as root or use sudo."
-    else
-        "$@"
-    fi
-}
-
-sed_alternative() {
-    if command_exists gsed; then
-        maybe_sudo gsed "$@"
-    else
-        maybe_sudo sed "$@"
-    fi
 }
 
 # General Utility Functions
@@ -220,7 +224,7 @@ download_rules() {
     if ! command_exists curl; then
         error_exit "curl is required to download rules."
     fi
-    maybe_sudo curl -L "$RULES_URL" -o "$TAR_PATH" || error_exit "Failed to download rules from $RULES_URL"
+    maybe_sudo curl -SL --progress-bar "$RULES_URL" -o "$TAR_PATH" || error_exit "Failed to download rules from $RULES_URL"
     maybe_sudo mkdir -p "$RULES_DIR"
     maybe_sudo tar -xzf "$TAR_PATH" -C "$RULES_DIR" || error_exit "Failed to extract rules."
     maybe_sudo rm -f "$TAR_PATH"
@@ -276,7 +280,7 @@ vars:
 ## Step 2: Select outputs to enable
 ##
 
-default-log-dir: /var/log/suricata/
+default-log-dir: [LOG_DIR]
 
 # Global stats configuration
 stats:
@@ -710,17 +714,20 @@ napatech:
     hashmode: hash5tuplesorted
 
 # Rule configuration
-default-rule-path: /etc/suricata/rules
+default-rule-path: [RULES_DIR]
 rule-files:
 - "*.rules"
-classification-file: /etc/suricata/classification.config
-reference-config-file: /etc/suricata/reference.config
+classification-file: [CONFIG_DIR]/classification.config
+reference-config-file: [CONFIG_DIR]/reference.config
 EOF
 )
     create_file "$CONFIG_FILE" "$CONFIG_CONTENT"
     # Replace [HOME_NET] and [INTERFACE] in the file
+    sed_alternative -i "s|\[LOG_DIR\]|${LOG_DIR}|g" "$CONFIG_FILE" || error_exit "Failed to set LOG_DIR: "$LOG_DIR" in $CONFIG_FILE"
     sed_alternative -i "s|\[HOME_NET\]|${HOME_NET}|g" "$CONFIG_FILE" || error_exit "Failed to set HOME_NET: "$HOME_NET" in $CONFIG_FILE"
     sed_alternative -i "s|\[INTERFACE\]|${INTERFACE}|g" "$CONFIG_FILE" || error_exit "Failed to set INTERFACE: "$INTERFACE" in $CONFIG_FILE"
+    sed_alternative -i "s|\[RULES_DIR\]|${RULES_DIR}|g" "$CONFIG_FILE" || error_exit "Failed to set RULES_DIR: "$RULES_DIR" in $CONFIG_FILE"
+    sed_alternative -i "s|\[CONFIG_DIR\]|${CONFIG_DIR}|g" "$CONFIG_FILE" || error_exit "Failed to set CONFIG_DIR: "$CONFIG_DIR" in $CONFIG_FILE"
     success_message "Suricata configuration created and updated: $CONFIG_FILE"
 }
 
@@ -730,20 +737,19 @@ if [ "$OS" = "linux" ]; then
     if [ "$DISTRO" = "ubuntu" ] || [ "$DISTRO" = "debian" ]; then
         if ! grep -q "oisf/suricata-stable" /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null; then
             info_message "Updating package lists and adding Suricata repository..."
-            maybe_sudo $PACKAGE_MANAGER update
+            maybe_sudo "$PACKAGE_MANAGER" update
             maybe_sudo add-apt-repository ppa:oisf/suricata-stable -y
-            maybe_sudo $PACKAGE_MANAGER update
+            maybe_sudo "$PACKAGE_MANAGER" update
         else
             info_message "Suricata repository already added, updating package lists..."
-            maybe_sudo $PACKAGE_MANAGER update
         fi
-        info_message "Installing Suricata to /usr/bin/suricata..."
+        info_message "Installing Suricata..."
         maybe_sudo $PACKAGE_MANAGER $INSTALL_CMD suricata
         SURICATA_BIN=$(command -v suricata || echo "/usr/bin/suricata")
         success_message "Suricata installed at: $SURICATA_BIN"
 fi
 elif [ "$OS" = "darwin" ]; then
-    info_message "Installing Suricata to /usr/local/bin/suricata via Homebrew..."
+    info_message "Installing Suricata via Homebrew..."
     brew install suricata
     SURICATA_BIN=$(command -v suricata || echo "/usr/local/bin/suricata")
     success_message "Suricata installed at: $SURICATA_BIN"
