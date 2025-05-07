@@ -172,7 +172,9 @@ create_launchd_plist_file() {
 
 # Detect Wi-Fi Interface
 detect_wifi_interface() {
-    if command_exists ip; then
+    if command_exists networksetup; then
+        INTERFACE=$(networksetup -listallhardwareports | awk '/Wi-Fi|AirPort/{getline; print $2}')
+    elif command_exists ip; then
         INTERFACE=$(ip -o link show | awk -F': ' '{print $2}' | grep -E '^(en|eth|wl)' | head -n1)
     elif command_exists ifconfig; then
         INTERFACE=$(ifconfig | awk -F': ' '{print $1}' | grep -E '^(en|eth|wl)' | head -n1)
