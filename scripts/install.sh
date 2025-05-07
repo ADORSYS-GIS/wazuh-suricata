@@ -185,8 +185,11 @@ detect_wifi_interface() {
     else
         warn_message "Could not detect Wi-Fi interface. Using default: $INTERFACE"
     fi
-    [ -z "$INTERFACE" ] && error_exit "No Wi-Fi interface detected."
-    info_message "Detected Wi-Fi interface: $INTERFACE"
+    if [ -z "$INTERFACE" ]; then
+        INTERFACE="eth0" # Default fallback for environments without Wi-Fi interfaces
+        warn_message "No Wi-Fi interface detected. Using default: $INTERFACE"
+    fi
+    info_message "Detected interface: $INTERFACE"
 }
 
 # Get HOME_NET
@@ -201,7 +204,10 @@ get_home_net() {
         HOME_NET="192.168.1.0/24" # Default fallback
         warn_message "Could not determine HOME_NET. Using default: $HOME_NET"
     fi
-    [ -z "$HOME_NET" ] && error_exit "Could not determine HOME_NET."
+    if [ -z "$HOME_NET" ]; then
+        HOME_NET="192.168.1.0/24" # Default fallback for environments without Wi-Fi interfaces
+        warn_message "Could not determine HOME_NET. Using default: $HOME_NET"
+    fi
     info_message "HOME_NET set to: $HOME_NET"
 }
 
