@@ -177,17 +177,18 @@ create_launchd_plist_file() {
 # Detect Wi-Fi Interface
 detect_wifi_interface() {
     if command_exists networksetup; then
-        INTERFACE=$(networksetup -listallhardwareports | awk '/Wi-Fi|AirPort/{getline; print $2}')
+        INTERFACE=$(networksetup -listallhardwareports | awk '/Wi-Fi|AirPort/{getline; print $2}') || INTERFACE=""
     elif command_exists ip; then
-        INTERFACE=$(ip -o link show | awk -F': ' '{print $2}' | grep -E '^(en|eth|wl)' | head -n1)
+        INTERFACE=$(ip -o link show | awk -F': ' '{print $2}' | grep -E '^(en|eth|wl)' | head -n1) || INTERFACE=""
     elif command_exists ifconfig; then
-        INTERFACE=$(ifconfig | awk -F': ' '{print $1}' | grep -E '^(en|eth|wl)' | head -n1)
+        INTERFACE=$(ifconfig | awk -F': ' '{print $1}' | grep -E '^(en|eth|wl)' | head -n1) || INTERFACE=""
     else
-        warn_message "Could not detect Wi-Fi interface. Using default: $INTERFACE"
+        INTERFACE=""
     fi
+
     if [ -z "$INTERFACE" ]; then
-        INTERFACE="eth0" # Default fallback for environments without Wi-Fi interfaces
-        warn_message "No Wi-Fi interface detected. Using default: $INTERFACE"
+        INTERFACE="eth0" # Default fallback
+        warn_message "No Wi-Fi interface detected. Defaulting to: $INTERFACE"
     fi
     info_message "Detected interface: $INTERFACE"
 }
@@ -195,17 +196,17 @@ detect_wifi_interface() {
 # Get HOME_NET
 get_home_net() {
     if command_exists ip; then
-        HOME_NET=$(ip addr show ${INTERFACE} | grep -o "inet [0-9./]*" | awk '{print $2}' | head -n1)
+        HOME_NET=$(ip addr show ${INTERFACE} | grep -o "inet [0-9./]*" | awk '{print $2}' | head -n1) || HOME_NET=""
     elif command_exists ifconfig; then
-        IP=$(ifconfig ${INTERFACE} | grep -o "inet [0-9.]*" | awk '{print $2}' | head -n1)
-        MASK=$(ifconfig ${INTERFACE} | grep -o "netmask [0-9.]*" | awk '{print $2}' | head -n1)
+        IP=$(ifconfig ${INTERFACE} | grep -o "inet [0-9.]*" | awk '{print $2}' | head -n1) || IP=""
+        MASK=$(ifconfig ${INTERFACE} | grep -o "netmask [0-9.]*" | awk '{print $2}' | head -n1) || MASK=""
         HOME_NET="$IP/$(mask_to_cidr ${MASK})"
     else
-        HOME_NET="192.168.1.0/24" # Default fallback
-        warn_message "Could not determine HOME_NET. Using default: $HOME_NET"
+        HOME_NET=""
     fi
+
     if [ -z "$HOME_NET" ]; then
-        HOME_NET="192.168.1.0/24" # Default fallback for environments without Wi-Fi interfaces
+        HOME_NET="192.168.1.0/24" # Default fallback
         warn_message "Could not determine HOME_NET. Using default: $HOME_NET"
     fi
     info_message "HOME_NET set to: $HOME_NET"
