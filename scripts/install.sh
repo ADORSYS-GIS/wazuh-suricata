@@ -200,7 +200,9 @@ get_home_net() {
     elif command_exists ifconfig; then
         IP=$(ifconfig ${INTERFACE} | grep -o "inet [0-9.]*" | awk '{print $2}' | head -n1) || IP=""
         MASK=$(ifconfig ${INTERFACE} | grep -o "netmask [0-9.]*" | awk '{print $2}' | head -n1) || MASK=""
-        HOME_NET="$IP/$(mask_to_cidr ${MASK})"
+        if [ ! -z "$MASK" ]; then
+            HOME_NET="$IP/$(mask_to_cidr ${MASK})"
+        fi
     else
         HOME_NET=""
     fi
