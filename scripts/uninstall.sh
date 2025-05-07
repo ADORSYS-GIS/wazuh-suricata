@@ -26,6 +26,11 @@ error_exit() {
     exit 1
 }
 
+# Check if a command exists
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
+
 # Execute with Root Privileges
 maybe_sudo() {
     if [ "$(id -u)" -ne 0 ]; then
@@ -59,7 +64,7 @@ info_message "Starting Suricata uninstallation process..."
 
 # Stop Suricata service
 if [ "$OS" = "linux" ]; then
-    if command -v systemctl >/dev/null 2>&1; then
+    if command_exists systemctl; then
         info_message "Stopping Suricata service..."
         maybe_sudo systemctl stop suricata || warn_message "Failed to stop Suricata service."
         maybe_sudo systemctl disable suricata || warn_message "Failed to disable Suricata service."
@@ -75,10 +80,12 @@ fi
 # Uninstall Suricata using package managers
 info_message "Uninstalling Suricata using the package manager..."
 if [ "$OS" = "linux" ]; then
-    if [ "$DISTRO" = "ubuntu" ] || [ "$DISTRO" = "debian" ]; then
+    if command_exists apt-get; then
         maybe_sudo apt-get remove --purge -y suricata || warn_message "Failed to uninstall Suricata using apt-get."
-    elif [ "$DISTRO" = "centos" ] || [ "$DISTRO" = "fedora" ] || [ "$DISTRO" = "rhel" ]; then
+    elif command_exists yum; then
         maybe_sudo yum remove -y suricata || warn_message "Failed to uninstall Suricata using yum."
+    else
+        warn_message "No supported package manager found. Skipping Suricata uninstallation."
     fi
 elif [ "$OS" = "darwin" ]; then
     if command_exists brew; then
