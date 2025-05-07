@@ -89,7 +89,7 @@ if [ "$OS" = "linux" ]; then
     fi
 elif [ "$OS" = "darwin" ]; then
     if command_exists brew; then
-        maybe_sudo brew uninstall suricata || warn_message "Failed to uninstall Suricata using Homebrew."
+        brew uninstall suricata || warn_message "Failed to uninstall Suricata using Homebrew."
     fi
 fi
 
