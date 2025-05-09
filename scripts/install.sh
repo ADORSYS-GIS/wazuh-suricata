@@ -347,7 +347,7 @@ update_config() {
     fi
 
     # Use yq command to update eve-log types
-    maybe_sudo yq_alternative '(.outputs[] | select(has("eve-log"))."eve-log".types) = ["alert", "anomaly"]' "$CONFIG_FILE" || error_exit "Failed to update eve-log types in $CONFIG_FILE"
+    yq_alternative '(.outputs[] | select(has("eve-log"))."eve-log".types) = ["alert", "anomaly"]' "$CONFIG_FILE" || error_exit "Failed to update eve-log types in $CONFIG_FILE"
 
     # Additional configurations for IPS mode
     if [[ "$MODE" == "ips" ]]; then
