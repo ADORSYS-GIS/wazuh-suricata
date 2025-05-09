@@ -7,6 +7,29 @@ else
     set -eu
 fi
 
+
+# Text Formatting
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[1;34m'
+BOLD='\033[1m'
+NORMAL='\033[0m'
+
+# Logging Utilities
+log() { echo -e "$(date +"%Y-%m-%d %H:%M:%S") $1 $2"; }
+info_message() { log "${BLUE}${BOLD}[INFO]${NORMAL}" "$*"; }
+warn_message() { log "${YELLOW}${BOLD}[WARNING]${NORMAL}" "$*"; }
+error_message() { log "${RED}${BOLD}[ERROR]${NORMAL}" "$*"; }
+success_message() { log "${GREEN}${BOLD}[SUCCESS]${NORMAL}" "$*"; }
+print_step_header() { echo -e "${BLUE}${BOLD}[STEP]${NORMAL}" "$1: $2"; }
+
+# Error Handler
+error_exit() {
+    error_message "$1"
+    exit 1
+}
+
 # Command Existence Check
 command_exists() { command -v "$1" >/dev/null 2>&1; }
 
@@ -34,6 +57,83 @@ INTERFACE=""
 LAUNCH_AGENT_FILE="/Library/LaunchDaemons/com.suricata.suricata.plist"
 RULES_URL="https://rules.emergingthreats.net/open/suricata-6.0.8/emerging-all.rules.tar.gz"
 TAR_PATH="/tmp/emerging-all.rules.tar.gz"
+
+# Add options for better user experience
+show_help() {
+    cat <<EOF
+Usage: $0 [OPTIONS]
+
+Options:
+  --help                Show this help message and exit
+  --mode [ids|ips]      Configure Suricata in IDS (default) or IPS mode (Linux only)
+  --interface [name]    Specify the network interface to use (overrides auto-detection)
+  --rules-url [url]     Specify a custom URL for downloading Suricata rules
+  --config-dir [path]   Specify a custom configuration directory for Suricata
+
+Examples:
+  $0 --mode ids
+  $0 --mode ips --interface eth0
+EOF
+}
+
+# Parse command-line arguments
+MODE="ids"
+CUSTOM_INTERFACE=""
+CUSTOM_RULES_URL=""
+CUSTOM_CONFIG_DIR=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --help)
+            show_help
+            exit 0
+            ;;
+        --mode)
+            if [[ "$2" =~ ^(ids|ips)$ ]]; then
+                MODE="$2"
+                shift
+            else
+                error_exit "Invalid mode: $2. Use 'ids' or 'ips'."
+            fi
+            ;;
+        --interface)
+            CUSTOM_INTERFACE="$2"
+            shift
+            ;;
+        --rules-url)
+            CUSTOM_RULES_URL="$2"
+            shift
+            ;;
+        --config-dir)
+            CUSTOM_CONFIG_DIR="$2"
+            shift
+            ;;
+        *)
+            error_exit "Unknown option: $1"
+            ;;
+    esac
+    shift
+done
+
+# Override defaults with user-provided options
+if [[ -n "$CUSTOM_INTERFACE" ]]; then
+    INTERFACE="$CUSTOM_INTERFACE"
+fi
+if [[ -n "$CUSTOM_RULES_URL" ]]; then
+    RULES_URL="$CUSTOM_RULES_URL"
+fi
+if [[ -n "$CUSTOM_CONFIG_DIR" ]]; then
+    CONFIG_DIR="$CUSTOM_CONFIG_DIR"
+    CONFIG_FILE="$CONFIG_DIR/suricata.yaml"
+    RULES_DIR="$CONFIG_DIR/rules"
+fi
+
+# Validate mode
+if [[ "$MODE" == "ips" && "$OS" != "linux" ]]; then
+    error_exit "IPS mode is only supported on Linux systems."
+fi
+
+info_message "Running in $MODE mode."
 
 # OS and Architecture Detection
 case "$(uname)" in
@@ -99,27 +199,6 @@ if [ "$OS" = "linux" ]; then
     fi
 fi
 
-# Text Formatting
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[1;34m'
-BOLD='\033[1m'
-NORMAL='\033[0m'
-
-# Logging Utilities
-log() { echo -e "$(date +"%Y-%m-%d %H:%M:%S") $1 $2"; }
-info_message() { log "${BLUE}${BOLD}[INFO]${NORMAL}" "$*"; }
-warn_message() { log "${YELLOW}${BOLD}[WARNING]${NORMAL}" "$*"; }
-error_message() { log "${RED}${BOLD}[ERROR]${NORMAL}" "$*"; }
-success_message() { log "${GREEN}${BOLD}[SUCCESS]${NORMAL}" "$*"; }
-print_step_header() { echo -e "${BLUE}${BOLD}[STEP]${NORMAL}" "$1: $2"; }
-
-# Error Handler
-error_exit() {
-    error_message "$1"
-    exit 1
-}
 
 # General Utility Functions
 create_file() {
@@ -230,514 +309,93 @@ mask_to_cidr() {
 
 # Download and Extract Rules
 download_rules() {
-    if ! command_exists curl; then
-        error_exit "curl is required to download rules."
+    if ! command_exists suricata-update; then
+        error_exit "suricata-update is required to download and manage rules. Please install it."
     fi
-    maybe_sudo curl -SL --progress-bar "$RULES_URL" -o "$TAR_PATH" || error_exit "Failed to download rules from $RULES_URL"
-    maybe_sudo mkdir -p "$RULES_DIR"
-    maybe_sudo tar -xzf "$TAR_PATH" -C "$RULES_DIR" || error_exit "Failed to extract rules."
-    maybe_sudo rm -f "$TAR_PATH"
-    success_message "Suricata rules downloaded and extracted to $RULES_DIR"
+
+    # Ensure suricata-update sources are updated
+    info_message "Updating suricata-update sources..."
+    maybe_sudo suricata-update update-sources || error_exit "Failed to update suricata-update sources."
+
+    # Enable the et/open source
+    info_message "Enabling et/open source..."
+    maybe_sudo suricata-update enable-source et/open || error_exit "Failed to enable et/open source."
+
+    # If in IPS mode, create drop.conf
+    if [[ "$MODE" == "ips" ]]; then
+        DROP_CONF_PATH="$CONFIG_DIR/drop.conf"
+        info_message "Creating drop.conf for IPS mode at $DROP_CONF_PATH..."
+        maybe_sudo bash -c "cat > $DROP_CONF_PATH" <<EOF
+# Convert specific SID to drop
+#2019401
+# Convert rules matching a pattern
+#re:trojan
+# Convert all rules in a specific group
+group:etn_aggressive
+
+group:malware # Block malware communication
+group:botcc # Block botnet C2 traffic
+group:ciarmy # Block known malicious IPs
+group:trojan # Block trojan activity
+group:compromised # Block traffic to compromised hosts
+group:drop # Block pre-curated malicious IPs
+re:exploit.*client # Block client-side exploits (e.g., browser, PDF)
+EOF
+        success_message "drop.conf created successfully."
+    fi
+
+    # Download and apply rules
+    info_message "Downloading and applying rules using suricata-update..."
+    maybe_sudo suricata-update || error_exit "Failed to download and apply rules."
+    success_message "Suricata rules downloaded and applied successfully."
 }
 
 # Create and Update Suricata Configuration
 update_config() {
-    CONFIG_CONTENT=$(cat <<"EOF"
-%YAML 1.1
----
+    # Get the active network interface
+    detect_wifi_interface
 
-# Suricata configuration file for NIDS with simplified logging
-# Generated by Suricata 6.0.20, tailored for minimal logs
-suricata-version: "6.0"
+    # Replace the default eth0 value in the CONFIG_FILE with the active interface
+    sed_alternative -i "s|interface: eth0|interface: $INTERFACE|" "$CONFIG_FILE" || error_exit "Failed to set active interface in $CONFIG_FILE"
 
-##
-## Step 1: Inform Suricata about your network
-##
+    # Replace the value of community-id: from false to true
+    sed_alternative -i "s|community-id: false|community-id: true|" "$CONFIG_FILE" || error_exit "Failed to enable community-id in $CONFIG_FILE"
 
-vars:
-  address-groups:
-    HOME_NET: "[HOME_NET]"
-    EXTERNAL_NET: "!\$HOME_NET"
-    HTTP_SERVERS: "\$HOME_NET"
-    SMTP_SERVERS: "\$HOME_NET"
-    SQL_SERVERS: "\$HOME_NET"
-    DNS_SERVERS: "\$HOME_NET"
-    TELNET_SERVERS: "\$HOME_NET"
-    AIM_SERVERS: "\$EXTERNAL_NET"
-    DC_SERVERS: "\$HOME_NET"
-    DNP3_SERVER: "\$HOME_NET"
-    DNP3_CLIENT: "\$HOME_NET"
-    MODBUS_CLIENT: "\$HOME_NET"
-    MODBUS_SERVER: "\$HOME_NET"
-    ENIP_CLIENT: "\$HOME_NET"
-    ENIP_SERVER: "\$HOME_NET"
+    # Replace rule-files configuration
+    sed_alternative -i "s|rule-files:\n  - suricata.rules|rule-files:\n  - \"*.rules\"|" "$CONFIG_FILE" || error_exit "Failed to update rule-files configuration in $CONFIG_FILE"
 
-  port-groups:
-    HTTP_PORTS: "80"
-    SHELLCODE_PORTS: "!80"
-    ORACLE_PORTS: 1521
-    SSH_PORTS: 22
-    DNP3_PORTS: 20000
-    MODBUS_PORTS: 502
-    FILE_DATA_PORTS: "[\$HTTP_PORTS,110,143]"
-    FTP_PORTS: 21
-    GENEVE_PORTS: 6081
-    VXLAN_PORTS: 4789
-    TEREDO_PORTS: 3544
+    # Update stats configuration to set enabled to no
+    sed_alternative -i "s|stats:\n  enabled: yes|stats:\n  enabled: no|" "$CONFIG_FILE" || error_exit "Failed to disable stats in $CONFIG_FILE"
 
-##
-## Step 2: Select outputs to enable
-##
+    # Add detect-engine configuration at the end of the CONFIG_FILE if not already present
+    if ! grep -q "detect-engine:" "$CONFIG_FILE"; then
+      echo -e "\ndetect-engine:\n  - rule-reload: true" | maybe_sudo tee -a "$CONFIG_FILE" > /dev/null || error_exit "Failed to append detect-engine configuration to $CONFIG_FILE"
+    fi
 
-default-log-dir: [LOG_DIR]
+    # Additional configurations for IPS mode
+    if [[ "$MODE" == "ips" ]]; then
+        # Replace LISTENMODE=af-packet with LISTENMODE=nfqueue in /etc/default/suricata
+        SURICATA_DEFAULT_FILE="/etc/default/suricata"
+        if [[ -f "$SURICATA_DEFAULT_FILE" ]]; then
+            sed_alternative -i "s|LISTENMODE=af-packet|LISTENMODE=nfqueue|" "$SURICATA_DEFAULT_FILE" || error_exit "Failed to set LISTENMODE to nfqueue in $SURICATA_DEFAULT_FILE"
+        else
+            warn_message "$SURICATA_DEFAULT_FILE not found. Skipping LISTENMODE update."
+        fi
 
-# Global stats configuration
-stats:
-  enabled: yes
-  interval: 21600  # Log stats every 6 hours to reduce verbosity
-
-# Configure outputs for simplified logging
-outputs:
-  # Fast log for concise, human-readable alerts
-  - fast:
-      enabled: yes
-      filename: fast.log
-      append: yes
-
-  # EVE JSON log with only alert and anomaly events for simplicity
-  - eve-log:
-      enabled: yes
-      filetype: regular
-      filename: eve.json
-      pcap-file: false
-      community-id: false
-      community-id-seed: 0
-      xff:
-        enabled: no
-        mode: extra-data
-        deployment: reverse
-        header: X-Forwarded-For
-      types:
-        - alert
-        - anomaly
-
-  # Stats log for troubleshooting, separate from eve.json
-  - stats:
-      enabled: yes
-      filename: stats.log
-      append: yes
-      totals: yes
-      threads: no
-
-  # Disable other outputs to reduce disk I/O
-  - http-log:
-      enabled: no
-      filename: http.log
-      append: yes
-  - tls-log:
-      enabled: no
-      filename: tls.log
-      append: yes
-  - tls-store:
-      enabled: no
-  - pcap-log:
-      enabled: no
-      filename: log.pcap
-      limit: 1000mb
-      max-files: 2000
-      compression: none
-      mode: normal
-      use-stream-depth: no
-      honor-pass-rules: no
-  - alert-debug:
-      enabled: no
-      filename: alert-debug.log
-      append: yes
-  - alert-prelude:
-      enabled: no
-      profile: suricata
-      log-packet-content: no
-      log-packet-header: yes
-  - syslog:
-      enabled: no
-      facility: local5
-  - file-store:
-      version: 2
-      enabled: no
-  - tcp-data:
-      enabled: no
-      type: file
-      filename: tcp-data.log
-  - http-body-data:
-      enabled: no
-      type: file
-      filename: http-data.log
-  - lua:
-      enabled: no
-      scripts:
-
-# Logging configuration for Suricata operations
-logging:
-  default-log-level: notice
-  outputs:
-  - console:
-      enabled: yes
-  - file:
-      enabled: yes
-      level: info
-      filename: suricata.log
-  - syslog:
-      enabled: no
-      facility: local5
-      format: "[%i] <%d> -- "
-
-##
-## Step 3: Configure capture settings
-##
-
-# Linux high-speed capture support
-af-packet:
-  - interface: [INTERFACE]
-    cluster-id: 99
-    cluster-type: cluster_flow
-    defrag: yes
-  - interface: default
-
-# Cross-platform libpcap capture support
-pcap:
-  - interface: [INTERFACE]
-  - interface: default
-
-pcap-file:
-  checksum-checks: auto
-
-##
-## Step 4: App Layer Protocol configuration
-##
-
-app-layer:
-  protocols:
-    rfb:
-      enabled: yes
-      detection-ports:
-        dp: 5900, 5901, 5902, 5903, 5904, 5905, 5906, 5907, 5908, 5909
-    mqtt:
-      enabled: yes
-    krb5:
-      enabled: yes
-    snmp:
-      enabled: yes
-    ikev2:
-      enabled: yes
-    tls:
-      enabled: yes
-      detection-ports:
-        dp: 443
-    dcerpc:
-      enabled: yes
-    ftp:
-      enabled: yes
-    rdp:
-      enabled: yes
-    ssh:
-      enabled: yes
-    http2:
-      enabled: no
-      http1-rules: no
-    smtp:
-      enabled: yes
-      raw-extraction: no
-      mime:
-        decode-mime: yes
-        decode-base64: yes
-        decode-quoted-printable: yes
-        header-value-depth: 2000
-        extract-urls: yes
-        body-md5: no
-      inspected-tracker:
-        content-limit: 100000
-        content-inspect-min-size: 32768
-        content-inspect-window: 4096
-    imap:
-      enabled: detection-only
-    smb:
-      enabled: yes
-      detection-ports:
-        dp: 139, 445
-    nfs:
-      enabled: yes
-    tftp:
-      enabled: yes
-    dns:
-      tcp:
-        enabled: yes
-        detection-ports:
-          dp: 53
-      udp:
-        enabled: yes
-        detection-ports:
-          dp: 53
-    http:
-      enabled: yes
-      libhtp:
-        default-config:
-          personality: IDS
-          request-body-limit: 100kb
-          response-body-limit: 100kb
-          request-body-minimal-inspect-size: 32kb
-          request-body-inspect-window: 4kb
-          response-body-minimal-inspect-size: 40kb
-          response-body-inspect-window: 16kb
-          response-body-decompress-layer-limit: 2
-          http-body-inline: auto
-          swf-decompression:
-            enabled: yes
-            type: both
-            compress-depth: 100kb
-            decompress-depth: 100kb
-        server-config:
-    modbus:
-      enabled: no
-      detection-ports:
-        dp: 502
-      stream-depth: 0
-    dnp3:
-      enabled: no
-      detection-ports:
-        dp: 20000
-    enip:
-      enabled: no
-      detection-ports:
-        dp: 44818
-        sp: 44818
-    ntp:
-      enabled: yes
-    dhcp:
-      enabled: yes
-    sip:
-      enabled: yes
-
-asn1-max-frames: 256
-
-datasets:
-  defaults:
-  rules:
-
-##
-## Advanced settings
-##
-
-security:
-  lua:
-host-mode: sniffer-only  # NIDS mode, no packet modification
-unix-command:
-  enabled: auto
-legacy:
-  uricontent: enabled
-
-engine-analysis:
-  rules-fast-pattern: yes
-  rules: yes
-pcre:
-  match-limit: 3500
-  match-limit-recursion: 1500
-
-host-os-policy:
-  windows: [0.0.0.0/0]
-  bsd: []
-  bsd-right: []
-  old-linux: []
-  linux: []
-  old-solaris: []
-  solaris: []
-  hpux10: []
-  hpux11: []
-  irix: []
-  macos: []
-  vista: []
-  windows2k3: []
-defrag:
-  memcap: 32mb
-  hash-size: 65536
-  trackers: 65535
-  max-frags: 65535
-  prealloc: yes
-  timeout: 60
-flow:
-  memcap: 128mb
-  hash-size: 65536
-  prealloc: 10000
-  emergency-recovery: 30
-vlan:
-  use-for-tracking: true
-flow-timeouts:
-  default:
-    new: 30
-    established: 300
-    closed: 0
-    bypassed: 100
-    emergency-new: 10
-    emergency-established: 100
-    emergency-closed: 0
-    emergency-bypassed: 50
-  tcp:
-    new: 60
-    established: 600
-    closed: 60
-    bypassed: 100
-    emergency-new: 5
-    emergency-established: 100
-    emergency-closed: 10
-    emergency-bypassed: 50
-  udp:
-    new: 30
-    established: 300
-    bypassed: 100
-    emergency-new: 10
-    emergency-established: 100
-    emergency-bypassed: 50
-  icmp:
-    new: 30
-    established: 300
-    bypassed: 100
-    emergency-new: 10
-    emergency-established: 100
-    emergency-bypassed: 50
-stream:
-  memcap: 64mb
-  checksum-validation: yes
-  inline: no  # Disabled for NIDS
-  reassembly:
-    memcap: 256mb
-    depth: 1mb
-    toserver-chunk-size: 2560
-    toclient-chunk-size: 2560
-    randomize-chunk-size: yes
-host:
-  hash-size: 4096
-  prealloc: 1000
-  memcap: 32mb
-decoder:
-  teredo:
-    enabled: true
-    ports: \$TEREDO_PORTS
-  vxlan:
-    enabled: true
-    ports: \$VXLAN_PORTS
-  vntag:
-    enabled: false
-  geneve:
-    enabled: true
-    ports: \$GENEVE_PORTS
-
-detect:
-  profile: medium
-  custom-values:
-    toclient-groups: 3
-    toserver-groups: 25
-  sgh-mpm-context: auto
-  inspection-recursion-limit: 3000
-  prefilter:
-    default: mpm
-  profiling:
-    grouping:
-      dump-to-disk: false
-      include-rules: false
-      include-mpm-stats: false
-mpm-algo: auto
-spm-algo: auto
-threading:
-  set-cpu-affinity: no
-  cpu-affinity:
-    - management-cpu-set:
-        cpu: [ 0 ]
-    - receive-cpu-set:
-        cpu: [ 0 ]
-    - worker-cpu-set:
-        cpu: [ "all" ]
-        mode: "exclusive"
-        prio:
-          low: [ 0 ]
-          medium: [ "1-2" ]
-          high: [ 3 ]
-          default: "medium"
-  detect-thread-ratio: 1.0
-luajit:
-  states: 128
-profiling:
-  rules:
-    enabled: yes
-    filename: rule_perf.log
-    append: yes
-    limit: 10
-    json: yes
-  keywords:
-    enabled: yes
-    filename: keyword_perf.log
-    append: yes
-  prefilter:
-    enabled: yes
-    filename: prefilter_perf.log
-    append: yes
-  rulegroups:
-    enabled: yes
-    filename: rule_group_perf.log
-    append: yes
-  packets:
-    enabled: yes
-    filename: packet_stats.log
-    append: yes
-    csv:
-      enabled: no
-      filename: packet_stats.csv
-  locks:
-    enabled: no
-    filename: lock_stats.log
-    append: yes
-  pcap-log:
-    enabled: no
-    filename: pcaplog_stats.log
-    append: yes
-
-nflog:
-  - group: 2
-    buffer-size: 18432
-  - group: default
-    qthreshold: 1
-    qtimeout: 100
-    max-size: 20000
-
-capture:
-netmap:
- - interface: default
-pfring:
-  - interface: default
-ipfw:
-napatech:
-    streams: ["0-3"]
-    enable-stream-stats: no
-    auto-config: yes
-    hardware-bypass: yes
-    inline: no
-    ports: [0-1,2-3]
-    hashmode: hash5tuplesorted
-
-# Rule configuration
-default-rule-path: [RULES_DIR]
-rule-files:
-- "*.rules"
-classification-file: [CONFIG_DIR]/classification.config
-reference-config-file: [CONFIG_DIR]/reference.config
+        # Add extra config to /etc/ufw/before.rules
+        UFW_BEFORE_RULES="/etc/ufw/before.rules"
+        if [[ -f "$UFW_BEFORE_RULES" ]]; then
+            maybe_sudo bash -c "cat >> $UFW_BEFORE_RULES" <<EOF
+-I INPUT -j NFQUEUE
+-I OUTPUT -j NFQUEUE
 EOF
-)
-    create_file "$CONFIG_FILE" "$CONFIG_CONTENT"
-    # Replace [HOME_NET] and [INTERFACE] in the file
-    sed_alternative -i "s|\[LOG_DIR\]|${LOG_DIR}|g" "$CONFIG_FILE" || error_exit "Failed to set LOG_DIR: "$LOG_DIR" in $CONFIG_FILE"
-    sed_alternative -i "s|\[HOME_NET\]|${HOME_NET}|g" "$CONFIG_FILE" || error_exit "Failed to set HOME_NET: "$HOME_NET" in $CONFIG_FILE"
-    sed_alternative -i "s|\[INTERFACE\]|${INTERFACE}|g" "$CONFIG_FILE" || error_exit "Failed to set INTERFACE: "$INTERFACE" in $CONFIG_FILE"
-    sed_alternative -i "s|\[RULES_DIR\]|${RULES_DIR}|g" "$CONFIG_FILE" || error_exit "Failed to set RULES_DIR: "$RULES_DIR" in $CONFIG_FILE"
-    sed_alternative -i "s|\[CONFIG_DIR\]|${CONFIG_DIR}|g" "$CONFIG_FILE" || error_exit "Failed to set CONFIG_DIR: "$CONFIG_DIR" in $CONFIG_FILE"
-    success_message "Suricata configuration created and updated: $CONFIG_FILE"
+            success_message "Added NFQUEUE rules to $UFW_BEFORE_RULES."
+        else
+            warn_message "$UFW_BEFORE_RULES not found. Skipping NFQUEUE rules addition."
+        fi
+    fi
+
+    success_message "Configuration updated successfully."
 }
 
 # Installation Process
@@ -760,17 +418,14 @@ fi
 elif [ "$OS" = "darwin" ]; then
     info_message "Installing Suricata via Homebrew..."
     brew install suricata
-    SURICATA_BIN=$(command -v suricata || echo "/usr/local/bin/suricata")
+    SURICATA_BIN=$(command -v suricata || echo "$BIN_FOLDER/bin/suricata")
     success_message "Suricata installed at: $SURICATA_BIN"
 fi
-
-detect_wifi_interface
-get_home_net
 
 print_step_header 2 "Downloading Suricata rules"
 download_rules
 
-print_step_header 3 "Creating and updating Suricata configuration"
+print_step_header 3 "Creating and updating Suricata configuration for $MODE mode"
 update_config
 
 if [ "$OS" = "linux" ]; then
