@@ -50,6 +50,18 @@ sed_alternative() {
     fi
 }
 
+yq_alternative() {
+  case "$(uname)" in
+    Linux)
+        maybe_sudo yq eval -i "$@"
+        ;;
+    Darwin)
+        maybe_sudo yq -i "$@"
+        ;;
+    *) error_exit "Unsupported operating system: $(uname)" ;;
+  esac
+}
+
 # Environment Variables
 SURICATA_USER=${SURICATA_USER:-"root"}
 CONFIG_FILE=""
@@ -66,9 +78,6 @@ Usage: $0 [OPTIONS]
 Options:
   --help                Show this help message and exit
   --mode [ids|ips]      Configure Suricata in IDS (default) or IPS mode (Linux only)
-  --interface [name]    Specify the network interface to use (overrides auto-detection)
-  --rules-url [url]     Specify a custom URL for downloading Suricata rules
-  --config-dir [path]   Specify a custom configuration directory for Suricata
 
 Examples:
   $0 --mode ids
@@ -78,9 +87,6 @@ EOF
 
 # Parse command-line arguments
 MODE="ids"
-CUSTOM_INTERFACE=""
-CUSTOM_RULES_URL=""
-CUSTOM_CONFIG_DIR=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -96,18 +102,6 @@ while [[ $# -gt 0 ]]; do
                 error_exit "Invalid mode: $2. Use 'ids' or 'ips'."
             fi
             ;;
-        --interface)
-            CUSTOM_INTERFACE="$2"
-            shift
-            ;;
-        --rules-url)
-            CUSTOM_RULES_URL="$2"
-            shift
-            ;;
-        --config-dir)
-            CUSTOM_CONFIG_DIR="$2"
-            shift
-            ;;
         *)
             error_exit "Unknown option: $1"
             ;;
@@ -115,25 +109,11 @@ while [[ $# -gt 0 ]]; do
     shift
 done
 
-# Override defaults with user-provided options
-if [[ -n "$CUSTOM_INTERFACE" ]]; then
-    INTERFACE="$CUSTOM_INTERFACE"
-fi
-if [[ -n "$CUSTOM_RULES_URL" ]]; then
-    RULES_URL="$CUSTOM_RULES_URL"
-fi
-if [[ -n "$CUSTOM_CONFIG_DIR" ]]; then
-    CONFIG_DIR="$CUSTOM_CONFIG_DIR"
-    CONFIG_FILE="$CONFIG_DIR/suricata.yaml"
-    RULES_DIR="$CONFIG_DIR/rules"
-fi
 
 # Validate mode
 if [[ "$MODE" == "ips" && "$OS" != "linux" ]]; then
     error_exit "IPS mode is only supported on Linux systems."
 fi
-
-info_message "Running in $MODE mode."
 
 # OS and Architecture Detection
 case "$(uname)" in
@@ -361,16 +341,13 @@ update_config() {
     # Replace the value of community-id: from false to true
     sed_alternative -i "s|community-id: false|community-id: true|" "$CONFIG_FILE" || error_exit "Failed to enable community-id in $CONFIG_FILE"
 
-    # Replace rule-files configuration
-    sed_alternative -i "s|rule-files:\n  - suricata.rules|rule-files:\n  - \"*.rules\"|" "$CONFIG_FILE" || error_exit "Failed to update rule-files configuration in $CONFIG_FILE"
-
-    # Update stats configuration to set enabled to no
-    sed_alternative -i "s|stats:\n  enabled: yes|stats:\n  enabled: no|" "$CONFIG_FILE" || error_exit "Failed to disable stats in $CONFIG_FILE"
-
     # Add detect-engine configuration at the end of the CONFIG_FILE if not already present
     if ! grep -q "detect-engine:" "$CONFIG_FILE"; then
       echo -e "\ndetect-engine:\n  - rule-reload: true" | maybe_sudo tee -a "$CONFIG_FILE" > /dev/null || error_exit "Failed to append detect-engine configuration to $CONFIG_FILE"
     fi
+
+    # Use yq command to update eve-log types
+    maybe_sudo yq_alternative '(.outputs[] | select(has("eve-log"))."eve-log".types) = ["alert", "anomaly"]' "$CONFIG_FILE" || error_exit "Failed to update eve-log types in $CONFIG_FILE"
 
     # Additional configurations for IPS mode
     if [[ "$MODE" == "ips" ]]; then
@@ -410,14 +387,14 @@ if [ "$OS" = "linux" ]; then
         else
             info_message "Suricata repository already added, updating package lists..."
         fi
-        info_message "Installing Suricata..."
-        maybe_sudo $PACKAGE_MANAGER $INSTALL_CMD suricata
+        info_message "Installing Suricata and yq..."
+        maybe_sudo $PACKAGE_MANAGER $INSTALL_CMD suricata yq
         SURICATA_BIN=$(command -v suricata || echo "/usr/bin/suricata")
         success_message "Suricata installed at: $SURICATA_BIN"
 fi
 elif [ "$OS" = "darwin" ]; then
-    info_message "Installing Suricata via Homebrew..."
-    brew install suricata
+    info_message "Installing Suricata and yq via Homebrew..."
+    brew install suricata yq
     SURICATA_BIN=$(command -v suricata || echo "$BIN_FOLDER/bin/suricata")
     success_message "Suricata installed at: $SURICATA_BIN"
 fi
