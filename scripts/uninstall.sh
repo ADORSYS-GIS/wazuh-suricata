@@ -87,7 +87,7 @@ fi
 if command_exists yq; then
     info_message "Uninstalling yq..."
     if [ "$OS" = "linux" ]; then
-        maybe_sudo rm -f /usr/local/bin/yq || warn_message "Failed to uninstall yq."
+        maybe_sudo rm -f /usr/bin/yq || warn_message "Failed to uninstall yq."
     elif [ "$OS" = "darwin" ]; then
         brew uninstall yq || warn_message "Failed to uninstall yq."
     fi
