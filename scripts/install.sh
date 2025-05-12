@@ -50,25 +50,12 @@ sed_alternative() {
     fi
 }
 
-yq_alternative() {
-  case "$(uname)" in
-    Linux)
-        maybe_sudo yq eval -i "$@"
-        ;;
-    Darwin)
-        maybe_sudo yq -i "$@"
-        ;;
-    *) error_exit "Unsupported operating system: $(uname)" ;;
-  esac
-}
-
 # Environment Variables
 SURICATA_USER=${SURICATA_USER:-"root"}
 CONFIG_FILE=""
 INTERFACE=""
 LAUNCH_AGENT_FILE="/Library/LaunchDaemons/com.suricata.suricata.plist"
-RULES_URL="https://rules.emergingthreats.net/open/suricata-6.0.8/emerging-all.rules.tar.gz"
-TAR_PATH="/tmp/emerging-all.rules.tar.gz"
+
 
 # Add options for better user experience
 show_help() {
@@ -143,6 +130,9 @@ x86_64) ARCH="amd64" ;;
 arm64 | aarch64) ARCH="arm64" ;;
 *) error_exit "Unsupported architecture: $ARCH" ;;
 esac
+
+YQ_VERSION=${YQ_VERSION:-"4.45.3"}
+YQ_BINARY=${YQ_BINARY:-"yq_${OS}_${ARCH}"}
 
 # Detect Linux Distribution
 if [ "$OS" = "linux" ]; then
@@ -252,41 +242,6 @@ detect_wifi_interface() {
     info_message "Detected interface: $INTERFACE"
 }
 
-# Get HOME_NET
-get_home_net() {
-    if command_exists ip; then
-        HOME_NET=$(ip addr show ${INTERFACE} | grep -o "inet [0-9./]*" | awk '{print $2}' | head -n1) || HOME_NET=""
-    elif command_exists ifconfig; then
-        IP=$(ifconfig ${INTERFACE} | grep -o "inet [0-9.]*" | awk '{print $2}' | head -n1) || IP=""
-        MASK=$(ifconfig ${INTERFACE} | grep -o "netmask [0-9.]*" | awk '{print $2}' | head -n1) || MASK=""
-        if [ ! -z "$MASK" ]; then
-            HOME_NET="$IP/$(mask_to_cidr ${MASK})"
-        fi
-    else
-        HOME_NET=""
-    fi
-
-    if [ -z "$HOME_NET" ]; then
-        HOME_NET="192.168.1.0/24" # Default fallback
-        warn_message "Could not determine HOME_NET. Using default: $HOME_NET"
-    fi
-    info_message "HOME_NET set to: $HOME_NET"
-}
-
-# Convert netmask to CIDR
-mask_to_cidr() {
-    local mask="$1"
-    local cidr=0
-    IFS='.' read -r a b c d <<< "$mask"
-    for octet in $a $b $c $d; do
-        while [ $octet -gt 0 ]; do
-            cidr=$((cidr + (octet % 2)))
-            octet=$((octet / 2))
-        done
-    done
-    echo "$cidr"
-}
-
 # Download and Extract Rules
 download_rules() {
     if ! command_exists suricata-update; then
@@ -347,7 +302,7 @@ update_config() {
     fi
 
     # Use yq command to update eve-log types
-    yq_alternative '(.outputs[] | select(has("eve-log"))."eve-log".types) = ["alert", "anomaly"]' "$CONFIG_FILE" || error_exit "Failed to update eve-log types in $CONFIG_FILE"
+    maybe_sudo yq -i '(.outputs[] | select(has("eve-log"))."eve-log".types) = ["alert"]' "$CONFIG_FILE" || error_exit "Failed to update eve-log types in $CONFIG_FILE"
 
     # Additional configurations for IPS mode
     if [[ "$MODE" == "ips" ]]; then
@@ -387,8 +342,16 @@ if [ "$OS" = "linux" ]; then
         else
             info_message "Suricata repository already added, updating package lists..."
         fi
-        info_message "Installing Suricata and yq..."
-        maybe_sudo $PACKAGE_MANAGER $INSTALL_CMD suricata yq
+        if command_exists yq; then
+            info_message "yq is already installed."
+        else
+            info_message "Installing yq..."
+            maybe_sudo curl -SL --progress-bar https://github.com/mikefarah/yq/releases/latest/download/${YQ_BINARY} -o /usr/local/bin/yq
+            maybe_sudo chmod +x /usr/local/bin/yq
+            info_message "yq installed at: /usr/local/bin/yq"
+        fi
+        info_message "Installing Suricata..."
+        maybe_sudo $PACKAGE_MANAGER $INSTALL_CMD suricata
         SURICATA_BIN=$(command -v suricata || echo "/usr/bin/suricata")
         success_message "Suricata installed at: $SURICATA_BIN"
 fi

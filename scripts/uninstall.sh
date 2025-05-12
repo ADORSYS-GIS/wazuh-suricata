@@ -47,13 +47,15 @@ case "$(uname)" in
 Linux)
     OS="linux"
     CONFIG_DIR="/etc/suricata"
+    RULES_DIR="/var/lib/suricata"
     LOG_DIR="/var/log/suricata"
+    USR_LIB_DIR="/usr/lib/suricata"
     ;;
 Darwin)
     OS="darwin"
     BREW_PREFIX=$(brew --prefix)
     CONFIG_DIR="$BREW_PREFIX/etc/suricata"
-    LOG_DIR="$BREW_PREFIX/var/log/suricata"
+    LOG_DIR="$BREW_PREFIX/var/lib/suricata"
     LAUNCH_AGENT_FILE="/Library/LaunchDaemons/com.suricata.suricata.plist"
     ;;
 *)
@@ -66,7 +68,7 @@ info_message "Starting Suricata uninstallation process..."
 
 # Stop Suricata service
 if [ "$OS" = "linux" ]; then
-    if command_exists systemctl; then
+    if command_exists suricata && command_exists systemctl; then
         info_message "Stopping Suricata service..."
         maybe_sudo systemctl stop suricata || warn_message "Failed to stop Suricata service."
         maybe_sudo systemctl disable suricata || warn_message "Failed to disable Suricata service."
@@ -79,28 +81,58 @@ elif [ "$OS" = "darwin" ]; then
     fi
 fi
 
-# Uninstall Suricata using package managers
-info_message "Uninstalling Suricata using the package manager..."
-if [ "$OS" = "linux" ]; then
-    if command_exists apt-get; then
-        maybe_sudo apt-get remove --purge -y suricata || warn_message "Failed to uninstall Suricata using apt-get."
-    elif command_exists yum; then
-        maybe_sudo yum remove -y suricata || warn_message "Failed to uninstall Suricata using yum."
-    else
-        warn_message "No supported package manager found. Skipping Suricata uninstallation."
+#Uninstall yq if installed
+if command_exists yq; then
+    info_message "Uninstalling yq..."
+    if [ "$OS" = "linux" ]; then
+        maybe_sudo rm -f /usr/local/bin/yq || warn_message "Failed to uninstall yq."
+    elif [ "$OS" = "darwin" ]; then
+        brew uninstall yq || warn_message "Failed to uninstall yq."
     fi
-elif [ "$OS" = "darwin" ]; then
-    if command_exists brew; then
-        brew uninstall suricata || warn_message "Failed to uninstall Suricata using Homebrew."
-    fi
+else
+    info_message "yq is not installed. Skipping uninstallation."
 fi
 
-# Delete Suricata configuration folder after uninstallation
-info_message "Removing Suricata configuration folder..."
-maybe_sudo rm -rf "$CONFIG_DIR" || warn_message "Failed to remove Suricata configuration folder."
+# Uninstall Suricata using package managers
 
-# Remove logs
-info_message "Removing Suricata logs..."
-maybe_sudo rm -rf "$LOG_DIR" || warn_message "Failed to remove logs."
+if command_exists suricata; then
+    info_message "Uninstalling Suricata using the package manager..."
+    if [ "$OS" = "linux" ]; then
+        if command_exists apt; then
+            maybe_sudo apt remove --purge -y suricata || warn_message "Failed to uninstall Suricata using apt-get."
+        elif command_exists yum; then
+            maybe_sudo yum remove -y suricata || warn_message "Failed to uninstall Suricata using yum."
+        else
+            warn_message "No supported package manager found. Skipping Suricata uninstallation."
+        fi
+    elif [ "$OS" = "darwin" ]; then
+        brew uninstall suricata || warn_message "Failed to uninstall Suricata using Homebrew."
+    fi
+else
+    info_message "Suricata is not installed. Skipping uninstallation."
+fi
+
+
+# Delete Suricata configuration folder after uninstallation
+
+if [ -d "$CONFIG_DIR" ]; then
+    info_message "Removing Suricata configuration folder..."
+    maybe_sudo rm -rf "$CONFIG_DIR" || warn_message "Failed to remove Suricata configuration folder."
+fi
+
+if [ -d "$LOG_DIR" ]; then
+    info_message "Removing Suricata log folder..."
+    maybe_sudo rm -rf "$LOG_DIR" || warn_message "Failed to remove Suricata log folder."
+fi
+
+if [ -d "$RULES_DIR" ]; then
+    info_message "Removing Suricata rules folder..."
+    maybe_sudo rm -rf "$RULES_DIR" || warn_message "Failed to remove Suricata rules folder."
+fi
+
+if [ -d "$USR_LIB_DIR" ]; then
+    info_message "Removing Suricata lib folder..."
+    maybe_sudo rm -rf "$USR_LIB_DIR" || warn_message "Failed to remove Suricata rules folder."
+fi
 
 success_message "Suricata uninstallation process completed successfully."
