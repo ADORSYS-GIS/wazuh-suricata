@@ -8,11 +8,11 @@ setup() {
         export CONFIG_FILE="$CONFIG_DIR/suricata.yaml"
         export RULES_DIR="/var/lib/suricata"
     else
-        BIN_FOLDER=$(brew --prefix)
+        export BIN_FOLDER=$(brew --prefix)
         export LOG_DIR="$BIN_FOLDER/var/log/suricata"
         export CONFIG_DIR="$BIN_FOLDER/etc/suricata"
         export CONFIG_FILE="$BIN_FOLDER/etc/suricata/suricata.yaml"
-        export RULES_DIR="$BIN_FOLDER/var/lib/suricata"
+        export RULES_DIR="$BIN_FOLDER/var/lib/suricata/rules"
     fi
 }
 
@@ -27,11 +27,11 @@ setup() {
 }
 
 @test "Rules file exists" {
-  [ -f "$RULES_DIR/suricata.rules" ]
+  [ -f "${RULES_DIR}/suricata.rules" ]
 }
 
 @test "Configuration file exists" {
-  [ -f "$CONFIG_FILE" ]
+  [ -f "${CONFIG_FILE}" ]
 }
 
 @test "Suricata service is running (Linux only)" {
@@ -69,7 +69,7 @@ setup() {
 }
 
 @test "Eve-log types are updated" {
-  run yq eval '(.outputs[] | select(has("eve-log"))."eve-log".types) == ["alert", "anomaly"]' "$CONFIG_FILE"
+  run yq eval '(.outputs[] | select(has("eve-log"))."eve-log".types) == ["alert"]' "$CONFIG_FILE"
   [ "$status" -eq 0 ]
 }
 

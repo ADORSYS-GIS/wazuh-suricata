@@ -106,19 +106,15 @@ fi
 case "$(uname)" in
 Linux)
     OS="linux"
-    LOG_DIR="/var/log/suricata"
     CONFIG_DIR="/etc/suricata"
     CONFIG_FILE="$CONFIG_DIR/suricata.yaml"
-    RULES_DIR="/etc/suricata/rules"
     INTERFACE="wlp0s20f3"
     ;;
 Darwin)
     OS="darwin"
     BIN_FOLDER=$(brew --prefix)
-    LOG_DIR="$BIN_FOLDER/var/log/suricata"
     CONFIG_DIR="$BIN_FOLDER/etc/suricata"
     CONFIG_FILE="$BIN_FOLDER/etc/suricata/suricata.yaml"
-    RULES_DIR="$BIN_FOLDER/etc/suricata/rules"
     INTERFACE="en0"
     ;;
 *) error_exit "Unsupported operating system: $(uname)" ;;
