@@ -47,15 +47,17 @@ case "$(uname)" in
 Linux)
     OS="linux"
     CONFIG_DIR="/etc/suricata"
-    RULES_DIR="/var/lib/suricata"
     LOG_DIR="/var/log/suricata"
+    RULES_DIR="/var/lib/suricata"
     USR_LIB_DIR="/usr/lib/suricata"
     ;;
 Darwin)
     OS="darwin"
     BREW_PREFIX=$(brew --prefix)
     CONFIG_DIR="$BREW_PREFIX/etc/suricata"
-    LOG_DIR="$BREW_PREFIX/var/lib/suricata"
+    LOG_DIR="$BREW_PREFIX/var/log/suricata"
+    RULES_DIR="$BREW_PREFIX/var/lib/suricata/rules"
+    USR_LIB_DIR="$BREW_PREFIX/usr/lib/suricata"
     LAUNCH_AGENT_FILE="/Library/LaunchDaemons/com.suricata.suricata.plist"
     ;;
 *)
