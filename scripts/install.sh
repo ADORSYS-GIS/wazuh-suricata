@@ -68,7 +68,7 @@ Options:
 
 Examples:
   $0 --mode ids
-  $0 --mode ips --interface eth0
+  $0 --mode ips
 EOF
 }
 
@@ -127,7 +127,6 @@ arm64 | aarch64) ARCH="arm64" ;;
 *) error_exit "Unsupported architecture: $ARCH" ;;
 esac
 
-YQ_VERSION=${YQ_VERSION:-"4.45.3"}
 YQ_BINARY=${YQ_BINARY:-"yq_${OS}_${ARCH}"}
 
 # Detect Linux Distribution
@@ -342,9 +341,9 @@ if [ "$OS" = "linux" ]; then
             info_message "yq is already installed."
         else
             info_message "Installing yq..."
-            maybe_sudo curl -SL --progress-bar https://github.com/mikefarah/yq/releases/latest/download/${YQ_BINARY} -o /usr/local/bin/yq
-            maybe_sudo chmod +x /usr/local/bin/yq
-            info_message "yq installed at: /usr/local/bin/yq"
+            maybe_sudo curl -SL --progress-bar https://github.com/mikefarah/yq/releases/latest/download/${YQ_BINARY} -o /usr/bin/yq
+            maybe_sudo chmod +x /usr/bin/yq
+            info_message "yq installed at: /usr/bin/yq"
         fi
         info_message "Installing Suricata..."
         maybe_sudo $PACKAGE_MANAGER $INSTALL_CMD suricata
