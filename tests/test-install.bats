@@ -84,10 +84,14 @@ setup() {
 }
 
 @test "Drop.conf has necessary config" {
-  run grep -q "group:emerging-attack_response" "$CONFIG_DIR/drop.conf"
-  [ "$status" -eq 0 ]
+  if [ "$MODE" = "ips" ]; then
+      run grep -q "group:emerging-attack_response" "$CONFIG_DIR/drop.conf"
+      [ "$status" -eq 0 ]
+  else
+      skip "This test is specific to IPS mode."
+  fi
+  
 }
-
 
 @test "LISTENMODE is set to nfqueue in IPS mode" {
     if [ "$MODE" = "ips" ]; then
