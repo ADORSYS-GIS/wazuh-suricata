@@ -42,6 +42,14 @@ maybe_sudo() {
     fi
 }
 
+sed_alternative() {
+    if command_exists gsed; then
+        maybe_sudo gsed "$@"
+    else
+        maybe_sudo sed "$@"
+    fi
+}
+
 # OS Detection
 case "$(uname)" in
 Linux)
@@ -50,6 +58,9 @@ Linux)
     LOG_DIR="/var/log/suricata"
     RULES_DIR="/var/lib/suricata"
     USR_LIB_DIR="/usr/lib/suricata"
+    SURICATA_DEFAULT_FILE="/etc/default/suricata"
+    UFW_DEFAULT_FILE="/etc/default/ufw"
+    UFW_BEFORE_RULES="/etc/ufw/before.rules"
     ;;
 Darwin)
     OS="darwin"
@@ -114,7 +125,6 @@ else
     info_message "Suricata is not installed. Skipping uninstallation."
 fi
 
-
 # Delete Suricata configuration folder after uninstallation
 
 if [ -d "$CONFIG_DIR" ]; then
@@ -135,6 +145,30 @@ fi
 if [ -d "$USR_LIB_DIR" ]; then
     info_message "Removing Suricata lib folder..."
     maybe_sudo rm -rf "$USR_LIB_DIR" || warn_message "Failed to remove Suricata rules folder."
+fi
+
+if [ -f "$SURICATA_DEFAULT_FILE" ]; then
+    info_message "Removing Suricata default file..."
+    maybe_sudo rm -f "$SURICATA_DEFAULT_FILE" || warn_message "Failed to remove Suricata default file."
+fi
+
+# Revert IPS mode-specific configurations
+if [ -f "$UFW_DEFAULT_FILE" ]; then
+    info_message "Restoring DEFAULT_INPUT_POLICY to DROP in $UFW_DEFAULT_FILE..."
+    sed_alternative -i "s|DEFAULT_INPUT_POLICY=\"ACCEPT\"|DEFAULT_INPUT_POLICY=\"DROP\"|" "$UFW_DEFAULT_FILE" || warn_message "Failed to restore DEFAULT_INPUT_POLICY in $UFW_DEFAULT_FILE."
+fi
+
+if [ -f "$UFW_BEFORE_RULES" ]; then
+    info_message "Removing NFQUEUE rules from $UFW_BEFORE_RULES..."
+    sed_alternative -i "/^-I INPUT -j NFQUEUE/d" "$UFW_BEFORE_RULES" || warn_message "Failed to remove INPUT NFQUEUE rule from $UFW_BEFORE_RULES."
+    sed_alternative -i "/^-I OUTPUT -j NFQUEUE/d" "$UFW_BEFORE_RULES" || warn_message "Failed to remove OUTPUT NFQUEUE rule from $UFW_BEFORE_RULES."
+fi
+
+# Restart UFW service after reverting IPS mode-specific changes
+if command_exists ufw; then
+    info_message "Restarting UFW service to apply changes..."
+    maybe_sudo ufw disable || warn_message "Failed to disable UFW service."
+    maybe_sudo ufw enable || warn_message "Failed to enable UFW service."
 fi
 
 success_message "Suricata uninstallation process completed successfully."

@@ -14,7 +14,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[1;34m'
 BOLD='\033[1m'
-NORMAL='\033[0m'
+NORMAL='\034[0m'
 
 # Logging Utilities
 log() { echo -e "$(date +"%Y-%m-%d %H:%M:%S") $1 $2"; }
@@ -96,12 +96,6 @@ while [[ $# -gt 0 ]]; do
     shift
 done
 
-
-# Validate mode
-if [[ "$MODE" == "ips" && "$OS" != "linux" ]]; then
-    error_exit "IPS mode is only supported on Linux systems."
-fi
-
 # OS and Architecture Detection
 case "$(uname)" in
 Linux)
@@ -126,6 +120,11 @@ x86_64) ARCH="amd64" ;;
 arm64 | aarch64) ARCH="arm64" ;;
 *) error_exit "Unsupported architecture: $ARCH" ;;
 esac
+
+# Validate mode
+if [[ "$MODE" == "ips" && "$OS" != "linux" ]]; then
+    error_exit "IPS mode is only supported on Linux systems."
+fi
 
 YQ_BINARY=${YQ_BINARY:-"yq_${OS}_${ARCH}"}
 
@@ -261,15 +260,7 @@ download_rules() {
 # Convert rules matching a pattern
 #re:trojan
 # Convert all rules in a specific group
-group:etn_aggressive
-
-group:malware # Block malware communication
-group:botcc # Block botnet C2 traffic
-group:ciarmy # Block known malicious IPs
-group:trojan # Block trojan activity
-group:compromised # Block traffic to compromised hosts
-group:drop # Block pre-curated malicious IPs
-re:exploit.*client # Block client-side exploits (e.g., browser, PDF)
+group:emerging-attack_response # Drop ALL rules from emerging-attack_response.rules
 EOF
         success_message "drop.conf created successfully."
     fi
@@ -303,20 +294,35 @@ update_config() {
     if [[ "$MODE" == "ips" ]]; then
         # Replace LISTENMODE=af-packet with LISTENMODE=nfqueue in /etc/default/suricata
         SURICATA_DEFAULT_FILE="/etc/default/suricata"
+        UFW_DEFAULT_FILE="/etc/default/ufw"
+        
         if [[ -f "$SURICATA_DEFAULT_FILE" ]]; then
             sed_alternative -i "s|LISTENMODE=af-packet|LISTENMODE=nfqueue|" "$SURICATA_DEFAULT_FILE" || error_exit "Failed to set LISTENMODE to nfqueue in $SURICATA_DEFAULT_FILE"
         else
             warn_message "$SURICATA_DEFAULT_FILE not found. Skipping LISTENMODE update."
         fi
 
+        # Replace DEFAULT_INPUT_POLICY=DROP with DEFAULT_INPUT_POLICY=ACCEPT in /etc/default/ufw
+        if [[ -f "$UFW_DEFAULT_FILE" ]]; then
+            sed_alternative -i "s|DEFAULT_INPUT_POLICY=\"DROP\"|DEFAULT_INPUT_POLICY=\"ACCEPT\"|" "$UFW_DEFAULT_FILE" || error_exit "Failed to set DEFAULT_INPUT_POLICY to ACCEPT in $UFW_DEFAULT_FILE"
+        else
+            warn_message "$UFW_DEFAULT_FILE not found. Skipping ENABLED update."
+        fi
+
         # Add extra config to /etc/ufw/before.rules
         UFW_BEFORE_RULES="/etc/ufw/before.rules"
         if [[ -f "$UFW_BEFORE_RULES" ]]; then
-            maybe_sudo bash -c "cat >> $UFW_BEFORE_RULES" <<EOF
--I INPUT -j NFQUEUE
--I OUTPUT -j NFQUEUE
-EOF
-            success_message "Added NFQUEUE rules to $UFW_BEFORE_RULES."
+            # Check if the rules already exist
+            if grep -q "^-I INPUT -j NFQUEUE" "$UFW_BEFORE_RULES" && \
+               grep -q "^-I OUTPUT -j NFQUEUE" "$UFW_BEFORE_RULES"; then
+              info_message "NFQUEUE rules already exist in $UFW_BEFORE_RULES"
+            else
+                # Insert the rules after '# End required lines'
+                sed_alternative -i '/# End required lines/a \
+-I INPUT -j NFQUEUE\
+-I OUTPUT -j NFQUEUE' "$UFW_BEFORE_RULES"
+                info_message "Added NFQUEUE rules to $UFW_BEFORE_RULES."
+            fi
         else
             warn_message "$UFW_BEFORE_RULES not found. Skipping NFQUEUE rules addition."
         fi
@@ -364,7 +370,13 @@ print_step_header 3 "Creating and updating Suricata configuration for $MODE mode
 update_config
 
 if [ "$OS" = "linux" ]; then
-    print_step_header 4 "Restarting Suricata service to include new configuration"
+    print_step_header 4 "Restarting service(s) to include new configuration"
+    if [[ "$MODE" == "ips" ]]; then
+        info_message "Restarting ufw service..."
+        maybe_sudo ufw disable
+        maybe_sudo ufw enable
+    fi
+    info_message "Restarting Suricata service..."
     maybe_sudo systemctl restart suricata
 elif [ "$OS" = "darwin" ]; then
     print_step_header 4 "Setting up Suricata to start at boot"
