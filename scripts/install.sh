@@ -7,7 +7,6 @@ else
     set -eu
 fi
 
-
 # Text Formatting
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -56,7 +55,6 @@ CONFIG_FILE=""
 INTERFACE=""
 LAUNCH_AGENT_FILE="/Library/LaunchDaemons/com.suricata.suricata.plist"
 
-
 # Add options for better user experience
 show_help() {
     cat <<EOF
@@ -77,21 +75,21 @@ MODE="ids"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --help)
-            show_help
-            exit 0
-            ;;
-        --mode)
-            if [[ "$2" =~ ^(ids|ips)$ ]]; then
-                MODE="$2"
-                shift
-            else
-                error_exit "Invalid mode: $2. Use 'ids' or 'ips'."
-            fi
-            ;;
-        *)
-            error_exit "Unknown option: $1"
-            ;;
+    --help)
+        show_help
+        exit 0
+        ;;
+    --mode)
+        if [[ "$2" =~ ^(ids|ips)$ ]]; then
+            MODE="$2"
+            shift
+        else
+            error_exit "Invalid mode: $2. Use 'ids' or 'ips'."
+        fi
+        ;;
+    *)
+        error_exit "Unknown option: $1"
+        ;;
     esac
     shift
 done
@@ -146,15 +144,15 @@ if [ "$OS" = "linux" ]; then
     }
     DISTRO=$(detect_distro)
     case "$DISTRO" in
-        ubuntu|debian)
-            PACKAGE_MANAGER="apt"
-            INSTALL_CMD="install -y"
-            ;;
-        centos|fedora|rhel)
-            PACKAGE_MANAGER="yum"
-            INSTALL_CMD="install -y"
-            ;;
-        *) error_exit "Unsupported Linux distribution: $DISTRO" ;;
+    ubuntu | debian)
+        PACKAGE_MANAGER="apt"
+        INSTALL_CMD="install -y"
+        ;;
+    centos | fedora | rhel)
+        PACKAGE_MANAGER="yum"
+        INSTALL_CMD="install -y"
+        ;;
+    *) error_exit "Unsupported Linux distribution: $DISTRO" ;;
     esac
 fi
 
@@ -164,7 +162,6 @@ if [ "$OS" = "linux" ]; then
         error_exit "This script requires systemd to manage services."
     fi
 fi
-
 
 # General Utility Functions
 create_file() {
@@ -213,9 +210,9 @@ create_launchd_plist_file() {
 "
     info_message "Unloading previous plist file (if any)..."
     maybe_sudo launchctl unload "$filepath" 2>/dev/null || true
-    
+
     info_message "Loading new daemon plist file..."
-     maybe_sudo launchctl load -w "$filepath" 2>/dev/null || warn_message "Loading previous plist file failed: $filepath"
+    maybe_sudo launchctl load -w "$filepath" 2>/dev/null || warn_message "Loading previous plist file failed: $filepath"
     info_message "macOS Launchd plist file created and loaded: $filepath"
 }
 
@@ -272,17 +269,15 @@ EOF
     maybe_sudo suricata-update || error_exit "Failed to download and apply rules."
     success_message "Suricata rules downloaded and applied successfully."
 
-    if [[ "$MODE" == "ips" ]]; then
-        # Add custom drop rule to suricata.rules
-        RULES_FILE="$RULES_DIR/suricata.rules"
-        if [ -f "$RULES_FILE" ]; then
-            info_message "Adding custom drop rule to $RULES_FILE..."
-            maybe_sudo echo "drop tcp any any -> \$HOME_NET !80 (msg:\"TCP Scan ?\"; flow:from_client;flags:S; sid:992002087;rev:1;)" >> "$RULES_FILE"
-            success_message "Custom drop rule added to $RULES_FILE."
-        else
-            warn_message "$RULES_FILE not found. Skipping custom rule addition."
-        fi
-    fi    
+    # Add custom drop rule to suricata.rules
+    RULES_FILE="$RULES_DIR/suricata.rules"
+    if [ -f "$RULES_FILE" ]; then
+        info_message "Adding custom drop rule to $RULES_FILE..."
+        maybe_sudo echo 'drop tcp any any -> $HOME_NET any (msg:"TCP Scan ?"; flow:from_client;flags:S; sid:992002087;rev:1;)' | maybe_sudo tee -a "$RULES_FILE" > /dev/null
+        success_message "Custom drop rule added to $RULES_FILE."
+    else
+        warn_message "$RULES_FILE not found. Skipping custom rule addition."
+    fi
 }
 
 # Create and Update Suricata Configuration
@@ -298,7 +293,7 @@ update_config() {
 
     # Add detect-engine configuration at the end of the CONFIG_FILE if not already present
     if ! grep -q "detect-engine:" "$CONFIG_FILE"; then
-      echo -e "\ndetect-engine:\n  - rule-reload: true" | maybe_sudo tee -a "$CONFIG_FILE" > /dev/null || error_exit "Failed to append detect-engine configuration to $CONFIG_FILE"
+        echo -e "\ndetect-engine:\n  - rule-reload: true" | maybe_sudo tee -a "$CONFIG_FILE" >/dev/null || error_exit "Failed to append detect-engine configuration to $CONFIG_FILE"
     fi
 
     # Use yq command to update eve-log types
@@ -309,7 +304,7 @@ update_config() {
         # Replace LISTENMODE=af-packet with LISTENMODE=nfqueue in /etc/default/suricata
         SURICATA_DEFAULT_FILE="/etc/default/suricata"
         UFW_DEFAULT_FILE="/etc/default/ufw"
-        
+
         if [[ -f "$SURICATA_DEFAULT_FILE" ]]; then
             sed_alternative -i "s|LISTENMODE=af-packet|LISTENMODE=nfqueue|" "$SURICATA_DEFAULT_FILE" || error_exit "Failed to set LISTENMODE to nfqueue in $SURICATA_DEFAULT_FILE"
         else
@@ -327,9 +322,9 @@ update_config() {
         UFW_BEFORE_RULES="/etc/ufw/before.rules"
         if [[ -f "$UFW_BEFORE_RULES" ]]; then
             # Check if the rules already exist
-            if grep -q "^-I INPUT -j NFQUEUE" "$UFW_BEFORE_RULES" && \
-               grep -q "^-I OUTPUT -j NFQUEUE" "$UFW_BEFORE_RULES"; then
-              info_message "NFQUEUE rules already exist in $UFW_BEFORE_RULES"
+            if grep -q "^-I INPUT -j NFQUEUE" "$UFW_BEFORE_RULES" &&
+                grep -q "^-I OUTPUT -j NFQUEUE" "$UFW_BEFORE_RULES"; then
+                info_message "NFQUEUE rules already exist in $UFW_BEFORE_RULES"
             else
                 # Insert the rules after '# End required lines'
                 sed_alternative -i '/# End required lines/a \
@@ -369,7 +364,7 @@ if [ "$OS" = "linux" ]; then
         maybe_sudo $PACKAGE_MANAGER $INSTALL_CMD suricata
         SURICATA_BIN=$(command -v suricata || echo "/usr/bin/suricata")
         success_message "Suricata installed at: $SURICATA_BIN"
-fi
+    fi
 elif [ "$OS" = "darwin" ]; then
     info_message "Installing Suricata and yq via Homebrew..."
     brew install suricata yq
