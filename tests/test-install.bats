@@ -124,3 +124,13 @@ setup() {
         skip "This test is specific to IPS mode."
     fi
 }
+
+@test "Custom drop rule is present in suricata.rules in IPS mode" {
+    if [ "$MODE" = "ips" ]; then
+        [ -f "$RULES_DIR/suricata.rules" ] || skip "suricata.rules not found in expected path"
+        run grep -q 'drop tcp any any -> \$HOME_NET !80 (msg:"TCP Scan ?"; flow:from_client;flags:S; sid:992002087;rev:1;)' "$RULES_DIR/suricata.rules"
+        [ "$status" -eq 0 ]
+    else
+        skip "This test is specific to IPS mode."
+    fi
+}

@@ -102,6 +102,7 @@ Linux)
     OS="linux"
     CONFIG_DIR="/etc/suricata"
     CONFIG_FILE="$CONFIG_DIR/suricata.yaml"
+    RULES_DIR="/var/lib/suricata/rules"
     INTERFACE="wlp0s20f3"
     ;;
 Darwin)
@@ -109,6 +110,7 @@ Darwin)
     BIN_FOLDER=$(brew --prefix)
     CONFIG_DIR="$BIN_FOLDER/etc/suricata"
     CONFIG_FILE="$BIN_FOLDER/etc/suricata/suricata.yaml"
+    RULES_DIR="$BIN_FOLDER/var/lib/suricata/rules"
     INTERFACE="en0"
     ;;
 *) error_exit "Unsupported operating system: $(uname)" ;;
@@ -269,6 +271,18 @@ EOF
     info_message "Downloading and applying rules using suricata-update..."
     maybe_sudo suricata-update || error_exit "Failed to download and apply rules."
     success_message "Suricata rules downloaded and applied successfully."
+
+    if [[ "$MODE" == "ips" ]]; then
+        # Add custom drop rule to suricata.rules
+        RULES_FILE="$RULES_DIR/suricata.rules"
+        if [ -f "$RULES_FILE" ]; then
+            info_message "Adding custom drop rule to $RULES_FILE..."
+            maybe_sudo echo "drop tcp any any -> \$HOME_NET !80 (msg:\"TCP Scan ?\"; flow:from_client;flags:S; sid:992002087;rev:1;)" >> "$RULES_FILE"
+            success_message "Custom drop rule added to $RULES_FILE."
+        else
+            warn_message "$RULES_FILE not found. Skipping custom rule addition."
+        fi
+    fi    
 }
 
 # Create and Update Suricata Configuration
