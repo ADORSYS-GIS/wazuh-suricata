@@ -13,7 +13,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[1;34m'
 BOLD='\033[1m'
-NORMAL='\034[0m'
+NORMAL='\033[0m'
 
 # Logging Utilities
 log() { echo -e "$(date +"%Y-%m-%d %H:%M:%S") $1 $2"; }
@@ -113,6 +113,7 @@ Darwin)
     ;;
 *) error_exit "Unsupported operating system: $(uname)" ;;
 esac
+RULES_FILE="$RULES_DIR/suricata.rules"
 
 ARCH=$(uname -m)
 case "$ARCH" in
@@ -270,8 +271,7 @@ EOF
     success_message "Suricata rules downloaded and applied successfully."
 
     # Add custom drop rule to suricata.rules
-    RULES_FILE="$RULES_DIR/suricata.rules"
-    if [ -f "$RULES_FILE" ]; then
+    if maybe_sudo test -f "$RULES_FILE"; then
         info_message "Adding custom drop rule to $RULES_FILE..."
         maybe_sudo echo 'drop tcp any any -> $HOME_NET any (msg:"TCP Scan ?"; flow:from_client;flags:S; sid:992002087;rev:1;)' | maybe_sudo tee -a "$RULES_FILE" > /dev/null
         success_message "Custom drop rule added to $RULES_FILE."

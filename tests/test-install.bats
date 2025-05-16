@@ -126,11 +126,7 @@ setup() {
 }
 
 @test "Custom drop rule is present in $RULES_DIR/suricata.rules in IPS mode" {
-    if [ "$MODE" = "ips" ]; then
-        [ -f "$RULES_DIR/suricata.rules" ] || skip "suricata.rules not found in expected path"
-        run sudo grep -q "sid:992002087" /var/lib/suricata/rules/suricata.rules
-        [ "$status" -eq 0 ]
-    else
-        skip "This test is specific to IPS mode."
-    fi
+    [ -f "$RULES_DIR/suricata.rules" ] || skip "suricata.rules not found in expected path"
+    run sudo grep -q "sid:992002087" "$RULES_DIR/suricata.rules"
+    [ "$status" -eq 0 ]
 }
