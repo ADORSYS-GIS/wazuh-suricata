@@ -128,7 +128,7 @@ function Install-NpcapSoftware {
     }
 }
 
-# Update environment variables to include Snort and Npcap directories.
+# Update environment variables to include Suricata and Npcap directories.
 function Update-EnvironmentVariables {
     $envPath = [Environment]::GetEnvironmentVariable("Path", "Machine")
     $newPath = "$envPath;$($global:Config.SuricataDir);$($global:Config.NpcapPath)"
@@ -162,7 +162,7 @@ function Get-AdapterName {
     try {
         $adapter = Get-NetAdapter | Select-Object -First 1 -ExpandProperty InterfaceGuid
         if ($adapter) {
-            $adapterName = "'\Device\NPF_$adapter'"
+            $adapterName = "\Device\NPF_$adapter"
             return $adapterName
         } else {
             ErrorMessage "No network adapter GUID found."
@@ -181,18 +181,40 @@ function Register-SuricataScheduledTask {
         ErrorMessage "Cannot register Suricata scheduled task without a valid adapter name."
         return
     }
-    InfoMessage "Adapter Name: $($adapterName)"
-    $taskAction = New-ScheduledTaskAction -Execute $global:Config.SuricataExePath -Argument "-c $($global:Config.SuricataConfigPath) -i $adapterName"
-    $taskTrigger = New-ScheduledTaskTrigger -AtStartup
-    $taskSettings = New-ScheduledTaskSettingsSet -Hidden
 
-    if (Get-ScheduledTask -TaskName $global:Config.TaskName -ErrorAction SilentlyContinue) {
+    InfoMessage "Adapter Name: $adapterName"
+
+    # Build the action in clear, separate steps:
+    $exePath   = $global:Config.SuricataExePath
+    $cfgPath   = $global:Config.SuricataConfigPath
+    # This is the one string PowerShell sees as the arguments to suricata.exe.
+    # Backtick-quote (`") around each path ensures paths with spaces are passed correctly.
+    $arguments = "-c `"$cfgPath`" -i `"$adapterName`""
+
+    $taskAction   = New-ScheduledTaskAction  -Execute $exePath    -Argument $arguments
+    $taskTrigger  = New-ScheduledTaskTrigger -AtStartup
+    $taskSettings = New-ScheduledTaskSettingsSet -Hidden `
+                                                  -AllowStartIfOnBatteries `
+                                                  -DontStopIfGoingOnBatteries `
+                                                  -StartWhenAvailable `
+                                                  -RunOnlyIfNetworkAvailable
+
+    if ( Get-ScheduledTask -TaskName $global:Config.TaskName -ErrorAction SilentlyContinue ) {
         Unregister-ScheduledTask -TaskName $global:Config.TaskName -Confirm:$false
-        WarnMessage "Scheduled Task already exists, unregistering to update task."
+        WarnMessage "Scheduled Task already exists; unregistering so we can update it."
     }
-    Register-ScheduledTask -TaskName $global:Config.TaskName -Action $taskAction -Trigger $taskTrigger -Settings $taskSettings -RunLevel Highest
-    InfoMessage "Registered Suricata to run at startup."
+
+    Register-ScheduledTask -TaskName  $global:Config.TaskName `
+                           -Action    $taskAction       `
+                           -Trigger   $taskTrigger      `
+                           -Settings  $taskSettings     `
+                           -User      "SYSTEM"          `
+                           -RunLevel  Highest
+
+    InfoMessage "Registered Suricata to run at startup as SYSTEM."
 }
+
+
 
 # Main function that runs the installation and configuration steps.
 function Install-Suricata {
