@@ -20,14 +20,46 @@ $global:Config = @{
     SuricataDir         = "C:\Program Files\Suricata"
     SuricataExePath     = "C:\Program Files\Suricata\suricata.exe"
     NpcapPath           = "C:\Program Files\Npcap"
+    NpcapUninstallPath = "C:\Program Files\Npcap\uninstall.exe"
     RulesDir            = "C:\Program Files\Suricata\rules"
     SuricataConfigPath  = "C:\Program Files\Suricata\suricata.yaml"
     SuricataLogDir      = "C:\Program Files\Suricata\log"
     TaskName            = "SuricataStartup"
 }
 
+function Remove-SystemPath {
+    param (
+        [string]$PathToRemove
+    )
+
+    # Get the current system Path
+    $currentPath = [System.Environment]::GetEnvironmentVariable("Path", [System.EnvironmentVariableTarget]::Machine)
+
+    # Split the Path into an array
+    $pathArray = $currentPath -split ';'
+
+    # Check if the specified path exists
+    if ($pathArray -contains $PathToRemove) {
+        InfoMessage "The path '$PathToRemove' exists in the system Path. Proceeding to remove it."
+
+        # Remove the specified path
+        $updatedPathArray = $pathArray | Where-Object { $_ -ne $PathToRemove }
+
+        # Join the array back into a single string
+        $updatedPath = ($updatedPathArray -join ';').TrimEnd(';')
+
+        # Update the system Path
+        [System.Environment]::SetEnvironmentVariable("Path", $updatedPath, [System.EnvironmentVariableTarget]::Machine)
+
+        InfoMessage "Successfully removed '$PathToRemove' from the system Path."
+    } else {
+        WarnMessage "The path '$PathToRemove' does not exist in the system Path. No changes were made."
+    }
+}
+
 function Remove-SuricataScheduledTask {
     if (Get-ScheduledTask -TaskName $global:Config.TaskName -ErrorAction SilentlyContinue) {
+	Stop-ScheduledTask -TaskName $global:Config.TaskName
         Unregister-ScheduledTask -TaskName $global:Config.TaskName -Confirm:$false
         InfoMessage "Removed Suricata scheduled task."
     } else {
@@ -48,39 +80,28 @@ function Uninstall-Suricata {
         Remove-Item -Path $global:Config.SuricataDir -Recurse -Force
         InfoMessage "Removed Suricata directory."
     }
+    
+    Remove-SystemPath $global:Config.SuricataDir
 }
+function Uninstall-NpCap {
 
-function Uninstall-Npcap {
-    $npcapProduct = Get-WmiObject -Class Win32_Product | Where-Object { $_.Name -like "*Npcap*" }
-    if ($npcapProduct) {
-        $npcapProduct.Uninstall() | Out-Null
-        InfoMessage "Uninstalled Npcap via MSI."
-    } else {
-        WarnMessage "Npcap MSI product not found. Attempting manual removal."
+    InfoMessage "Uninstalling NpCap"
+
+    if (-Not (Test-Path $global:Config.NpcapUninstallPath)) {
+        WarnMessage "Npcap uninstaller not found: $global:Config.NpcapUninstallPath" skipping
+        return
     }
+
+    Start-Process -FilePath $global:Config.NpcapUninstallPath -NoNewWindow -Wait
+    InfoMessage "Succesfully removed NpCap"
+    Remove-SystemPath $global:Config.NpcapPath
+
     if (Test-Path $global:Config.NpcapPath) {
         Remove-Item -Path $global:Config.NpcapPath -Recurse -Force
         InfoMessage "Removed Npcap directory."
     }
 }
 
-function Remove-SuricataRules {
-    if (Test-Path $global:Config.RulesDir) {
-        Remove-Item -Path $global:Config.RulesDir -Recurse -Force
-        InfoMessage "Removed Suricata rules directory."
-    } else {
-        WarnMessage "Suricata rules directory not found."
-    }
-}
-
-function Remove-SuricataLogs {
-    if (Test-Path $global:Config.SuricataLogDir) {
-        Remove-Item -Path $global:Config.SuricataLogDir -Recurse -Force
-        InfoMessage "Removed Suricata log directory."
-    } else {
-        WarnMessage "Suricata log directory not found."
-    }
-}
 
 function Uninstall-All {
     try {
@@ -90,10 +111,6 @@ function Uninstall-All {
         Uninstall-Suricata
         InfoMessage "=== Uninstalling Npcap ==="
         Uninstall-Npcap
-        InfoMessage "=== Removing Suricata rules ==="
-        Remove-SuricataRules
-        InfoMessage "=== Removing Suricata logs ==="
-        Remove-SuricataLogs
         SuccessMessage "Uninstallation completed!"
     } catch {
         ErrorMessage "Uninstallation failed: $_"
