@@ -292,7 +292,7 @@ update_config() {
     sed_alternative -i "s|community-id: false|community-id: true|" "$CONFIG_FILE" || error_exit "Failed to enable community-id in $CONFIG_FILE"
 
     # Add detect-engine configuration at the end of the CONFIG_FILE if not already present
-    if ! grep -q "detect-engine:" "$CONFIG_FILE"; then
+    if ! maybe_sudo grep -q "detect-engine:" "$CONFIG_FILE"; then
         echo -e "\ndetect-engine:\n  - rule-reload: true" | maybe_sudo tee -a "$CONFIG_FILE" >/dev/null || error_exit "Failed to append detect-engine configuration to $CONFIG_FILE"
     fi
 
