@@ -388,8 +388,25 @@ if [ "$OS" = "linux" ]; then
     info_message "Restarting Suricata service..."
     maybe_sudo systemctl restart suricata
 elif [ "$OS" = "darwin" ]; then
-    print_step_header 4 "Setting up Suricata to start at boot"
-    create_launchd_plist_file "$LAUNCH_AGENT_FILE" "$SURICATA_BIN"
+    info_message "Installing Suricata and yq via Homebrew..."
+    
+    # Get the current GUI user (works even with sudo)
+    CURRENT_USER=$(stat -f "%Su" /dev/console)
+    
+    # Run brew as the current user (avoid root issues)
+    if [ "$(id -u)" -eq 0 ]; then
+        # If root, use sudo -u to run as the original user
+        sudo -u "$CURRENT_USER" /opt/homebrew/bin/brew install suricata yq  # Apple Silicon
+        # OR
+        # sudo -u "$CURRENT_USER" /usr/local/bin/brew install suricata yq  # Intel Mac
+    else
+        # Not root, run normally
+        brew install suricata yq
+    fi
+    
+    # Find suricata binary (check both user and system paths)
+    SURICATA_BIN=$(command -v suricata || sudo -u "$CURRENT_USER" command -v suricata || echo "$BIN_FOLDER/bin/suricata")
+    success_message "Suricata installed at: $SURICATA_BIN"
 fi
 
 print_step_header 5 "Validating installation"
