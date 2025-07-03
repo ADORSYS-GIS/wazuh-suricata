@@ -381,7 +381,7 @@ if [ "$OS" = "linux" ]; then
 elif [ "$OS" = "darwin" ]; then
     info_message "Installing Suricata and yq via Homebrew..."
     USER=$(get_logged_in_user)
-    maybe_sudo -u "$USER" brew install suricata yq
+    sudo -u "$USER" brew install suricata yq
     SURICATA_BIN=$(command -v suricata || echo "$BIN_FOLDER/bin/suricata")
     success_message "Suricata installed at: $SURICATA_BIN"
 fi
