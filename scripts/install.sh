@@ -340,6 +340,19 @@ update_config() {
     success_message "Configuration updated successfully."
 }
 
+# Get the logged-in user (works on macOS & Linux)
+get_logged_in_user() {
+    if [ "$(uname -s)" = "Darwin" ]; then
+        scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /loginwindow/ {print $3}'
+    else
+        if command -v logname >/dev/null 2>&1; then
+            logname 2>/dev/null || who | awk '/console/{print $1}' | head -n 1
+        else
+            who | awk '/console/{print $1}' | head -n 1
+        fi
+    fi
+}
+
 # Installation Process
 print_step_header 1 "Installing dependencies and Suricata"
 if [ "$OS" = "linux" ]; then
@@ -367,7 +380,8 @@ if [ "$OS" = "linux" ]; then
     fi
 elif [ "$OS" = "darwin" ]; then
     info_message "Installing Suricata and yq via Homebrew..."
-    brew install suricata yq
+    USER=$(get_logged_in_user)
+    maybe_sudo -u "$USER" brew install suricata yq
     SURICATA_BIN=$(command -v suricata || echo "$BIN_FOLDER/bin/suricata")
     success_message "Suricata installed at: $SURICATA_BIN"
 fi
@@ -388,25 +402,8 @@ if [ "$OS" = "linux" ]; then
     info_message "Restarting Suricata service..."
     maybe_sudo systemctl restart suricata
 elif [ "$OS" = "darwin" ]; then
-    info_message "Installing Suricata and yq via Homebrew..."
-    
-    # Get the current GUI user (works even with sudo)
-    CURRENT_USER=$(stat -f "%Su" /dev/console)
-    
-    # Run brew as the current user (avoid root issues)
-    if [ "$(id -u)" -eq 0 ]; then
-        # If root, use sudo -u to run as the original user
-        sudo -u "$CURRENT_USER" /opt/homebrew/bin/brew install suricata yq  # Apple Silicon
-        # OR
-        # sudo -u "$CURRENT_USER" /usr/local/bin/brew install suricata yq  # Intel Mac
-    else
-        # Not root, run normally
-        brew install suricata yq
-    fi
-    
-    # Find suricata binary (check both user and system paths)
-    SURICATA_BIN=$(command -v suricata || sudo -u "$CURRENT_USER" command -v suricata || echo "$BIN_FOLDER/bin/suricata")
-    success_message "Suricata installed at: $SURICATA_BIN"
+    print_step_header 4 "Setting up Suricata to start at boot"
+    create_launchd_plist_file "$LAUNCH_AGENT_FILE" "$SURICATA_BIN"
 fi
 
 print_step_header 5 "Validating installation"
