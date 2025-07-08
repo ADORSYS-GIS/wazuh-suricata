@@ -343,14 +343,7 @@ update_config() {
 logged_in_user() {
     local user
     user=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /loginwindow/ {print $3}')
-    
-    if [ $# -eq 0 ]; then
-        # Just return the username if no arguments
-        echo "$user"
-    else
-        # Execute command as user if arguments provided
-        sudo -u "$user" "$@"
-    fi
+    sudo -u "$user" "$@"
 }
 
 # Installation Process
