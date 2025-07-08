@@ -159,18 +159,19 @@ if [ "$(uname -s)" = "Linux" ]; then
         info_message "Removing Suricata default file..."
         maybe_sudo rm -f "$SURICATA_DEFAULT_FILE" || warn_message "Failed to remove Suricata default file."
     fi
-fi
 
-# Revert IPS mode-specific configurations
-if [ -f "$UFW_DEFAULT_FILE" ]; then
-    info_message "Restoring DEFAULT_INPUT_POLICY to DROP in $UFW_DEFAULT_FILE..."
-    sed_alternative -i "s|DEFAULT_INPUT_POLICY=\"ACCEPT\"|DEFAULT_INPUT_POLICY=\"DROP\"|" "$UFW_DEFAULT_FILE" || warn_message "Failed to restore DEFAULT_INPUT_POLICY in $UFW_DEFAULT_FILE."
-fi
+    # Revert IPS mode-specific configurations
+    if [ -f "$UFW_DEFAULT_FILE" ]; then
+        info_message "Restoring DEFAULT_INPUT_POLICY to DROP in $UFW_DEFAULT_FILE..."
+        sed_alternative -i "s|DEFAULT_INPUT_POLICY=\"ACCEPT\"|DEFAULT_INPUT_POLICY=\"DROP\"|" "$UFW_DEFAULT_FILE" || warn_message "Failed to restore DEFAULT_INPUT_POLICY in $UFW_DEFAULT_FILE."
+    fi
 
-if [ -f "$UFW_BEFORE_RULES" ]; then
-    info_message "Removing NFQUEUE rules from $UFW_BEFORE_RULES..."
-    sed_alternative -i "/^-I INPUT -j NFQUEUE/d" "$UFW_BEFORE_RULES" || warn_message "Failed to remove INPUT NFQUEUE rule from $UFW_BEFORE_RULES."
-    sed_alternative -i "/^-I OUTPUT -j NFQUEUE/d" "$UFW_BEFORE_RULES" || warn_message "Failed to remove OUTPUT NFQUEUE rule from $UFW_BEFORE_RULES."
+    if [ -f "$UFW_BEFORE_RULES" ]; then
+        info_message "Removing NFQUEUE rules from $UFW_BEFORE_RULES..."
+        sed_alternative -i "/^-I INPUT -j NFQUEUE/d" "$UFW_BEFORE_RULES" || warn_message "Failed to remove INPUT NFQUEUE rule from $UFW_BEFORE_RULES."
+        sed_alternative -i "/^-I OUTPUT -j NFQUEUE/d" "$UFW_BEFORE_RULES" || warn_message "Failed to remove OUTPUT NFQUEUE rule from $UFW_BEFORE_RULES."
+    fi
+
 fi
 
 # Restart UFW service after reverting IPS mode-specific changes
