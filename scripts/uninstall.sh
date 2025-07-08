@@ -153,9 +153,12 @@ if [ -d "$USR_LIB_DIR" ]; then
     maybe_sudo rm -rf "$USR_LIB_DIR" || warn_message "Failed to remove Suricata rules folder."
 fi
 
-if [ -f "$SURICATA_DEFAULT_FILE" ]; then
-    info_message "Removing Suricata default file..."
-    maybe_sudo rm -f "$SURICATA_DEFAULT_FILE" || warn_message "Failed to remove Suricata default file."
+# Only run on Linux
+if [ "$(uname -s)" = "Linux" ]; then
+    if [ -f "$SURICATA_DEFAULT_FILE" ]; then
+        info_message "Removing Suricata default file..."
+        maybe_sudo rm -f "$SURICATA_DEFAULT_FILE" || warn_message "Failed to remove Suricata default file."
+    fi
 fi
 
 # Revert IPS mode-specific configurations
