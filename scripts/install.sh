@@ -49,11 +49,16 @@ sed_alternative() {
     fi
 }
 
+brew_command() {
+    sudo -u "$LOGGED_IN_USER" brew "$@"
+}
+
 # Environment Variables
 SURICATA_USER=${SURICATA_USER:-"root"}
 CONFIG_FILE=""
 INTERFACE=""
 LAUNCH_AGENT_FILE="/Library/LaunchDaemons/com.suricata.suricata.plist"
+LOGGED_IN_USER=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /loginwindow/ {print $3}')
 
 # Add options for better user experience
 show_help() {
@@ -340,11 +345,6 @@ update_config() {
     success_message "Configuration updated successfully."
 }
 
-logged_in_user() {
-    local user
-    user=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /loginwindow/ {print $3}')
-    sudo -u "$user" "$@"
-}
 
 # Installation Process
 print_step_header 1 "Installing dependencies and Suricata"
@@ -373,7 +373,7 @@ if [ "$OS" = "linux" ]; then
     fi
 elif [ "$OS" = "darwin" ]; then
     info_message "Installing Suricata and yq via Homebrew..."
-    logged_in_user brew install suricata yq
+    brew_command install suricata yq
     SURICATA_BIN=$(command -v suricata || echo "$BIN_FOLDER/bin/suricata")
     success_message "Suricata installed at: $SURICATA_BIN"
 fi

@@ -7,6 +7,8 @@ else
     set -eu
 fi
 
+LOGGED_IN_USER=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /loginwindow/ {print $3}')
+
 # Text Formatting
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -50,6 +52,10 @@ sed_alternative() {
     fi
 }
 
+brew_command() {
+    sudo -u "$LOGGED_IN_USER" brew "$@"
+}
+
 # OS Detection
 case "$(uname)" in
 Linux)
@@ -76,12 +82,6 @@ Darwin)
     ;;
 esac
 
-logged_in_user() {
-    local user
-    user=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /loginwindow/ {print $3}')
-    sudo -u "$user" "$@"
-}
-
 # Uninstall Process
 info_message "Starting Suricata uninstallation process..."
 
@@ -106,7 +106,7 @@ if command_exists yq; then
     if [ "$OS" = "linux" ]; then
         maybe_sudo rm -f /usr/bin/yq || warn_message "Failed to uninstall yq."
     elif [ "$OS" = "darwin" ]; then
-        logged_in_user brew uninstall yq || warn_message "Failed to uninstall yq."
+        brew_command uninstall yq || warn_message "Failed to uninstall yq."
     fi
 else
     info_message "yq is not installed. Skipping uninstallation."
@@ -125,7 +125,7 @@ if command_exists suricata; then
             warn_message "No supported package manager found. Skipping Suricata uninstallation."
         fi
     elif [ "$OS" = "darwin" ]; then
-        logged_in_user brew uninstall suricata || warn_message "Failed to uninstall Suricata using Homebrew."
+        brew_command uninstall suricata || warn_message "Failed to uninstall Suricata using Homebrew."
     fi
 else
     info_message "Suricata is not installed. Skipping uninstallation."
