@@ -58,7 +58,11 @@ SURICATA_USER=${SURICATA_USER:-"root"}
 CONFIG_FILE=""
 INTERFACE=""
 LAUNCH_AGENT_FILE="/Library/LaunchDaemons/com.suricata.suricata.plist"
-LOGGED_IN_USER=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /loginwindow/ {print $3}')
+LOGGED_IN_USER=""
+
+if [ "$(uname -s)" = "Darwin" ]; then
+    LOGGED_IN_USER=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /loginwindow/ {print $3}')
+fi
 
 # Add options for better user experience
 show_help() {
