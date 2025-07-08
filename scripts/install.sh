@@ -340,16 +340,17 @@ update_config() {
     success_message "Configuration updated successfully."
 }
 
-# Get the logged-in user on macOS
-get_logged_in_user() {
-    scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /loginwindow/ {print $3}'
-}
-
-# Run command as the logged-in user
-run_as_user() {
+logged_in_user() {
     local user
-    user=$(get_logged_in_user)
-    sudo -u "$user" "$@"
+    user=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /loginwindow/ {print $3}')
+    
+    if [ $# -eq 0 ]; then
+        # Just return the username if no arguments
+        echo "$user"
+    else
+        # Execute command as user if arguments provided
+        sudo -u "$user" "$@"
+    fi
 }
 
 # Installation Process
@@ -379,7 +380,7 @@ if [ "$OS" = "linux" ]; then
     fi
 elif [ "$OS" = "darwin" ]; then
     info_message "Installing Suricata and yq via Homebrew..."
-    run_as_user brew install suricata yq
+    logged_in_user brew install suricata yq
     SURICATA_BIN=$(command -v suricata || echo "$BIN_FOLDER/bin/suricata")
     success_message "Suricata installed at: $SURICATA_BIN"
 fi
