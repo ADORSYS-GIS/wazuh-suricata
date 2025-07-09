@@ -7,6 +7,12 @@ else
     set -eu
 fi
 
+LOGGED_IN_USER=""
+
+if [ "$(uname -s)" = "Darwin" ]; then
+    LOGGED_IN_USER=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /loginwindow/ {print $3}')
+fi
+
 # Text Formatting
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -48,6 +54,10 @@ sed_alternative() {
     else
         maybe_sudo sed "$@"
     fi
+}
+
+brew_command() {
+    sudo -u "$LOGGED_IN_USER" brew "$@"
 }
 
 # OS Detection
@@ -100,7 +110,7 @@ if command_exists yq; then
     if [ "$OS" = "linux" ]; then
         maybe_sudo rm -f /usr/bin/yq || warn_message "Failed to uninstall yq."
     elif [ "$OS" = "darwin" ]; then
-        brew uninstall yq || warn_message "Failed to uninstall yq."
+        brew_command uninstall yq || warn_message "Failed to uninstall yq."
     fi
 else
     info_message "yq is not installed. Skipping uninstallation."
@@ -119,7 +129,7 @@ if command_exists suricata; then
             warn_message "No supported package manager found. Skipping Suricata uninstallation."
         fi
     elif [ "$OS" = "darwin" ]; then
-        brew uninstall suricata || warn_message "Failed to uninstall Suricata using Homebrew."
+        brew_command uninstall suricata || warn_message "Failed to uninstall Suricata using Homebrew."
     fi
 else
     info_message "Suricata is not installed. Skipping uninstallation."
@@ -147,21 +157,25 @@ if [ -d "$USR_LIB_DIR" ]; then
     maybe_sudo rm -rf "$USR_LIB_DIR" || warn_message "Failed to remove Suricata rules folder."
 fi
 
-if [ -f "$SURICATA_DEFAULT_FILE" ]; then
-    info_message "Removing Suricata default file..."
-    maybe_sudo rm -f "$SURICATA_DEFAULT_FILE" || warn_message "Failed to remove Suricata default file."
-fi
+# Only run on Linux
+if [ "$(uname -s)" = "Linux" ]; then
+    if [ -f "$SURICATA_DEFAULT_FILE" ]; then
+        info_message "Removing Suricata default file..."
+        maybe_sudo rm -f "$SURICATA_DEFAULT_FILE" || warn_message "Failed to remove Suricata default file."
+    fi
 
-# Revert IPS mode-specific configurations
-if [ -f "$UFW_DEFAULT_FILE" ]; then
-    info_message "Restoring DEFAULT_INPUT_POLICY to DROP in $UFW_DEFAULT_FILE..."
-    sed_alternative -i "s|DEFAULT_INPUT_POLICY=\"ACCEPT\"|DEFAULT_INPUT_POLICY=\"DROP\"|" "$UFW_DEFAULT_FILE" || warn_message "Failed to restore DEFAULT_INPUT_POLICY in $UFW_DEFAULT_FILE."
-fi
+    # Revert IPS mode-specific configurations
+    if [ -f "$UFW_DEFAULT_FILE" ]; then
+        info_message "Restoring DEFAULT_INPUT_POLICY to DROP in $UFW_DEFAULT_FILE..."
+        sed_alternative -i "s|DEFAULT_INPUT_POLICY=\"ACCEPT\"|DEFAULT_INPUT_POLICY=\"DROP\"|" "$UFW_DEFAULT_FILE" || warn_message "Failed to restore DEFAULT_INPUT_POLICY in $UFW_DEFAULT_FILE."
+    fi
 
-if [ -f "$UFW_BEFORE_RULES" ]; then
-    info_message "Removing NFQUEUE rules from $UFW_BEFORE_RULES..."
-    sed_alternative -i "/^-I INPUT -j NFQUEUE/d" "$UFW_BEFORE_RULES" || warn_message "Failed to remove INPUT NFQUEUE rule from $UFW_BEFORE_RULES."
-    sed_alternative -i "/^-I OUTPUT -j NFQUEUE/d" "$UFW_BEFORE_RULES" || warn_message "Failed to remove OUTPUT NFQUEUE rule from $UFW_BEFORE_RULES."
+    if [ -f "$UFW_BEFORE_RULES" ]; then
+        info_message "Removing NFQUEUE rules from $UFW_BEFORE_RULES..."
+        sed_alternative -i "/^-I INPUT -j NFQUEUE/d" "$UFW_BEFORE_RULES" || warn_message "Failed to remove INPUT NFQUEUE rule from $UFW_BEFORE_RULES."
+        sed_alternative -i "/^-I OUTPUT -j NFQUEUE/d" "$UFW_BEFORE_RULES" || warn_message "Failed to remove OUTPUT NFQUEUE rule from $UFW_BEFORE_RULES."
+    fi
+
 fi
 
 # Restart UFW service after reverting IPS mode-specific changes

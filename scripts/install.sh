@@ -29,6 +29,12 @@ error_exit() {
     exit 1
 }
 
+LOGGED_IN_USER=""
+
+if [ "$(uname -s)" = "Darwin" ]; then
+    LOGGED_IN_USER=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /loginwindow/ {print $3}')
+fi
+
 # Command Existence Check
 command_exists() { command -v "$1" >/dev/null 2>&1; }
 
@@ -47,6 +53,10 @@ sed_alternative() {
     else
         maybe_sudo sed "$@"
     fi
+}
+
+brew_command() {
+    sudo -u "$LOGGED_IN_USER" brew "$@"
 }
 
 # Environment Variables
@@ -340,6 +350,7 @@ update_config() {
     success_message "Configuration updated successfully."
 }
 
+
 # Installation Process
 print_step_header 1 "Installing dependencies and Suricata"
 if [ "$OS" = "linux" ]; then
@@ -367,7 +378,7 @@ if [ "$OS" = "linux" ]; then
     fi
 elif [ "$OS" = "darwin" ]; then
     info_message "Installing Suricata and yq via Homebrew..."
-    brew install suricata yq
+    brew_command install suricata yq
     SURICATA_BIN=$(command -v suricata || echo "$BIN_FOLDER/bin/suricata")
     success_message "Suricata installed at: $SURICATA_BIN"
 fi
