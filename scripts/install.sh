@@ -61,6 +61,7 @@ brew_command() {
 
 # Environment Variables
 SURICATA_USER=${SURICATA_USER:-"root"}
+SURICATA_VERSION=${SURICATA_VERSION:-"7.0"}
 CONFIG_FILE=""
 INTERFACE=""
 LAUNCH_AGENT_FILE="/Library/LaunchDaemons/com.suricata.suricata.plist"
@@ -358,7 +359,7 @@ if [ "$OS" = "linux" ]; then
         if ! grep -q "oisf/suricata-stable" /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null; then
             info_message "Updating package lists and adding Suricata repository..."
             maybe_sudo "$PACKAGE_MANAGER" update
-            maybe_sudo add-apt-repository ppa:oisf/suricata-stable -y
+            maybe_sudo add-apt-repository "ppa:oisf/suricata-$SURICATA_VERSION" -y
             maybe_sudo "$PACKAGE_MANAGER" update
         else
             info_message "Suricata repository already added, updating package lists..."

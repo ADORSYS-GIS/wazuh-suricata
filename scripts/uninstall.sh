@@ -7,6 +7,8 @@ else
     set -eu
 fi
 
+SURICATA_VERSION=${SURICATA_VERSION:-"7.0"}
+MODE=""
 LOGGED_IN_USER=""
 
 if [ "$(uname -s)" = "Darwin" ]; then
@@ -89,6 +91,14 @@ esac
 # Uninstall Process
 info_message "Starting Suricata uninstallation process..."
 
+if maybe_sudo grep -q "LISTENMODE=nfqueue" "$SURICATA_DEFAULT_FILE"; then
+    info_message "Suricata is running in IPS mode."
+    MODE=ips
+else
+    info_message "Suricata is running in IDS mode."
+    MODE=ids
+fi
+
 # Stop Suricata service
 if [ "$OS" = "linux" ]; then
     if command_exists suricata && command_exists systemctl; then
@@ -122,6 +132,7 @@ if command_exists suricata; then
     info_message "Uninstalling Suricata using the package manager..."
     if [ "$OS" = "linux" ]; then
         if command_exists apt; then
+            maybe_sudo add-apt-repository --remove "ppa:oisf/suricata-$SURICATA_VERSION" -y
             maybe_sudo apt remove --purge -y suricata || warn_message "Failed to uninstall Suricata using apt-get."
         elif command_exists yum; then
             maybe_sudo yum remove -y suricata || warn_message "Failed to uninstall Suricata using yum."
@@ -157,8 +168,8 @@ if [ -d "$USR_LIB_DIR" ]; then
     maybe_sudo rm -rf "$USR_LIB_DIR" || warn_message "Failed to remove Suricata rules folder."
 fi
 
-# Only run on Linux
-if [ "$(uname -s)" = "Linux" ]; then
+ # Only run on Linux
+if [ "$(uname -s)" = "Linux" ] && [ "$MODE" = "ips" ]; then
     if [ -f "$SURICATA_DEFAULT_FILE" ]; then
         info_message "Removing Suricata default file..."
         maybe_sudo rm -f "$SURICATA_DEFAULT_FILE" || warn_message "Failed to remove Suricata default file."
@@ -175,14 +186,13 @@ if [ "$(uname -s)" = "Linux" ]; then
         sed_alternative -i "/^-I INPUT -j NFQUEUE/d" "$UFW_BEFORE_RULES" || warn_message "Failed to remove INPUT NFQUEUE rule from $UFW_BEFORE_RULES."
         sed_alternative -i "/^-I OUTPUT -j NFQUEUE/d" "$UFW_BEFORE_RULES" || warn_message "Failed to remove OUTPUT NFQUEUE rule from $UFW_BEFORE_RULES."
     fi
-
-fi
-
-# Restart UFW service after reverting IPS mode-specific changes
-if command_exists ufw; then
-    info_message "Restarting UFW service to apply changes..."
-    maybe_sudo ufw disable || warn_message "Failed to disable UFW service."
-    maybe_sudo ufw enable || warn_message "Failed to enable UFW service."
+    
+    # Restart UFW service after reverting IPS mode-specific changes
+    if command_exists ufw; then
+        info_message "Restarting UFW service to apply changes..."
+        maybe_sudo ufw disable || warn_message "Failed to disable UFW service."
+        maybe_sudo ufw enable || warn_message "Failed to enable UFW service."
+    fi
 fi
 
 success_message "Suricata uninstallation process completed successfully."
