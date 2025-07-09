@@ -30,6 +30,9 @@ error_exit() {
 }
 
 LOGGED_IN_USER=""
+SURICATA_VERSION_MACOS="${1:-7.0.10}"
+# Create Downloads directory for source builds
+DOWNLOADS_DIR="${HOME}/suricata-install"
 
 if [ "$(uname -s)" = "Darwin" ]; then
     LOGGED_IN_USER=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /loginwindow/ {print $3}')
@@ -58,6 +61,8 @@ sed_alternative() {
 brew_command() {
     sudo -u "$LOGGED_IN_USER" brew "$@"
 }
+
+mkdir -p "$DOWNLOADS_DIR"
 
 # Environment Variables
 SURICATA_USER=${SURICATA_USER:-"root"}
@@ -351,6 +356,58 @@ update_config() {
     success_message "Configuration updated successfully."
 }
 
+remove_brew_yara() {
+    # only on macOS/Homebrew
+    if command_exists brew; then
+        if brew_command list suricata >/dev/null 2>&1; then
+            info_message "Removing Homebrew-installed Suricata package"
+            brew_command uninstall --force suricata || {
+                error_message "Failed to remove Homebrew-installed Suricata"
+            }
+            success_message "Homebrew-installed Suricata removed"
+        fi
+    fi
+}
+
+
+install_suricata_macos() {
+    info_message "Installing Suricata v${SURICATA_VERSION_MACOS} from source on macOS" ""
+    SURICATA_RB_URL="https://raw.githubusercontent.com/Homebrew/homebrew-core/1adc97dc5122276de00d8081a5497bb6b5381b0c/Formula/s/suricata.rb" #v7.0.10
+    SURICATA_RP_PATH="$DOWNLOADS_DIR/suricata.rb"
+
+    curl -SL --progress-bar "$SURICATA_RB_URL" -o "$SURICATA_RP_PATH" || {
+        error_message "Failed to download suricata.rb file"
+        exit 1
+    }
+
+    brew_command install --formula "$SURICATA_RP_PATH"
+    brew_command pin suricata
+
+    success_message "Suricata v${SURICATA_VERSION_MACOS} built and installed from source on macOS successfully"
+}
+
+install_suricata_darwin(){
+
+   if command_exists suricata; then
+        if [ "$(suricata --version)" = "$SURICATA_VERSION_MACOS" ]; then
+            info_message "Suricata is already installed. Skipping installation."
+        else
+            if [ "$OS" = "Darwin" ]; then
+                remove_brew_suricata
+            fi
+            info_message "Installing Suricata..."
+            install_suricata_macos
+        fi
+    else
+        info_message "Installing Suricata..."
+        install_suricata_macos
+    fi
+    if [ -d "$DOWNLOADS_DIR" ]; then
+        info_message "Cleaning up downloads directory..."
+        maybe_sudo rm -rf "$DOWNLOADS_DIR"
+    fi 
+}
+
 
 # Installation Process
 print_step_header 1 "Installing dependencies and Suricata"
@@ -379,7 +436,8 @@ if [ "$OS" = "linux" ]; then
     fi
 elif [ "$OS" = "darwin" ]; then
     info_message "Installing Suricata and yq via Homebrew..."
-    brew_command install suricata yq
+    brew_command install yq
+    install_suricata_darwin
     SURICATA_BIN=$(command -v suricata || echo "$BIN_FOLDER/bin/suricata")
     success_message "Suricata installed at: $SURICATA_BIN"
 fi
