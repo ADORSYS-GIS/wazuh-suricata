@@ -356,7 +356,7 @@ update_config() {
     success_message "Configuration updated successfully."
 }
 
-remove_brew_yara() {
+remove_brew_suricata() {
     # only on macOS/Homebrew
     if command_exists brew; then
         if brew_command list suricata >/dev/null 2>&1; then
