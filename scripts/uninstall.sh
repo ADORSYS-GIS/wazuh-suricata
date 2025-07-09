@@ -142,8 +142,8 @@ if command_exists suricata; then
             warn_message "No supported package manager found. Skipping Suricata uninstallation."
         fi
     elif [ "$OS" = "darwin" ]; then
-        brew_command uninstall suricata || warn_message "Failed to uninstall Suricata using Homebrew."
         brew_command unpin suricata
+        brew_command uninstall suricata || warn_message "Failed to uninstall Suricata using Homebrew."
     fi
 else
     info_message "Suricata is not installed. Skipping uninstallation."
