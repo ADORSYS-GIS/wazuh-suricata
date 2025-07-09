@@ -89,14 +89,16 @@ Darwin)
 esac
 
 # Uninstall Process
-info_message "Starting Suricata uninstallation process..."
+if [ "$(uname -s)" = "Linux" ]; then
+    info_message "Starting Suricata uninstallation process..."
+    if maybe_sudo grep -q "LISTENMODE=nfqueue" "$SURICATA_DEFAULT_FILE"; then
+        info_message "Suricata is running in IPS mode."
+        MODE=ips
+    else
+        info_message "Suricata is running in IDS mode."
+        MODE=ids
 
-if maybe_sudo grep -q "LISTENMODE=nfqueue" "$SURICATA_DEFAULT_FILE"; then
-    info_message "Suricata is running in IPS mode."
-    MODE=ips
-else
-    info_message "Suricata is running in IDS mode."
-    MODE=ids
+    fi
 fi
 
 # Stop Suricata service
