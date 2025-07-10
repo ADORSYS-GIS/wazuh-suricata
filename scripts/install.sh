@@ -413,7 +413,12 @@ install_suricata_darwin(){
 print_step_header 1 "Installing dependencies and Suricata"
 if [ "$OS" = "linux" ]; then
     if [ "$DISTRO" = "ubuntu" ] || [ "$DISTRO" = "debian" ]; then
-        if ! grep -q "oisf/suricata-stable" /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null; then
+        if grep -q "oisf/suricata-stable" /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null; then
+            info_message "Removing unsupported Suricata repository..."
+            maybe_sudo add-apt-repository --remove "ppa:oisf/suricata-stable" -y
+            maybe_sudo "$PACKAGE_MANAGER" purge -y suricata || warn_message "Failed to remove Suricata package."
+        fi
+        if ! grep -q "oisf/suricata-$SURICATA_VERSION" /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null; then
             info_message "Updating package lists and adding Suricata repository..."
             maybe_sudo "$PACKAGE_MANAGER" update
             maybe_sudo add-apt-repository "ppa:oisf/suricata-$SURICATA_VERSION" -y
@@ -463,7 +468,7 @@ elif [ "$OS" = "darwin" ]; then
 fi
 
 print_step_header 5 "Validating installation"
-if [ -f "$CONFIG_FILE" ]; then
+if maybe_sudo [ -f "$CONFIG_FILE" ]; then
     success_message "Suricata configuration file exists: $CONFIG_FILE."
 else
     error_exit "Suricata configuration file is missing: $CONFIG_FILE."
