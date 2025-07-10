@@ -389,7 +389,7 @@ install_suricata_macos() {
 install_suricata_darwin(){
 
    if command_exists suricata; then
-        if [ "$(suricata --version)" = "$SURICATA_VERSION_MACOS" ]; then
+        if [ "$(suricata -V)" = "$SURICATA_VERSION_MACOS" ]; then
             info_message "Suricata is already installed. Skipping installation."
         else
             if [ "$OS" = "Darwin" ]; then
