@@ -7,10 +7,12 @@ else
     set -eu
 fi
 
+SURICATA_VERSION=${SURICATA_VERSION:-"7.0"}
+MODE=""
 LOGGED_IN_USER=""
 
 if [ "$(uname -s)" = "Darwin" ]; then
-    LOGGED_IN_USER=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /loginwindow/ {print $3}')
+    LOGGED_IN_USER=$(scutil <<<"show State:/Users/ConsoleUser" | awk '/Name :/ && ! /loginwindow/ {print $3}')
 fi
 
 # Text Formatting
@@ -86,8 +88,19 @@ Darwin)
     ;;
 esac
 
-# Uninstall Process
-info_message "Starting Suricata uninstallation process..."
+# Get installation profile
+if [ "$(uname -s)" = "Linux" ]; then
+    if [ -f "$SURICATA_DEFAULT_FILE" ]; then
+        info_message "Starting Suricata uninstallation process..."
+        if maybe_sudo grep -q "LISTENMODE=nfqueue" "$SURICATA_DEFAULT_FILE"; then
+            info_message "Suricata is running in IPS mode."
+            MODE="ips"
+        else
+            info_message "Suricata is running in IDS mode."
+            MODE="ids"
+        fi
+    fi
+fi
 
 # Stop Suricata service
 if [ "$OS" = "linux" ]; then
@@ -116,8 +129,16 @@ else
     info_message "yq is not installed. Skipping uninstallation."
 fi
 
-# Uninstall Suricata using package managers
+# Removing suricata repository from local package list...
+if [ "$OS" = "linux" ]; then
+    if grep -q "oisf/suricata-stable" /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null; then
+        maybe_sudo add-apt-repository --remove "ppa:oisf/suricata-stable" -y
+    elif grep -q "oisf/suricata-$SURICATA_VERSION" /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null; then
+        maybe_sudo add-apt-repository --remove "ppa:oisf/suricata-$SURICATA_VERSION" -y
+    fi
+fi
 
+# Uninstall Suricata using package managers
 if command_exists suricata; then
     info_message "Uninstalling Suricata using the package manager..."
     if [ "$OS" = "linux" ]; then
@@ -129,6 +150,7 @@ if command_exists suricata; then
             warn_message "No supported package manager found. Skipping Suricata uninstallation."
         fi
     elif [ "$OS" = "darwin" ]; then
+        brew_command unpin suricata
         brew_command uninstall suricata || warn_message "Failed to uninstall Suricata using Homebrew."
     fi
 else
@@ -158,7 +180,7 @@ if [ -d "$USR_LIB_DIR" ]; then
 fi
 
 # Only run on Linux
-if [ "$(uname -s)" = "Linux" ]; then
+if [ "$(uname -s)" = "Linux" ] && [ "$MODE" = "ips" ]; then
     if [ -f "$SURICATA_DEFAULT_FILE" ]; then
         info_message "Removing Suricata default file..."
         maybe_sudo rm -f "$SURICATA_DEFAULT_FILE" || warn_message "Failed to remove Suricata default file."
@@ -176,13 +198,12 @@ if [ "$(uname -s)" = "Linux" ]; then
         sed_alternative -i "/^-I OUTPUT -j NFQUEUE/d" "$UFW_BEFORE_RULES" || warn_message "Failed to remove OUTPUT NFQUEUE rule from $UFW_BEFORE_RULES."
     fi
 
-fi
-
-# Restart UFW service after reverting IPS mode-specific changes
-if command_exists ufw; then
-    info_message "Restarting UFW service to apply changes..."
-    maybe_sudo ufw disable || warn_message "Failed to disable UFW service."
-    maybe_sudo ufw enable || warn_message "Failed to enable UFW service."
+    # Restart UFW service after reverting IPS mode-specific changes
+    if command_exists ufw; then
+        info_message "Restarting UFW service to apply changes..."
+        maybe_sudo ufw disable || warn_message "Failed to disable UFW service."
+        maybe_sudo ufw enable || warn_message "Failed to enable UFW service."
+    fi
 fi
 
 success_message "Suricata uninstallation process completed successfully."
