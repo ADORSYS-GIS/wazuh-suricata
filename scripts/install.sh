@@ -59,7 +59,13 @@ sed_alternative() {
 }
 
 brew_command() {
-    sudo -u "$LOGGED_IN_USER" brew "$@"
+    # Get the user's home directory properly
+    local user_home=$(sudo -u "$LOGGED_IN_USER" sh -c 'echo $HOME')
+    
+    # Run brew as the user in their home directory
+    sudo -u "$LOGGED_IN_USER" sh -c "cd '$user_home' && \
+        PATH=\"/usr/local/bin:$PATH\" && \
+        brew $*"
 }
 
 mkdir -p "$DOWNLOADS_DIR"
