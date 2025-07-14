@@ -30,7 +30,7 @@ error_exit() {
 }
 
 LOGGED_IN_USER=""
-SURICATA_VERSION_MACOS="${7.0.10}"
+SURICATA_VERSION_MACOS=${SURICATA_VERSION_MACOS:-"7.0.10"}
 # Create Downloads directory for source builds
 DOWNLOADS_DIR="${HOME}/suricata-install"
 
