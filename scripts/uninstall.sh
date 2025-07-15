@@ -138,6 +138,23 @@ if [ "$OS" = "linux" ]; then
     fi
 fi
 
+# Function to remove residual Suricata files from Homebrew Cellar
+remove_suricata_residuals() {
+    local paths_to_check=(
+        "/opt/homebrew/Cellar/suricata/7.0.10"  # Apple Silicon
+        "/usr/local/Cellar/suricata/7.0.10"     # Intel
+    )
+
+    for path in "${paths_to_check[@]}"; do
+        if [ -e "$path" ]; then
+            info_message "Found residual Suricata files at $path. Deleting..."
+            if ! maybe_sudo rm -rf "$path"; then
+                warn_message "Failed to remove residual files at $path. This may require manual cleanup."
+            fi
+        fi
+    done
+}
+
 # Uninstall Suricata using package managers
 if command_exists suricata; then
     info_message "Uninstalling Suricata using the package manager..."
@@ -152,6 +169,7 @@ if command_exists suricata; then
     elif [ "$OS" = "darwin" ]; then
         brew_command unpin suricata
         brew_command uninstall --force suricata || warn_message "Failed to uninstall Suricata using Homebrew."
+        remove_suricata_residuals 
     fi
 else
     info_message "Suricata is not installed. Skipping uninstallation."
