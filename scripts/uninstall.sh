@@ -151,7 +151,7 @@ if command_exists suricata; then
         fi
     elif [ "$OS" = "darwin" ]; then
         brew_command unpin suricata
-        brew_command uninstall suricata || warn_message "Failed to uninstall Suricata using Homebrew."
+        brew_command uninstall --force suricata || warn_message "Failed to uninstall Suricata using Homebrew."
     fi
 else
     info_message "Suricata is not installed. Skipping uninstallation."
