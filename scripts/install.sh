@@ -59,13 +59,7 @@ sed_alternative() {
 }
 
 brew_command() {
-    # Get the user's home directory properly
-    local user_home=$(sudo -u "$LOGGED_IN_USER" sh -c 'echo $HOME')
-    
-    # Run brew as the user in their home directory
-    sudo -u "$LOGGED_IN_USER" sh -c "cd '$user_home' && \
-        PATH=\"/usr/local/bin:$PATH\" && \
-        brew $*"
+    sudo -u "$LOGGED_IN_USER" brew "$@"
 }
 
 mkdir -p "$DOWNLOADS_DIR"
@@ -456,6 +450,7 @@ if [ "$OS" = "linux" ]; then
     fi
 elif [ "$OS" = "darwin" ]; then
     info_message "Installing Suricata and yq via Homebrew..."
+    brew_command install yq
     install_suricata_darwin "$SURICATA_VERSION_MACOS"
     SURICATA_BIN=$(command -v suricata || echo "$BIN_FOLDER/bin/suricata")
     success_message "Suricata installed at: $SURICATA_BIN"
