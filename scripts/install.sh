@@ -66,9 +66,61 @@ sed_alternative() {
     fi
 }
 
-brew_command() {
-    sudo -u "$LOGGED_IN_USER" brew "$@"
+# ---------- Homebrew helpers (no ConsoleUser, no `brew --prefix`) ----------
+BREW_BIN=""
+BREW_PREFIX=""
+BREW_OWNER=""
+
+init_brew_env() {
+  [ "$(uname -s)" = "Darwin" ] || return 0
+
+  # Prefer known paths; avoid calling `brew` under root unless absolutely necessary
+  if [ -x /opt/homebrew/bin/brew ]; then
+      BREW_BIN=/opt/homebrew/bin/brew
+      BREW_PREFIX="/opt/homebrew"
+  elif [ -x /usr/local/bin/brew ]; then
+      BREW_BIN=/usr/local/bin/brew
+      BREW_PREFIX="/usr/local"
+  else
+      # If brew is on PATH, use its location to infer the prefix (bin/..)
+      local found
+      found="$(command -v brew || true)"
+      if [ -n "$found" ]; then
+          BREW_BIN="$found"
+          BREW_PREFIX="$(cd "$(dirname "$found")/.." 2>/dev/null && pwd -P || true)"
+      else
+          # Last-resort: infer by architecture
+          case "$(uname -m)" in
+            arm64) BREW_PREFIX="/opt/homebrew" ;;
+            *)     BREW_PREFIX="/usr/local"    ;;
+          esac
+          [ -x "$BREW_PREFIX/bin/brew" ] && BREW_BIN="$BREW_PREFIX/bin/brew" || BREW_BIN=""
+      fi
+  fi
+
+  # Determine Homebrew owner from filesystem (safe under launchd/root)
+  if [ -n "$BREW_PREFIX" ] && [ -d "$BREW_PREFIX" ]; then
+      BREW_OWNER="$(/usr/bin/stat -f '%Su' "$BREW_PREFIX" 2>/dev/null || true)"
+  fi
 }
+
+brew_available() {
+  init_brew_env
+  [ -n "$BREW_BIN" ] && [ -x "$BREW_BIN" ] && [ -n "$BREW_OWNER" ] && [ "$BREW_OWNER" != "root" ]
+}
+
+require_brew_or_exit() {
+  if ! brew_available; then
+    error_exit "Homebrew not available (or owner undetected). Install Homebrew as a regular user first."
+  fi
+}
+
+brew_command() {
+  require_brew_or_exit
+  sudo -H -u "$BREW_OWNER" env NONINTERACTIVE=1 PATH="$(dirname "$BREW_BIN"):/usr/bin:/bin:/usr/sbin:/sbin" "$BREW_BIN" "$@"
+}
+# ---------- end Homebrew helpers ----------
+
 
 mkdir -p "$DOWNLOADS_DIR"
 
@@ -137,7 +189,15 @@ Linux)
     ;;
 Darwin)
     OS="darwin"
-    BIN_FOLDER=$(brew --prefix)
+    init_brew_env
+    # Use detected prefix; fallback by CPU arch if not found
+    if [ -z "$BREW_PREFIX" ]; then
+        case "$(uname -m)" in
+          arm64) BREW_PREFIX="/opt/homebrew" ;;
+          *)     BREW_PREFIX="/usr/local"    ;;
+        esac
+    fi
+    BIN_FOLDER="$BREW_PREFIX"
     CONFIG_DIR="$BIN_FOLDER/etc/suricata"
     CONFIG_FILE="$BIN_FOLDER/etc/suricata/suricata.yaml"
     RULES_DIR="$BIN_FOLDER/var/lib/suricata/rules"
