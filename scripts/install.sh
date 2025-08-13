@@ -35,15 +35,7 @@ SURICATA_VERSION_MACOS=${SURICATA_VERSION_MACOS:-"7.0.10"}
 DOWNLOADS_DIR="${HOME}/suricata-install"
 
 if [ "$(uname -s)" = "Darwin" ]; then
-    if ! BREW_PREFIX=$(brew --prefix 2>/dev/null); then
-        echo "Error: Failed to get brew prefix. Is Homebrew installed?" >&2
-        exit 1
-    fi
-    
-    if ! LOGGED_IN_USER=$(stat -f "%Su" "$BREW_PREFIX" 2>/dev/null); then
-        echo "Error: Failed to get owner of brew prefix ($BREW_PREFIX). Check if the directory exists and is accessible." >&2
-        exit 1
-    fi
+    LOGGED_IN_USER=$(stat -f "%Su" "$(brew --prefix)")
 fi
 
 # Command Existence Check
@@ -66,61 +58,9 @@ sed_alternative() {
     fi
 }
 
-# ---------- Homebrew helpers (no ConsoleUser, no `brew --prefix`) ----------
-BREW_BIN=""
-BREW_PREFIX=""
-BREW_OWNER=""
-
-init_brew_env() {
-    [ "$(uname -s)" = "Darwin" ] || return 0
-    
-    # Try architecture-specific default first
-    case "$(uname -m)" in
-        arm64) local default_prefix="/opt/homebrew" ;;
-        *)     local default_prefix="/usr/local" ;;
-    esac
-    
-    # Check common locations in order of preference
-    for prefix in "$default_prefix" "/opt/homebrew" "/usr/local"; do
-        if [ -x "$prefix/bin/brew" ]; then
-            BREW_BIN="$prefix/bin/brew"
-            BREW_PREFIX="$prefix"
-            break
-        fi
-    done
-    
-    # If not found, try PATH
-    if [ -z "$BREW_BIN" ]; then
-        local found="$(command -v brew 2>/dev/null || true)"
-        if [ -n "$found" ] && [ -x "$found" ]; then
-            BREW_BIN="$found"
-            BREW_PREFIX="$(dirname "$(dirname "$found")")"
-        fi
-    fi
-    
-    # Determine owner
-    if [ -n "$BREW_PREFIX" ] && [ -d "$BREW_PREFIX" ]; then
-        BREW_OWNER="$(/usr/bin/stat -f '%Su' "$BREW_PREFIX" 2>/dev/null || echo "unknown")"
-    fi
-}
-
-brew_available() {
-  init_brew_env
-  [ -n "$BREW_BIN" ] && [ -x "$BREW_BIN" ] && [ -n "$BREW_OWNER" ] && [ "$BREW_OWNER" != "root" ]
-}
-
-require_brew_or_exit() {
-  if ! brew_available; then
-    error_exit "Homebrew not available (or owner undetected). Install Homebrew as a regular user first."
-  fi
-}
-
 brew_command() {
-  require_brew_or_exit
-  sudo -H -u "$BREW_OWNER" env NONINTERACTIVE=1 PATH="$(dirname "$BREW_BIN"):/usr/bin:/bin:/usr/sbin:/sbin" "$BREW_BIN" "$@"
+    sudo -u "$LOGGED_IN_USER" brew "$@"
 }
-# ---------- end Homebrew helpers ----------
-
 
 mkdir -p "$DOWNLOADS_DIR"
 
@@ -189,15 +129,7 @@ Linux)
     ;;
 Darwin)
     OS="darwin"
-    init_brew_env
-    # Use detected prefix; fallback by CPU arch if not found
-    if [ -z "$BREW_PREFIX" ]; then
-        case "$(uname -m)" in
-          arm64) BREW_PREFIX="/opt/homebrew" ;;
-          *)     BREW_PREFIX="/usr/local"    ;;
-        esac
-    fi
-    BIN_FOLDER="$BREW_PREFIX"
+    BIN_FOLDER=$(brew --prefix)
     CONFIG_DIR="$BIN_FOLDER/etc/suricata"
     CONFIG_FILE="$BIN_FOLDER/etc/suricata/suricata.yaml"
     RULES_DIR="$BIN_FOLDER/var/lib/suricata/rules"
