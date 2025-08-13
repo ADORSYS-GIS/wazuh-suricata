@@ -59,7 +59,7 @@ sed_alternative() {
 }
 
 brew_command() {
-    sudo -u "$LOGGED_IN_USER" brew "$@"
+    sudo -u "$LOGGED_IN_USER" -i brew "$@"
 }
 
 mkdir -p "$DOWNLOADS_DIR"
