@@ -35,7 +35,7 @@ SURICATA_VERSION_MACOS=${SURICATA_VERSION_MACOS:-"7.0.10"}
 DOWNLOADS_DIR="${HOME}/suricata-install"
 
 if [ "$(uname -s)" = "Darwin" ]; then
-    LOGGED_IN_USER=$(stat -f "%Su" "$(brew --prefix)")
+    LOGGED_IN_USER=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /loginwindow/ {print $3}')
 fi
 
 # Command Existence Check
