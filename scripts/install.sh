@@ -103,6 +103,22 @@ init_brew_env() {
         BREW_OWNER="$(/usr/bin/stat -f '%Su' "$BREW_PREFIX" 2>/dev/null || echo "unknown")"
     fi
 }
+
+brew_available() {
+  init_brew_env
+  [ -n "$BREW_BIN" ] && [ -x "$BREW_BIN" ] && [ -n "$BREW_OWNER" ] && [ "$BREW_OWNER" != "root" ]
+}
+
+require_brew_or_exit() {
+  if ! brew_available; then
+    error_exit "Homebrew not available (or owner undetected). Install Homebrew as a regular user first."
+  fi
+}
+
+brew_command() {
+  require_brew_or_exit
+  sudo -H -u "$BREW_OWNER" env NONINTERACTIVE=1 PATH="$(dirname "$BREW_BIN"):/usr/bin:/bin:/usr/sbin:/sbin" "$BREW_BIN" "$@"
+}
 # ---------- end Homebrew helpers ----------
 
 
