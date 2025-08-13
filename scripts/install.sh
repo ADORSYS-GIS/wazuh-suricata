@@ -72,52 +72,36 @@ BREW_PREFIX=""
 BREW_OWNER=""
 
 init_brew_env() {
-  [ "$(uname -s)" = "Darwin" ] || return 0
-
-  # Prefer known paths; avoid calling `brew` under root unless absolutely necessary
-  if [ -x /opt/homebrew/bin/brew ]; then
-      BREW_BIN=/opt/homebrew/bin/brew
-      BREW_PREFIX="/opt/homebrew"
-  elif [ -x /usr/local/bin/brew ]; then
-      BREW_BIN=/usr/local/bin/brew
-      BREW_PREFIX="/usr/local"
-  else
-      # If brew is on PATH, use its location to infer the prefix (bin/..)
-      local found
-      found="$(command -v brew || true)"
-      if [ -n "$found" ]; then
-          BREW_BIN="$found"
-          BREW_PREFIX="$(cd "$(dirname "$found")/.." 2>/dev/null && pwd -P || true)"
-      else
-          # Last-resort: infer by architecture
-          case "$(uname -m)" in
-            arm64) BREW_PREFIX="/opt/homebrew" ;;
-            *)     BREW_PREFIX="/usr/local"    ;;
-          esac
-          [ -x "$BREW_PREFIX/bin/brew" ] && BREW_BIN="$BREW_PREFIX/bin/brew" || BREW_BIN=""
-      fi
-  fi
-
-  # Determine Homebrew owner from filesystem (safe under launchd/root)
-  if [ -n "$BREW_PREFIX" ] && [ -d "$BREW_PREFIX" ]; then
-      BREW_OWNER="$(/usr/bin/stat -f '%Su' "$BREW_PREFIX" 2>/dev/null || true)"
-  fi
-}
-
-brew_available() {
-  init_brew_env
-  [ -n "$BREW_BIN" ] && [ -x "$BREW_BIN" ] && [ -n "$BREW_OWNER" ] && [ "$BREW_OWNER" != "root" ]
-}
-
-require_brew_or_exit() {
-  if ! brew_available; then
-    error_exit "Homebrew not available (or owner undetected). Install Homebrew as a regular user first."
-  fi
-}
-
-brew_command() {
-  require_brew_or_exit
-  sudo -H -u "$BREW_OWNER" env NONINTERACTIVE=1 PATH="$(dirname "$BREW_BIN"):/usr/bin:/bin:/usr/sbin:/sbin" "$BREW_BIN" "$@"
+    [ "$(uname -s)" = "Darwin" ] || return 0
+    
+    # Try architecture-specific default first
+    case "$(uname -m)" in
+        arm64) local default_prefix="/opt/homebrew" ;;
+        *)     local default_prefix="/usr/local" ;;
+    esac
+    
+    # Check common locations in order of preference
+    for prefix in "$default_prefix" "/opt/homebrew" "/usr/local"; do
+        if [ -x "$prefix/bin/brew" ]; then
+            BREW_BIN="$prefix/bin/brew"
+            BREW_PREFIX="$prefix"
+            break
+        fi
+    done
+    
+    # If not found, try PATH
+    if [ -z "$BREW_BIN" ]; then
+        local found="$(command -v brew 2>/dev/null || true)"
+        if [ -n "$found" ] && [ -x "$found" ]; then
+            BREW_BIN="$found"
+            BREW_PREFIX="$(dirname "$(dirname "$found")")"
+        fi
+    fi
+    
+    # Determine owner
+    if [ -n "$BREW_PREFIX" ] && [ -d "$BREW_PREFIX" ]; then
+        BREW_OWNER="$(/usr/bin/stat -f '%Su' "$BREW_PREFIX" 2>/dev/null || echo "unknown")"
+    fi
 }
 # ---------- end Homebrew helpers ----------
 
