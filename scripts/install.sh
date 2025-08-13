@@ -35,7 +35,15 @@ SURICATA_VERSION_MACOS=${SURICATA_VERSION_MACOS:-"7.0.10"}
 DOWNLOADS_DIR="${HOME}/suricata-install"
 
 if [ "$(uname -s)" = "Darwin" ]; then
-    LOGGED_IN_USER=$(stat -f "%Su" "$(brew --prefix)")
+    if ! BREW_PREFIX=$(brew --prefix 2>/dev/null); then
+        echo "Error: Failed to get brew prefix. Is Homebrew installed?" >&2
+        exit 1
+    fi
+    
+    if ! LOGGED_IN_USER=$(stat -f "%Su" "$BREW_PREFIX" 2>/dev/null); then
+        echo "Error: Failed to get owner of brew prefix ($BREW_PREFIX). Check if the directory exists and is accessible." >&2
+        exit 1
+    fi
 fi
 
 # Command Existence Check
