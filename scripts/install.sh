@@ -395,20 +395,8 @@ install_suricata_macos() {
         return 1
     fi
     
-    if brew_command install --formula "$SURICATA_RP_PATH"; then
-        info_message "Suricata installed successfully"
-        
-        if brew_command pin suricata; then
-            info_message "Suricata pinned successfully"
-        else
-            warn_message "Failed to pin Suricata version"
-        fi
-        
-        success_message "Suricata v${version} built and installed from source on macOS successfully"
-    else
-        error_message "Failed to install Suricata from formula"
-        return 1
-    fi
+    brew_command install --formula "$SURICATA_RP_PATH"
+    brew_command pin suricata
     
     info_message "Cleaning up formula file..."
     sudo -u "$LOGGED_IN_USER" rm -f "$SURICATA_RP_PATH"
