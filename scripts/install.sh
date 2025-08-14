@@ -59,7 +59,7 @@ sed_alternative() {
 }
 
 brew_command() {
-    sudo -u "$LOGGED_IN_USER" brew "$@"
+    sudo -u "$LOGGED_IN_USER" -i brew "$@"
 }
 
 mkdir -p "$DOWNLOADS_DIR"
@@ -380,19 +380,26 @@ remove_brew_suricata() {
 
 install_suricata_macos() {
     local version="$1"
-    info_message "Installing Suricata v${version} from source on macOS" ""
+    info_message "Installing Suricata v${version} from source on macOS"
+    
     SURICATA_RB_URL="https://raw.githubusercontent.com/Homebrew/homebrew-core/1adc97dc5122276de00d8081a5497bb6b5381b0c/Formula/s/suricata.rb" #v7.0.10
-    SURICATA_RP_PATH="$DOWNLOADS_DIR/suricata.rb"
-
-    curl -SL --progress-bar "$SURICATA_RB_URL" -o "$SURICATA_RP_PATH" || {
+    
+    USER_HOME=$(eval echo "~$LOGGED_IN_USER")
+    SURICATA_RP_PATH="$USER_HOME/suricata.rb"
+    
+    info_message "Downloading Suricata formula to user directory..."
+    if sudo -u "$LOGGED_IN_USER" curl -SL --progress-bar "$SURICATA_RB_URL" -o "$SURICATA_RP_PATH"; then
+        info_message "Suricata formula downloaded successfully"
+    else
         error_message "Failed to download suricata.rb file"
         exit 1
-    }
-
+    fi
+    
     brew_command install --formula "$SURICATA_RP_PATH"
     brew_command pin suricata
-
-    success_message "Suricata v${version} built and installed from source on macOS successfully"
+    
+    info_message "Cleaning up formula file..."
+    sudo -u "$LOGGED_IN_USER" rm -f "$SURICATA_RP_PATH"
 }
 
 install_suricata_darwin() {
