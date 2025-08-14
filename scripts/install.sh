@@ -392,7 +392,7 @@ install_suricata_macos() {
         info_message "Suricata formula downloaded successfully"
     else
         error_message "Failed to download suricata.rb file"
-        return 1
+        exit 1
     fi
     
     brew_command install --formula "$SURICATA_RP_PATH"
