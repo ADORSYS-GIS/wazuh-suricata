@@ -377,29 +377,41 @@ remove_brew_suricata() {
     fi
 }
 
-
 install_suricata_macos() {
     local version="$1"
-    info_message "Installing Suricata v${version} from source on macOS"
-    
-    SURICATA_RB_URL="https://raw.githubusercontent.com/Homebrew/homebrew-core/1adc97dc5122276de00d8081a5497bb6b5381b0c/Formula/s/suricata.rb" #v7.0.10
-    
-    USER_HOME=$(eval echo "~$LOGGED_IN_USER")
-    SURICATA_RP_PATH="$USER_HOME/suricata.rb"
-    
-    info_message "Downloading Suricata formula to user directory..."
-    if sudo -u "$LOGGED_IN_USER" curl -SL --progress-bar "$SURICATA_RB_URL" -o "$SURICATA_RP_PATH"; then
-        info_message "Suricata formula downloaded successfully"
-    else
+    info_message "Installing Suricata v${version} via Homebrew tap on macOS"
+
+    # Local tap path
+    TAP_NAME="wazuh/local"
+    TAP_PATH="$(brew --repository)/Library/Taps/wazuh/homebrew-local/Formula"
+
+    # Ensure directory exists
+    if [ ! -d "$TAP_PATH" ]; then
+        info_message "Creating local tap directory for $TAP_NAME..."
+        mkdir -p "$TAP_PATH"
+        echo "# auto-generated tap for Wazuh" > "$(dirname "$TAP_PATH")/README.md"
+    fi
+
+    # Download suricata.rb into the tap
+    SURICATA_RB_URL="https://raw.githubusercontent.com/Homebrew/homebrew-core/1adc97dc5122276de00d8081a5497bb6b5381b0c/Formula/s/suricata.rb" # v7.0.10
+    SURICATA_RB_FILE="$TAP_PATH/suricata.rb"
+
+    info_message "Downloading suricata.rb formula to $SURICATA_RB_FILE..."
+    sudo -u "$LOGGED_IN_USER" curl -sSL --progress-bar "$SURICATA_RB_URL" -o "$SURICATA_RB_FILE" || {
         error_message "Failed to download suricata.rb file"
         exit 1
-    fi
-    
-    brew_command install --formula "$SURICATA_RP_PATH"
+    }
+
+    # Install from local tap
+    brew_command install "$TAP_NAME/suricata" || {
+        error_message "Failed to install Suricata from local tap"
+        exit 1
+    }
+
+    # Pin version
     brew_command pin suricata
-    
-    info_message "Cleaning up formula file..."
-    sudo -u "$LOGGED_IN_USER" rm -f "$SURICATA_RP_PATH"
+
+    success_message "Suricata v${version} installed successfully via local Homebrew tap"
 }
 
 install_suricata_darwin() {
