@@ -10,6 +10,9 @@ fi
 SURICATA_VERSION=${SURICATA_VERSION:-"7.0"}
 MODE=""
 LOGGED_IN_USER=""
+TAP_NAME="adorsys-gis/tools"
+VERSION="${1:-7.0.10}"
+FORMULA="$TAP_NAME/suricata@$VERSION"
 
 if [ "$(uname -s)" = "Darwin" ]; then
     LOGGED_IN_USER=$(scutil <<<"show State:/Users/ConsoleUser" | awk '/Name :/ && ! /loginwindow/ {print $3}')
@@ -168,7 +171,15 @@ if command_exists suricata; then
             warn_message "No supported package manager found. Skipping Suricata uninstallation."
         fi
     elif [ "$OS" = "darwin" ]; then
-        brew_command uninstall --force suricata@7.0.10 || warn_message "Failed to uninstall Suricata using Homebrew."
+        if  brew_command list "$FORMULA" >/dev/null 2>&1; then
+            brew_command uninstall "$FORMULA" || {
+                warn_message "Failed to remove $FORMULA"
+            }
+        else
+            brew_command uninstall suricata || {
+                warn_message "Failed to remove Homebrew default Suricata"
+            }
+        fi
         remove_suricata_residuals 
     fi
 else
