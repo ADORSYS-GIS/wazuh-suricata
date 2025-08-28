@@ -176,6 +176,7 @@ if command_exists suricata; then
                 warn_message "Failed to remove $FORMULA"
             }
         else
+            brew_command unpin suricata
             brew_command uninstall suricata || {
                 warn_message "Failed to remove Homebrew default Suricata"
             }
