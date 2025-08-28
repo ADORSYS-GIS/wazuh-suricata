@@ -368,11 +368,12 @@ remove_brew_suricata() {
     # only on macOS/Homebrew
     if command_exists brew; then
         if brew_command list suricata >/dev/null 2>&1; then
-            info_message "Removing Homebrew-installed Suricata package"
+            info_message "Removing different version of Suricata package..."
+            brew_command unpin suricata
             brew_command uninstall --force suricata || {
                 error_message "Failed to remove Homebrew-installed Suricata"
             }
-            success_message "Homebrew-installed Suricata removed"
+            success_message "Different version of Suricata removed"
         fi
     fi
 }
@@ -381,35 +382,20 @@ install_suricata_macos() {
     local version="$1"
     info_message "Installing Suricata v${version} via Homebrew tap on macOS"
 
-    # Local tap path
-    TAP_NAME="wazuh/local"
-    TAP_PATH="$(brew --repository)/Library/Taps/wazuh/homebrew-local/Formula"
+    # Tap the adorsys-gis/tools repository
+    TAP_NAME="adorsys-gis/tools"
 
-    # Ensure directory exists
-    if [ ! -d "$TAP_PATH" ]; then
-        info_message "Creating local tap directory for $TAP_NAME..."
-        mkdir -p "$TAP_PATH"
-        echo "# auto-generated tap for Wazuh" > "$(dirname "$TAP_PATH")/README.md"
-    fi
-
-    # Download suricata.rb into the tap
-    SURICATA_RB_URL="https://raw.githubusercontent.com/Homebrew/homebrew-core/1adc97dc5122276de00d8081a5497bb6b5381b0c/Formula/s/suricata.rb" # v7.0.10
-    SURICATA_RB_FILE="$TAP_PATH/suricata.rb"
-
-    info_message "Downloading suricata.rb formula to $SURICATA_RB_FILE..."
-    sudo -u "$LOGGED_IN_USER" curl -sSL --progress-bar "$SURICATA_RB_URL" -o "$SURICATA_RB_FILE" || {
-        error_message "Failed to download suricata.rb file"
+    info_message "Tapping $TAP_NAME..."
+    brew_command tap "$TAP_NAME" || {
+        error_message "Failed to tap $TAP_NAME"
         exit 1
     }
 
-    # Install from local tap
-    brew_command install "$TAP_NAME/suricata" || {
-        error_message "Failed to install Suricata from local tap"
+    # Install specific version from tap
+    brew_command install "$TAP_NAME/suricata@7.0.10" || {
+        error_message "Failed to install Suricata from tap"
         exit 1
     }
-
-    # Pin version
-    brew_command pin suricata
 
     success_message "Suricata v${version} installed successfully via local Homebrew tap"
 }

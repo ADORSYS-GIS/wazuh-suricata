@@ -10,6 +10,9 @@ fi
 SURICATA_VERSION=${SURICATA_VERSION:-"7.0"}
 MODE=""
 LOGGED_IN_USER=""
+TAP_NAME="adorsys-gis/tools"
+VERSION="${1:-7.0.10}"
+FORMULA="$TAP_NAME/suricata@$VERSION"
 
 if [ "$(uname -s)" = "Darwin" ]; then
     LOGGED_IN_USER=$(scutil <<<"show State:/Users/ConsoleUser" | awk '/Name :/ && ! /loginwindow/ {print $3}')
@@ -81,6 +84,7 @@ Darwin)
     LOG_DIR="$BREW_PREFIX/var/log/suricata"
     RULES_DIR="$BREW_PREFIX/var/lib/suricata/rules"
     USR_LIB_DIR="$BREW_PREFIX/usr/lib/suricata"
+    CELLAR_DIR="$BREW_PREFIX/Cellar/suricata@7.0.10/7.0.10"
     LAUNCH_AGENT_FILE="/Library/LaunchDaemons/com.suricata.suricata.plist"
     ;;
 *)
@@ -167,8 +171,16 @@ if command_exists suricata; then
             warn_message "No supported package manager found. Skipping Suricata uninstallation."
         fi
     elif [ "$OS" = "darwin" ]; then
-        brew_command unpin suricata
-        brew_command uninstall --force suricata || warn_message "Failed to uninstall Suricata using Homebrew."
+        if  brew_command list "$FORMULA" >/dev/null 2>&1; then
+            brew_command uninstall "$FORMULA" || {
+                warn_message "Failed to remove $FORMULA"
+            }
+        else
+            brew_command unpin suricata
+            brew_command uninstall suricata || {
+                warn_message "Failed to remove Homebrew default Suricata"
+            }
+        fi
         remove_suricata_residuals 
     fi
 else
@@ -194,7 +206,12 @@ fi
 
 if [ -d "$USR_LIB_DIR" ]; then
     info_message "Removing Suricata lib folder..."
-    maybe_sudo rm -rf "$USR_LIB_DIR" || warn_message "Failed to remove Suricata rules folder."
+    maybe_sudo rm -rf "$USR_LIB_DIR" || warn_message "Failed to remove Suricata lib folder."
+fi
+
+if [ -d "$CELLAR_DIR" ]; then
+    info_message "Removing Suricata cellar folder..."
+    maybe_sudo rm -rf "$CELLAR_DIR" || warn_message "Failed to remove Suricata cellar folder."
 fi
 
 # Only run on Linux
