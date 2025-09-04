@@ -427,13 +427,27 @@ download_and_install_suricata_macos() {
         error_exit "Failed to create installation directory"
     }
     
-    # Extract the archive to /opt/suricata
-    # The tarball contains opt/suricata/* structure, so we need to strip 2 components
-    info_message "Extracting Suricata to $SURICATA_INSTALL_DIR"
-    maybe_sudo tar -xzf "${temp_dir}/${filename}" -C "$SURICATA_INSTALL_DIR" --strip-components=2 || {
+    # Extract the archive
+    # The tarball contains _meta/ and opt/suricata/ directories
+    # We only want the contents of opt/suricata/
+    info_message "Extracting Suricata to temporary location"
+    maybe_sudo tar -xzf "${temp_dir}/${filename}" -C "${temp_dir}" || {
         rm -rf "$temp_dir"
         error_exit "Failed to extract Suricata archive"
     }
+    
+    # Copy only the contents of opt/suricata/ to the installation directory
+    info_message "Installing Suricata files to $SURICATA_INSTALL_DIR"
+    if [ -d "${temp_dir}/opt/suricata" ]; then
+        # Use cp -R to preserve directory structure
+        maybe_sudo cp -R "${temp_dir}/opt/suricata/." "$SURICATA_INSTALL_DIR/" || {
+            rm -rf "$temp_dir"
+            error_exit "Failed to copy Suricata files to installation directory"
+        }
+    else
+        rm -rf "$temp_dir"
+        error_exit "Expected opt/suricata directory not found in archive"
+    fi
     
     # Remove quarantine attributes from all extracted files
     info_message "Removing macOS quarantine attributes from extracted files"
