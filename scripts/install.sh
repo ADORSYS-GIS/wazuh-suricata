@@ -390,7 +390,9 @@ download_and_install_suricata_macos() {
     
     # Construct the download URL
     local base_url="https://github.com/ADORSYS-GIS/wazuh-suricata-package/releases/download"
-    local filename="suricata-${tag}-macos-${arch}.tar.gz"
+    # Remove 'v' prefix from tag for the filename
+    local version_without_v=$(echo "$tag" | sed 's/^v//')
+    local filename="suricata-${version_without_v}-macos-${arch}.tar.gz"
     local download_url="${base_url}/${tag}/${filename}"
     local temp_dir="/tmp/suricata-install-$$"
     
