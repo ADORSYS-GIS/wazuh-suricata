@@ -31,7 +31,7 @@ error_exit() {
 
 LOGGED_IN_USER=""
 # GitHub release tag for prebuilt Suricata binaries
-SURICATA_GITHUB_TAG="v8.0.0-adorsys.1"
+SURICATA_GITHUB_TAG="v8.0.0-adorsys.2-rc.2"
 SURICATA_VERSION_MACOS=${SURICATA_VERSION_MACOS:-"8.0.0"}
 # Create Downloads directory for source builds
 DOWNLOADS_DIR="${HOME}/suricata-install"
