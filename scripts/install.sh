@@ -428,8 +428,9 @@ download_and_install_suricata_macos() {
     }
     
     # Extract the archive to /opt/suricata
+    # The tarball contains opt/suricata/* structure, so we need to strip 2 components
     info_message "Extracting Suricata to $SURICATA_INSTALL_DIR"
-    maybe_sudo tar -xzf "${temp_dir}/${filename}" -C "$SURICATA_INSTALL_DIR" --strip-components=1 || {
+    maybe_sudo tar -xzf "${temp_dir}/${filename}" -C "$SURICATA_INSTALL_DIR" --strip-components=2 || {
         rm -rf "$temp_dir"
         error_exit "Failed to extract Suricata archive"
     }
