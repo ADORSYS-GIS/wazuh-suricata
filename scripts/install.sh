@@ -462,6 +462,22 @@ download_and_install_suricata_macos() {
     info_message "Cleaning up temporary files"
     rm -rf "$temp_dir"
     
+    # Copy architecture-specific configuration file if it exists
+    local script_dir="$(cd "$(dirname "$0")" && pwd)"
+    local config_source="${script_dir}/../configs/suricata-macOS-${arch}.yaml"
+    local config_dest="$SURICATA_INSTALL_DIR/share/suricata.yaml"
+    
+    if [ -f "$config_source" ]; then
+        info_message "Installing macOS ${arch} specific configuration file"
+        maybe_sudo mkdir -p "$SURICATA_INSTALL_DIR/share" || warn_message "Could not create share directory"
+        maybe_sudo cp "$config_source" "$config_dest" || {
+            warn_message "Could not copy configuration file from $config_source to $config_dest"
+        }
+        success_message "Configuration file installed to $config_dest"
+    else
+        warn_message "Architecture-specific config file not found: $config_source"
+    fi
+    
     success_message "Suricata ${tag} installed successfully to $SURICATA_INSTALL_DIR"
 }
 
