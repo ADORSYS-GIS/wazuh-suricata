@@ -30,9 +30,13 @@ error_exit() {
 }
 
 LOGGED_IN_USER=""
-SURICATA_VERSION_MACOS=${SURICATA_VERSION_MACOS:-"7.0.10"}
+# GitHub release tag for prebuilt Suricata binaries
+SURICATA_GITHUB_TAG="v8.0.0-adorsys.1"
+SURICATA_VERSION_MACOS=${SURICATA_VERSION_MACOS:-"8.0.0"}
 # Create Downloads directory for source builds
 DOWNLOADS_DIR="${HOME}/suricata-install"
+# Installation directory for macOS prebuilt binaries
+SURICATA_INSTALL_DIR="/opt/suricata"
 
 if [ "$(uname -s)" = "Darwin" ]; then
     LOGGED_IN_USER=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /loginwindow/ {print $3}')
@@ -129,7 +133,7 @@ Linux)
     ;;
 Darwin)
     OS="darwin"
-    BIN_FOLDER=$(brew --prefix)
+    BIN_FOLDER="/opt/suricata"
     CONFIG_DIR="$BIN_FOLDER/etc/suricata"
     CONFIG_FILE="$BIN_FOLDER/etc/suricata/suricata.yaml"
     RULES_DIR="$BIN_FOLDER/var/lib/suricata/rules"
@@ -378,44 +382,117 @@ remove_brew_suricata() {
     fi
 }
 
-install_suricata_macos() {
-    local version="$1"
-    info_message "Installing Suricata v${version} via Homebrew tap on macOS"
-
-    # Tap the adorsys-gis/tools repository
-    TAP_NAME="adorsys-gis/tools"
-
-    info_message "Tapping $TAP_NAME..."
-    brew_command tap "$TAP_NAME" || {
-        error_message "Failed to tap $TAP_NAME"
-        exit 1
+download_and_install_suricata_macos() {
+    local tag="$1"
+    local arch="$2"
+    
+    info_message "Installing Suricata ${tag} for macOS ${arch}"
+    
+    # Construct the download URL
+    local base_url="https://github.com/ADORSYS-GIS/wazuh-suricata-package/releases/download"
+    local filename="suricata-${tag}-macos-${arch}.tar.gz"
+    local download_url="${base_url}/${tag}/${filename}"
+    local temp_dir="/tmp/suricata-install-$$"
+    
+    # Create temporary directory
+    info_message "Creating temporary directory: $temp_dir"
+    mkdir -p "$temp_dir" || error_exit "Failed to create temporary directory"
+    
+    # Download the release
+    info_message "Downloading Suricata from: $download_url"
+    if command_exists curl; then
+        curl -L --fail --progress-bar -o "${temp_dir}/${filename}" "$download_url" || {
+            rm -rf "$temp_dir"
+            error_exit "Failed to download Suricata from $download_url"
+        }
+    else
+        rm -rf "$temp_dir"
+        error_exit "curl is required but not installed"
+    fi
+    
+    success_message "Download completed successfully"
+    
+    # Remove quarantine attribute from downloaded file
+    info_message "Removing macOS quarantine attribute from downloaded file"
+    xattr -d com.apple.quarantine "${temp_dir}/${filename}" 2>/dev/null || {
+        warn_message "Could not remove quarantine attribute (may not be present)"
     }
-
-    # Install specific version from tap
-    brew_command install "$TAP_NAME/suricata@7.0.10" || {
-        error_message "Failed to install Suricata from tap"
-        exit 1
+    
+    # Create installation directory if it doesn't exist
+    info_message "Creating installation directory: $SURICATA_INSTALL_DIR"
+    maybe_sudo mkdir -p "$SURICATA_INSTALL_DIR" || {
+        rm -rf "$temp_dir"
+        error_exit "Failed to create installation directory"
     }
-
-    success_message "Suricata v${version} installed successfully via local Homebrew tap"
+    
+    # Extract the archive to /opt/suricata
+    info_message "Extracting Suricata to $SURICATA_INSTALL_DIR"
+    maybe_sudo tar -xzf "${temp_dir}/${filename}" -C "$SURICATA_INSTALL_DIR" --strip-components=1 || {
+        rm -rf "$temp_dir"
+        error_exit "Failed to extract Suricata archive"
+    }
+    
+    # Remove quarantine attributes from all extracted files
+    info_message "Removing macOS quarantine attributes from extracted files"
+    maybe_sudo find "$SURICATA_INSTALL_DIR" -type f -exec xattr -d com.apple.quarantine {} \; 2>/dev/null || {
+        warn_message "Some files may not have had quarantine attributes removed"
+    }
+    
+    # Make binaries executable
+    info_message "Setting executable permissions on Suricata binaries"
+    maybe_sudo chmod +x "$SURICATA_INSTALL_DIR/bin/"* || {
+        rm -rf "$temp_dir"
+        error_exit "Failed to set executable permissions"
+    }
+    
+    # Create symbolic link in /usr/local/bin for easier access
+    info_message "Creating symbolic link for suricata command"
+    maybe_sudo ln -sf "$SURICATA_INSTALL_DIR/bin/suricata" "/usr/local/bin/suricata" || {
+        warn_message "Could not create symbolic link in /usr/local/bin"
+    }
+    
+    # Also link suricata-update if it exists
+    if [ -f "$SURICATA_INSTALL_DIR/bin/suricata-update" ]; then
+        maybe_sudo ln -sf "$SURICATA_INSTALL_DIR/bin/suricata-update" "/usr/local/bin/suricata-update" || {
+            warn_message "Could not create symbolic link for suricata-update"
+        }
+    fi
+    
+    # Clean up temporary directory
+    info_message "Cleaning up temporary files"
+    rm -rf "$temp_dir"
+    
+    success_message "Suricata ${tag} installed successfully to $SURICATA_INSTALL_DIR"
 }
 
 install_suricata_darwin() {
-    local desired_version="$1"
+    local github_tag="$1"
+    local arch="$2"
     local current_version=$(get_current_suricata_version)
     
+    # Extract version from tag (remove 'v' prefix and '-adorsys.X' suffix for comparison)
+    local desired_version=$(echo "$github_tag" | sed 's/^v//' | sed 's/-adorsys\.[0-9]*$//')
+    
     if [ -n "$current_version" ]; then
-        if [ "$current_version" = "$desired_version" ]; then
+        # Compare base versions (without adorsys suffix)
+        local current_base_version=$(echo "$current_version" | sed 's/-adorsys\.[0-9]*$//')
+        if [ "$current_base_version" = "$desired_version" ]; then
             info_message "Suricata $current_version is already installed. Skipping installation."
             return 0
         else
-            info_message "Updating Suricata from $current_version to $desired_version..."
+            info_message "Updating Suricata from $current_version to $github_tag..."
+            # Remove any existing Homebrew installation
             remove_brew_suricata
+            # Remove existing /opt/suricata installation if it exists
+            if [ -d "$SURICATA_INSTALL_DIR" ]; then
+                info_message "Removing existing Suricata installation at $SURICATA_INSTALL_DIR"
+                maybe_sudo rm -rf "$SURICATA_INSTALL_DIR"
+            fi
         fi
     fi
     
-    info_message "Installing Suricata $desired_version..."
-    install_suricata_macos "$desired_version"
+    info_message "Installing Suricata $github_tag..."
+    download_and_install_suricata_macos "$github_tag" "$arch"
     
     if [ -d "$DOWNLOADS_DIR" ]; then
         info_message "Cleaning up downloads directory..."
@@ -454,10 +531,11 @@ if [ "$OS" = "linux" ]; then
         success_message "Suricata installed at: $SURICATA_BIN"
     fi
 elif [ "$OS" = "darwin" ]; then
-    info_message "Installing Suricata and yq via Homebrew..."
+    info_message "Installing yq via Homebrew..."
     brew_command install yq
-    install_suricata_darwin "$SURICATA_VERSION_MACOS"
-    SURICATA_BIN=$(command -v suricata || echo "$BIN_FOLDER/bin/suricata")
+    info_message "Installing Suricata from GitHub release..."
+    install_suricata_darwin "$SURICATA_GITHUB_TAG" "$ARCH"
+    SURICATA_BIN=$(command -v suricata || echo "$SURICATA_INSTALL_DIR/bin/suricata")
     success_message "Suricata installed at: $SURICATA_BIN"
 fi
 
