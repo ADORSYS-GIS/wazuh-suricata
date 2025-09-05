@@ -599,21 +599,14 @@ download_and_install_suricata_macos() {
         done
         
         if [ -n "$python_paths" ]; then
-            info_message "Creating Python-based suricata-update wrapper with PYTHONPATH=$python_paths"
-            maybe_sudo bash -c "cat > /usr/local/bin/suricata-update << 'PYWRAP'
-#!/usr/bin/env python3
-import os, sys
-
-extra_paths = 'REPLACE_WITH_PY_PATHS'
-existing = os.environ.get('PYTHONPATH', '')
-os.environ['PYTHONPATH'] = (extra_paths + ':' + existing).strip(':')
-
-target = '/opt/suricata/bin/suricata-update'
-os.execv(target, [target] + sys.argv[1:])
-PYWRAP"
-            maybe_sudo sed -i '' "s|REPLACE_WITH_PY_PATHS|$python_paths|" /usr/local/bin/suricata-update || {
-                warn_message "Failed to embed PYTHONPATH in wrapper"
-            }
+            info_message "Creating suricata-update wrapper with PYTHONPATH=$python_paths and Python=$python_bin"
+            maybe_sudo bash -c "cat > /usr/local/bin/suricata-update << EOF
+#!/bin/bash
+export PYTHONPATH=\"$python_paths:\\\${PYTHONPATH:-}\"
+# Ensure we use the correct Python if called directly
+export PATH=\"\$(dirname $python_bin):\\\$PATH\"
+exec /opt/suricata/bin/suricata-update \"\\\$@\"
+EOF"
             maybe_sudo chmod +x /usr/local/bin/suricata-update
         else
             # Fall back to simple symlink if no Python paths found
