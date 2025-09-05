@@ -549,44 +549,22 @@ download_and_install_suricata_macos() {
         warn_message "Could not create symbolic link in /usr/local/bin"
     }
     
-    # Also link suricata-update if it exists
+    # Also link suricata-update if it exists (no wrapper)
     if [ -f /opt/suricata/bin/suricata-update ]; then
-        # Dynamically find the correct Python interpreter
-        info_message "Finding Python interpreter for suricata-update..."
-        local python_bin=""
-        
-        # Check multiple possible Python locations in order of preference
-        for python_cmd in python3 python python3.13 python3.12 python3.11 python3.10 python3.9; do
-            if command_exists "$python_cmd"; then
-                python_bin=$(which "$python_cmd")
-                info_message "Found Python interpreter: $python_bin"
-                break
-            fi
-        done
-        
-        if [ -z "$python_bin" ]; then
-            error_exit "No Python interpreter found. Please install Python 3."
-        fi
-        
-        # Check if this is actually a Python script before modifying shebang
-        if head -1 /opt/suricata/bin/suricata-update | grep -q "python"; then
-            # Fix the shebang in suricata-update to use the discovered Python
-            info_message "Standardizing suricata-update shebang to /usr/bin/env python3"
-            # Use sed with different syntax for macOS (BSD sed) vs Linux (GNU sed)
+        # If it's a Python script, standardize to env-based shebang
+        if head -1 /opt/suricata/bin/suricata-update | grep -qi "python"; then
+            info_message "Standardizing suricata-update shebang to /usr/bin/python3"
             if [ "$OS" = "darwin" ]; then
-                maybe_sudo sed -i '' "1s|^#!.*python.*|#!/usr/bin/env python3|" /opt/suricata/bin/suricata-update || {
-                    warn_message "Could not update Python interpreter path in suricata-update"
+                maybe_sudo sed -i '' '1s|^#!.*|#!/usr/bin/python3|' /opt/suricata/bin/suricata-update || {
+                    warn_message "Could not update suricata-update shebang"
                 }
             else
-                maybe_sudo sed -i "1s|^#!.*python.*|#!/usr/bin/env python3|" /opt/suricata/bin/suricata-update || {
-                    warn_message "Could not update Python interpreter path in suricata-update"
+                maybe_sudo sed -i '1s|^#!.*|#!/usr/bin/python3|' /opt/suricata/bin/suricata-update || {
+                    warn_message "Could not update suricata-update shebang"
                 }
             fi
-        else
-            warn_message "suricata-update does not appear to be a Python script, skipping shebang fix"
         fi
-        
-        # Check for Python library paths and create wrapper script at /usr/local/bin only
+        # Build Python library paths for wrapper
         local python_paths=""
         for py_dir in /opt/suricata/lib/suricata/python /opt/suricata/lib/python* /opt/suricata/lib64/python*; do
             if [ -d "$py_dir" ]; then
@@ -597,19 +575,28 @@ download_and_install_suricata_macos() {
                 fi
             fi
         done
-        
+
         if [ -n "$python_paths" ]; then
-            info_message "Creating suricata-update wrapper with PYTHONPATH=$python_paths and Python=$python_bin"
-            maybe_sudo bash -c "cat > /usr/local/bin/suricata-update << EOF
-#!/bin/bash
-export PYTHONPATH=\"$python_paths:\\\${PYTHONPATH:-}\"
-# Ensure we use the correct Python if called directly
-export PATH=\"\$(dirname $python_bin):\\\$PATH\"
-exec /opt/suricata/bin/suricata-update \"\\\$@\"
+            # Create a Python wrapper that injects PYTHONPATH then execs the real script
+            local WRAPPER_PATH="/usr/local/bin/suricata-update"
+            info_message "Creating Python wrapper at $WRAPPER_PATH with /usr/bin/python3"
+            # Remove existing file/symlink, then write wrapper with embedded values
+            maybe_sudo rm -f "$WRAPPER_PATH" 2>/dev/null || true
+            maybe_sudo bash -c "cat > $WRAPPER_PATH <<EOF
+#!/usr/bin/python3
+import os, sys
+
+extra_paths = '$python_paths'
+existing = os.environ.get('PYTHONPATH', '')
+os.environ['PYTHONPATH'] = (extra_paths + ':' + existing).strip(':')
+
+target = '/opt/suricata/bin/suricata-update'
+os.execv(target, [target] + sys.argv[1:])
 EOF"
-            maybe_sudo chmod +x /usr/local/bin/suricata-update
+            maybe_sudo chmod +x "$WRAPPER_PATH"
         else
-            # Fall back to simple symlink if no Python paths found
+            # Fallback: simple symlink into PATH
+            info_message "Linking suricata-update into /usr/local/bin"
             maybe_sudo ln -sf /opt/suricata/bin/suricata-update /usr/local/bin/suricata-update || {
                 warn_message "Could not create symbolic link for suricata-update"
             }
