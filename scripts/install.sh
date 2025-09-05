@@ -279,7 +279,8 @@ download_rules() {
     done
     
     if [ -n "$python_paths" ]; then
-        export PYTHONPATH="$python_paths:$PYTHONPATH"
+        # Use ${PYTHONPATH:-} to handle unset variable
+        export PYTHONPATH="$python_paths:${PYTHONPATH:-}"
         info_message "Set PYTHONPATH=$python_paths for suricata-update"
     fi
     
@@ -566,7 +567,7 @@ download_and_install_suricata_macos() {
             info_message "Creating suricata-update wrapper with PYTHONPATH=$python_paths"
             maybe_sudo bash -c "cat > /usr/local/bin/suricata-update << 'EOF'
 #!/bin/bash
-export PYTHONPATH=\"$python_paths:\$PYTHONPATH\"
+export PYTHONPATH=\"$python_paths:\${PYTHONPATH:-}\"
 exec /opt/suricata/bin/suricata-update \"\$@\"
 EOF"
             maybe_sudo chmod +x /usr/local/bin/suricata-update
