@@ -33,6 +33,8 @@ LOGGED_IN_USER=""
 # GitHub release tag for prebuilt Suricata binaries
 SURICATA_GITHUB_TAG="v8.0.0-adorsys.2-rc.2"
 SURICATA_VERSION_MACOS=${SURICATA_VERSION_MACOS:-"8.0.0"}
+# Installation directory for Suricata on macOS
+SURICATA_INSTALL_DIR="/opt/suricata"
 # Create Downloads directory for source builds
 DOWNLOADS_DIR="${HOME}/suricata-install"
 
@@ -131,10 +133,10 @@ Linux)
     ;;
 Darwin)
     OS="darwin"
-    BIN_FOLDER=$(brew --prefix)
-    CONFIG_DIR="$BIN_FOLDER/etc/suricata"
-    CONFIG_FILE="$BIN_FOLDER/etc/suricata/suricata.yaml"
-    RULES_DIR="$BIN_FOLDER/var/lib/suricata/rules"
+    BIN_FOLDER="/opt/suricata"
+    CONFIG_DIR="/etc/suricata"
+    CONFIG_FILE="/etc/suricata/suricata.yaml"
+    RULES_DIR="/var/lib/suricata/rules"
     INTERFACE="en0"
     ;;
 *) error_exit "Unsupported operating system: $(uname)" ;;
@@ -369,13 +371,55 @@ update_config() {
 remove_brew_suricata() {
     # only on macOS/Homebrew
     if command_exists brew; then
+        local suricata_found=false
+        
+        # Check if Suricata is installed via Homebrew (including taps)
         if brew_command list suricata >/dev/null 2>&1; then
-            info_message "Removing different version of Suricata package..."
-            brew_command unpin suricata
-            brew_command uninstall --force suricata || {
-                error_message "Failed to remove Homebrew-installed Suricata"
-            }
-            success_message "Different version of Suricata removed"
+            suricata_found=true
+            info_message "Found Homebrew-installed Suricata package"
+        fi
+        
+        # Check for Suricata installed from any tap
+        if brew_command list | grep -E "suricata" >/dev/null 2>&1; then
+            suricata_found=true
+            info_message "Found Suricata installed from Homebrew tap"
+        fi
+        
+        if [ "$suricata_found" = true ]; then
+            info_message "Removing Homebrew-installed Suricata..."
+            
+            # First try to unpin if it's pinned
+            brew_command unpin suricata 2>/dev/null || true
+            
+            # Remove all versions of Suricata
+            brew_command uninstall --force --ignore-dependencies suricata 2>/dev/null || true
+            
+            # Also check for any tap-specific versions
+            local tap_suricatas=$(brew_command list | grep -E ".*suricata.*" || true)
+            if [ -n "$tap_suricatas" ]; then
+                for pkg in $tap_suricatas; do
+                    info_message "Removing tap package: $pkg"
+                    brew_command uninstall --force --ignore-dependencies "$pkg" 2>/dev/null || true
+                done
+            fi
+            
+            # Check if removal was successful
+            if ! brew_command list suricata >/dev/null 2>&1 && ! brew_command list | grep -E "suricata" >/dev/null 2>&1; then
+                success_message "Homebrew Suricata successfully removed"
+            else
+                warn_message "Some Homebrew Suricata components may still be present"
+            fi
+            
+            # Clean up any leftover Homebrew Suricata directories
+            local brew_prefix=$(brew_command --prefix 2>/dev/null || echo "/usr/local")
+            for dir in "$brew_prefix/etc/suricata" "$brew_prefix/var/lib/suricata" "$brew_prefix/var/log/suricata"; do
+                if [ -d "$dir" ]; then
+                    info_message "Removing Homebrew Suricata directory: $dir"
+                    maybe_sudo rm -rf "$dir"
+                fi
+            done
+        else
+            info_message "No Homebrew Suricata installation found"
         fi
     fi
 }
@@ -385,6 +429,9 @@ download_and_install_suricata_macos() {
     local arch="$2"
     
     info_message "Installing Suricata ${tag} for macOS ${arch}"
+    
+    # Check and remove any Homebrew-installed Suricata first
+    remove_brew_suricata
     
     # Construct the download URL
     local base_url="https://github.com/ADORSYS-GIS/wazuh-suricata-package/releases/download"
@@ -418,60 +465,75 @@ download_and_install_suricata_macos() {
         warn_message "Could not remove quarantine attribute (may not be present)"
     }
     
-    # Create installation directory if it doesn't exist
-    info_message "Creating installation directory: $SURICATA_INSTALL_DIR"
-    maybe_sudo mkdir -p "$SURICATA_INSTALL_DIR" || {
-        rm -rf "$temp_dir"
-        error_exit "Failed to create installation directory"
-    }
-    
     # Extract the archive
-    # The tarball contains _meta/ and opt/suricata/ directories
-    # We only want the contents of opt/suricata/
-    info_message "Extracting Suricata to temporary location"
-    maybe_sudo tar -xzf "${temp_dir}/${filename}" -C "${temp_dir}" || {
+    info_message "Extracting Suricata archive"
+    tar -xzf "${temp_dir}/${filename}" -C "${temp_dir}" || {
         rm -rf "$temp_dir"
         error_exit "Failed to extract Suricata archive"
     }
     
-    # Copy only the contents of opt/suricata/ to the installation directory
-    info_message "Installing Suricata files to $SURICATA_INSTALL_DIR"
-    if [ -d "${temp_dir}/opt/suricata" ]; then
-        # Use cp -R to preserve directory structure
-        maybe_sudo cp -R "${temp_dir}/opt/suricata/." "$SURICATA_INSTALL_DIR/" || {
+    # Set source path for extracted files
+    local src_dir="${temp_dir}"
+    
+    # Copy configs to /etc (skips _meta automatically because we target etc/)
+    info_message "Copying configuration files to /etc"
+    if [ -d "${src_dir}/etc" ]; then
+        maybe_sudo rsync -av --progress "${src_dir}/etc/" /etc/ || {
             rm -rf "$temp_dir"
-            error_exit "Failed to copy Suricata files to installation directory"
+            error_exit "Failed to copy configuration files to /etc"
+        }
+    else
+        warn_message "No etc directory found in archive"
+    fi
+    
+    # Copy binaries/docs to /opt
+    info_message "Copying Suricata files to /opt"
+    if [ -d "${src_dir}/opt" ]; then
+        maybe_sudo rsync -av --progress "${src_dir}/opt/" /opt/ || {
+            rm -rf "$temp_dir"
+            error_exit "Failed to copy Suricata files to /opt"
         }
     else
         rm -rf "$temp_dir"
-        error_exit "Expected opt/suricata directory not found in archive"
+        error_exit "Expected opt directory not found in archive"
     fi
     
-    # Remove quarantine attributes from all extracted files and directories recursively
-    info_message "Removing macOS quarantine attributes from all files and directories"
-    maybe_sudo xattr -dr com.apple.quarantine "$SURICATA_INSTALL_DIR" 2>/dev/null || {
-        # Fallback to find if xattr -r doesn't work
-        maybe_sudo find "$SURICATA_INSTALL_DIR" -exec xattr -d com.apple.quarantine {} \; 2>/dev/null || {
-            warn_message "Some files may not have had quarantine attributes removed"
-        }
+    # Create needed runtime directories under /var (don't rsync here on macOS)
+    info_message "Creating runtime directories under /var"
+    maybe_sudo install -d -m 755 \
+        /var/lib/suricata/cache/sgh \
+        /var/lib/suricata/data \
+        /var/log/suricata/certs \
+        /var/log/suricata/files \
+        /var/run/suricata || {
+        warn_message "Some runtime directories may not have been created"
+    }
+    
+    # Remove quarantine attributes from all installed files and directories recursively
+    info_message "Removing macOS quarantine attributes from all installed files"
+    maybe_sudo xattr -dr com.apple.quarantine /opt/suricata 2>/dev/null || {
+        warn_message "Some files may not have had quarantine attributes removed from /opt/suricata"
+    }
+    maybe_sudo xattr -dr com.apple.quarantine /etc/suricata 2>/dev/null || {
+        warn_message "Some files may not have had quarantine attributes removed from /etc/suricata"
     }
     
     # Make binaries executable
     info_message "Setting executable permissions on Suricata binaries"
-    maybe_sudo chmod +x "$SURICATA_INSTALL_DIR/bin/"* || {
+    maybe_sudo chmod +x /opt/suricata/bin/* || {
         rm -rf "$temp_dir"
         error_exit "Failed to set executable permissions"
     }
     
     # Create symbolic link in /usr/local/bin for easier access
     info_message "Creating symbolic link for suricata command"
-    maybe_sudo ln -sf "$SURICATA_INSTALL_DIR/bin/suricata" "/usr/local/bin/suricata" || {
+    maybe_sudo ln -sf /opt/suricata/bin/suricata /usr/local/bin/suricata || {
         warn_message "Could not create symbolic link in /usr/local/bin"
     }
     
     # Also link suricata-update if it exists
-    if [ -f "$SURICATA_INSTALL_DIR/bin/suricata-update" ]; then
-        maybe_sudo ln -sf "$SURICATA_INSTALL_DIR/bin/suricata-update" "/usr/local/bin/suricata-update" || {
+    if [ -f /opt/suricata/bin/suricata-update ]; then
+        maybe_sudo ln -sf /opt/suricata/bin/suricata-update /usr/local/bin/suricata-update || {
             warn_message "Could not create symbolic link for suricata-update"
         }
     fi
@@ -480,47 +542,9 @@ download_and_install_suricata_macos() {
     info_message "Cleaning up temporary files"
     rm -rf "$temp_dir"
     
-    # Copy architecture-specific configuration file if it exists
-    local script_dir="$(cd "$(dirname "$0")" && pwd)"
-    local config_source="${script_dir}/../configs/suricata-macOS-${arch}.yaml"
-    local config_dest="$SURICATA_INSTALL_DIR/share/suricata.yaml"
-    
-    if [ -f "$config_source" ]; then
-        info_message "Installing macOS ${arch} specific configuration file"
-        maybe_sudo mkdir -p "$SURICATA_INSTALL_DIR/share" || warn_message "Could not create share directory"
-        maybe_sudo cp "$config_source" "$config_dest" || {
-            warn_message "Could not copy configuration file from $config_source to $config_dest"
-        }
-        success_message "Configuration file installed to $config_dest"
-    else
-        warn_message "Architecture-specific config file not found: $config_source"
-    fi
-    
-    success_message "Suricata ${tag} installed successfully to $SURICATA_INSTALL_DIR"
+    success_message "Suricata ${tag} installed successfully"
 }
 
-install_suricata_darwin() {
-    local desired_version="$1"
-    local current_version=$(get_current_suricata_version)
-    
-    if [ -n "$current_version" ]; then
-        if [ "$current_version" = "$desired_version" ]; then
-            info_message "Suricata $current_version is already installed. Skipping installation."
-            return 0
-        else
-            info_message "Updating Suricata from $current_version to $desired_version..."
-            remove_brew_suricata
-        fi
-    fi
-    
-    info_message "Installing Suricata $desired_version..."
-    install_suricata_macos "$desired_version"
-    
-    if [ -d "$DOWNLOADS_DIR" ]; then
-        info_message "Cleaning up downloads directory..."
-        maybe_sudo rm -rf "$DOWNLOADS_DIR"
-    fi
-}
 
 # Installation Process
 print_step_header 1 "Installing dependencies and Suricata"
@@ -551,12 +575,59 @@ if [ "$OS" = "linux" ]; then
         maybe_sudo $PACKAGE_MANAGER $INSTALL_CMD suricata
         SURICATA_BIN=$(command -v suricata || echo "/usr/bin/suricata")
         success_message "Suricata installed at: $SURICATA_BIN"
+        
+        # Install Python pip if not present
+        if ! command_exists pip && ! command_exists pip3; then
+            info_message "Installing Python pip..."
+            maybe_sudo $PACKAGE_MANAGER $INSTALL_CMD python3-pip
+        fi
+        
+        # Install pyyaml for suricata-update
+        info_message "Installing PyYAML for suricata-update..."
+        if command_exists pip3; then
+            maybe_sudo pip3 install pyyaml || warn_message "Failed to install pyyaml with pip3"
+        elif command_exists pip; then
+            maybe_sudo pip install pyyaml || warn_message "Failed to install pyyaml with pip"
+        else
+            warn_message "pip not found, skipping pyyaml installation"
+        fi
     fi
 elif [ "$OS" = "darwin" ]; then
-    info_message "Installing Suricata and yq via Homebrew..."
-    brew_command install yq
-    install_suricata_darwin "$SURICATA_VERSION_MACOS"
-    SURICATA_BIN=$(command -v suricata || echo "$BIN_FOLDER/bin/suricata")
+    info_message "Installing yq..."
+    if command_exists yq; then
+        info_message "yq is already installed."
+    else
+        if command_exists brew; then
+            brew_command install yq
+        else
+            info_message "Installing yq manually..."
+            maybe_sudo curl -SL --progress-bar https://github.com/mikefarah/yq/releases/latest/download/${YQ_BINARY} -o /usr/local/bin/yq
+            maybe_sudo chmod +x /usr/local/bin/yq
+        fi
+    fi
+    
+    # Install Python pip if not present
+    if ! command_exists pip && ! command_exists pip3; then
+        info_message "Installing Python pip..."
+        if command_exists brew; then
+            brew_command install python3
+        else
+            warn_message "Cannot install pip without Homebrew. Please install Python 3 manually."
+        fi
+    fi
+    
+    # Install pyyaml for suricata-update
+    info_message "Installing PyYAML for suricata-update..."
+    if command_exists pip3; then
+        pip3 install --user pyyaml || warn_message "Failed to install pyyaml with pip3"
+    elif command_exists pip; then
+        pip install --user pyyaml || warn_message "Failed to install pyyaml with pip"
+    else
+        warn_message "pip not found, skipping pyyaml installation"
+    fi
+    
+    download_and_install_suricata_macos "$SURICATA_GITHUB_TAG" "$ARCH"
+    SURICATA_BIN=$(command -v suricata || echo "/opt/suricata/bin/suricata")
     success_message "Suricata installed at: $SURICATA_BIN"
 fi
 
