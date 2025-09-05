@@ -35,8 +35,6 @@ SURICATA_GITHUB_TAG="v8.0.0-adorsys.2-rc.2"
 SURICATA_VERSION_MACOS=${SURICATA_VERSION_MACOS:-"8.0.0"}
 # Create Downloads directory for source builds
 DOWNLOADS_DIR="${HOME}/suricata-install"
-# Installation directory for macOS prebuilt binaries
-SURICATA_INSTALL_DIR="/opt/suricata"
 
 if [ "$(uname -s)" = "Darwin" ]; then
     LOGGED_IN_USER=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /loginwindow/ {print $3}')
@@ -133,7 +131,7 @@ Linux)
     ;;
 Darwin)
     OS="darwin"
-    BIN_FOLDER="/opt/suricata"
+    BIN_FOLDER=$(brew --prefix)
     CONFIG_DIR="$BIN_FOLDER/etc/suricata"
     CONFIG_FILE="$BIN_FOLDER/etc/suricata/suricata.yaml"
     RULES_DIR="$BIN_FOLDER/var/lib/suricata/rules"
@@ -502,33 +500,21 @@ download_and_install_suricata_macos() {
 }
 
 install_suricata_darwin() {
-    local github_tag="$1"
-    local arch="$2"
+    local desired_version="$1"
     local current_version=$(get_current_suricata_version)
     
-    # Extract version from tag (remove 'v' prefix and '-adorsys.X' suffix for comparison)
-    local desired_version=$(echo "$github_tag" | sed 's/^v//' | sed 's/-adorsys\.[0-9]*$//')
-    
     if [ -n "$current_version" ]; then
-        # Compare base versions (without adorsys suffix)
-        local current_base_version=$(echo "$current_version" | sed 's/-adorsys\.[0-9]*$//')
-        if [ "$current_base_version" = "$desired_version" ]; then
+        if [ "$current_version" = "$desired_version" ]; then
             info_message "Suricata $current_version is already installed. Skipping installation."
             return 0
         else
-            info_message "Updating Suricata from $current_version to $github_tag..."
-            # Remove any existing Homebrew installation
+            info_message "Updating Suricata from $current_version to $desired_version..."
             remove_brew_suricata
-            # Remove existing /opt/suricata installation if it exists
-            if [ -d "$SURICATA_INSTALL_DIR" ]; then
-                info_message "Removing existing Suricata installation at $SURICATA_INSTALL_DIR"
-                maybe_sudo rm -rf "$SURICATA_INSTALL_DIR"
-            fi
         fi
     fi
     
-    info_message "Installing Suricata $github_tag..."
-    download_and_install_suricata_macos "$github_tag" "$arch"
+    info_message "Installing Suricata $desired_version..."
+    install_suricata_macos "$desired_version"
     
     if [ -d "$DOWNLOADS_DIR" ]; then
         info_message "Cleaning up downloads directory..."
@@ -567,11 +553,10 @@ if [ "$OS" = "linux" ]; then
         success_message "Suricata installed at: $SURICATA_BIN"
     fi
 elif [ "$OS" = "darwin" ]; then
-    info_message "Installing yq via Homebrew..."
+    info_message "Installing Suricata and yq via Homebrew..."
     brew_command install yq
-    info_message "Installing Suricata from GitHub release..."
-    install_suricata_darwin "$SURICATA_GITHUB_TAG" "$ARCH"
-    SURICATA_BIN=$(command -v suricata || echo "$SURICATA_INSTALL_DIR/bin/suricata")
+    install_suricata_darwin "$SURICATA_VERSION_MACOS"
+    SURICATA_BIN=$(command -v suricata || echo "$BIN_FOLDER/bin/suricata")
     success_message "Suricata installed at: $SURICATA_BIN"
 fi
 
