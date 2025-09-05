@@ -670,28 +670,17 @@ elif [ "$OS" = "darwin" ]; then
         fi
     fi
     
-    # Install pyyaml for suricata-update
+    # Install pyyaml for suricata-update using pip only
     info_message "Installing PyYAML for suricata-update..."
-    if command_exists brew; then
-        # Try Homebrew first on macOS (avoids externally-managed-environment error)
-        brew_command list pyyaml >/dev/null 2>&1 || brew_command install pyyaml || {
-            # Fallback to pip with break-system-packages flag for newer Python versions
-            if command_exists pip3; then
-                pip3 install --user --break-system-packages pyyaml 2>/dev/null || \
-                pip3 install --user pyyaml 2>/dev/null || \
-                warn_message "Failed to install pyyaml with pip3"
-            elif command_exists pip; then
-                pip install --user --break-system-packages pyyaml 2>/dev/null || \
-                pip install --user pyyaml 2>/dev/null || \
-                warn_message "Failed to install pyyaml with pip"
-            fi
-        }
-    elif command_exists pip3; then
+    if command_exists pip3; then
+        # Try with break-system-packages flag first (for Python 3.11+)
         pip3 install --user --break-system-packages pyyaml 2>/dev/null || \
-        pip3 install --user pyyaml || warn_message "Failed to install pyyaml with pip3"
+        pip3 install --user pyyaml 2>/dev/null || \
+        warn_message "Failed to install pyyaml with pip3"
     elif command_exists pip; then
         pip install --user --break-system-packages pyyaml 2>/dev/null || \
-        pip install --user pyyaml || warn_message "Failed to install pyyaml with pip"
+        pip install --user pyyaml 2>/dev/null || \
+        warn_message "Failed to install pyyaml with pip"
     else
         warn_message "pip not found, skipping pyyaml installation"
     fi
