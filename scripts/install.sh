@@ -551,6 +551,36 @@ download_and_install_suricata_macos() {
     
     # Also link suricata-update if it exists
     if [ -f /opt/suricata/bin/suricata-update ]; then
+        # Dynamically find the correct Python interpreter
+        info_message "Finding Python interpreter for suricata-update..."
+        local python_bin=""
+        
+        # Check multiple possible Python locations in order of preference
+        for python_cmd in python3 python python3.13 python3.12 python3.11 python3.10 python3.9; do
+            if command_exists "$python_cmd"; then
+                python_bin=$(which "$python_cmd")
+                info_message "Found Python interpreter: $python_bin"
+                break
+            fi
+        done
+        
+        if [ -z "$python_bin" ]; then
+            error_exit "No Python interpreter found. Please install Python 3."
+        fi
+        
+        # Fix the shebang in suricata-update to use the discovered Python
+        info_message "Updating suricata-update to use Python at: $python_bin"
+        # Use sed with different syntax for macOS (BSD sed) vs Linux (GNU sed)
+        if [ "$OS" = "darwin" ]; then
+            maybe_sudo sed -i '' "1s|^#!.*python.*|#!${python_bin}|" /opt/suricata/bin/suricata-update || {
+                warn_message "Could not update Python interpreter path in suricata-update"
+            }
+        else
+            maybe_sudo sed -i "1s|^#!.*python.*|#!${python_bin}|" /opt/suricata/bin/suricata-update || {
+                warn_message "Could not update Python interpreter path in suricata-update"
+            }
+        fi
+        
         # Check for Python library paths and create wrapper script
         local python_paths=""
         for py_dir in /opt/suricata/lib/suricata/python /opt/suricata/lib/python* /opt/suricata/lib64/python*; do
@@ -564,11 +594,13 @@ download_and_install_suricata_macos() {
         done
         
         if [ -n "$python_paths" ]; then
-            info_message "Creating suricata-update wrapper with PYTHONPATH=$python_paths"
-            maybe_sudo bash -c "cat > /usr/local/bin/suricata-update << 'EOF'
+            info_message "Creating suricata-update wrapper with PYTHONPATH=$python_paths and Python=$python_bin"
+            maybe_sudo bash -c "cat > /usr/local/bin/suricata-update << EOF
 #!/bin/bash
-export PYTHONPATH=\"$python_paths:\${PYTHONPATH:-}\"
-exec /opt/suricata/bin/suricata-update \"\$@\"
+export PYTHONPATH=\"$python_paths:\\\${PYTHONPATH:-}\"
+# Ensure we use the correct Python if called directly
+export PATH=\"\$(dirname $python_bin):\\\$PATH\"
+exec /opt/suricata/bin/suricata-update \"\\\$@\"
 EOF"
             maybe_sudo chmod +x /usr/local/bin/suricata-update
         else
