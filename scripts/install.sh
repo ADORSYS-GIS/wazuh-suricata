@@ -634,17 +634,33 @@ if [ "$OS" = "linux" ]; then
         fi
     fi
 elif [ "$OS" = "darwin" ]; then
-    info_message "Installing yq..."
-    if command_exists yq; then
-        info_message "yq is already installed."
-    else
-        if command_exists brew; then
+    # Install required dependencies
+    if command_exists brew; then
+        info_message "Installing required dependencies..."
+        
+        # Install yq if not present
+        if ! command_exists yq; then
+            info_message "Installing yq..."
             brew_command install yq
         else
+            info_message "yq is already installed."
+        fi
+        
+        # Install libmagic (required for Suricata file magic support)
+        if ! brew_command list libmagic >/dev/null 2>&1; then
+            info_message "Installing libmagic..."
+            brew_command install libmagic
+        else
+            info_message "libmagic is already installed."
+        fi
+    else
+        # Manual yq installation if Homebrew not available
+        if ! command_exists yq; then
             info_message "Installing yq manually..."
             maybe_sudo curl -SL --progress-bar https://github.com/mikefarah/yq/releases/latest/download/${YQ_BINARY} -o /usr/local/bin/yq
             maybe_sudo chmod +x /usr/local/bin/yq
         fi
+        warn_message "libmagic cannot be installed without Homebrew. Suricata may have limited functionality."
     fi
     
     # Install Python pip if not present
