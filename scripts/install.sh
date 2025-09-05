@@ -266,6 +266,23 @@ detect_wifi_interface() {
 
 # Download and Extract Rules
 download_rules() {
+    # Set PYTHONPATH for suricata-update if needed
+    local python_paths=""
+    for py_dir in /opt/suricata/lib/suricata/python /opt/suricata/lib/python* /opt/suricata/lib64/python*; do
+        if [ -d "$py_dir" ]; then
+            if [ -z "$python_paths" ]; then
+                python_paths="$py_dir"
+            else
+                python_paths="$python_paths:$py_dir"
+            fi
+        fi
+    done
+    
+    if [ -n "$python_paths" ]; then
+        export PYTHONPATH="$python_paths:$PYTHONPATH"
+        info_message "Set PYTHONPATH=$python_paths for suricata-update"
+    fi
+    
     if ! command_exists suricata-update; then
         error_exit "suricata-update is required to download and manage rules. Please install it."
     fi
@@ -533,9 +550,32 @@ download_and_install_suricata_macos() {
     
     # Also link suricata-update if it exists
     if [ -f /opt/suricata/bin/suricata-update ]; then
-        maybe_sudo ln -sf /opt/suricata/bin/suricata-update /usr/local/bin/suricata-update || {
-            warn_message "Could not create symbolic link for suricata-update"
-        }
+        # Check for Python library paths and create wrapper script
+        local python_paths=""
+        for py_dir in /opt/suricata/lib/suricata/python /opt/suricata/lib/python* /opt/suricata/lib64/python*; do
+            if [ -d "$py_dir" ]; then
+                if [ -z "$python_paths" ]; then
+                    python_paths="$py_dir"
+                else
+                    python_paths="$python_paths:$py_dir"
+                fi
+            fi
+        done
+        
+        if [ -n "$python_paths" ]; then
+            info_message "Creating suricata-update wrapper with PYTHONPATH=$python_paths"
+            maybe_sudo bash -c "cat > /usr/local/bin/suricata-update << 'EOF'
+#!/bin/bash
+export PYTHONPATH=\"$python_paths:\$PYTHONPATH\"
+exec /opt/suricata/bin/suricata-update \"\$@\"
+EOF"
+            maybe_sudo chmod +x /usr/local/bin/suricata-update
+        else
+            # Fall back to simple symlink if no Python paths found
+            maybe_sudo ln -sf /opt/suricata/bin/suricata-update /usr/local/bin/suricata-update || {
+                warn_message "Could not create symbolic link for suricata-update"
+            }
+        fi
     fi
     
     # Clean up temporary directory
