@@ -639,7 +639,7 @@ elif [ "$OS" = "darwin" ]; then
         info_message "Installing required dependencies for Suricata..."
         
         # Define all required dependencies
-        local deps=("yq" "jansson" "libmagic" "libnet" "libyaml" "lz4" "pcre2" "python@3.13")
+        deps=("yq" "jansson" "libmagic" "libnet" "libyaml" "lz4" "pcre2" "python@3.13")
         
         for dep in "${deps[@]}"; do
             if ! brew_command list "$dep" >/dev/null 2>&1; then
