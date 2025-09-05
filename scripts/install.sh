@@ -564,43 +564,11 @@ download_and_install_suricata_macos() {
                 }
             fi
         fi
-        # Build Python library paths for wrapper
-        local python_paths=""
-        for py_dir in /opt/suricata/lib/suricata/python /opt/suricata/lib/python* /opt/suricata/lib64/python*; do
-            if [ -d "$py_dir" ]; then
-                if [ -z "$python_paths" ]; then
-                    python_paths="$py_dir"
-                else
-                    python_paths="$python_paths:$py_dir"
-                fi
-            fi
-        done
-
-        if [ -n "$python_paths" ]; then
-            # Create a Python wrapper that injects PYTHONPATH then execs the real script
-            local WRAPPER_PATH="/usr/local/bin/suricata-update"
-            info_message "Creating Python wrapper at $WRAPPER_PATH with /usr/bin/python3"
-            # Remove existing file/symlink, then write wrapper with embedded values
-            maybe_sudo rm -f "$WRAPPER_PATH" 2>/dev/null || true
-            maybe_sudo bash -c "cat > $WRAPPER_PATH <<EOF
-#!/usr/bin/python3
-import os, sys
-
-extra_paths = '$python_paths'
-existing = os.environ.get('PYTHONPATH', '')
-os.environ['PYTHONPATH'] = (extra_paths + ':' + existing).strip(':')
-
-target = '/opt/suricata/bin/suricata-update'
-os.execv(target, [target] + sys.argv[1:])
-EOF"
-            maybe_sudo chmod +x "$WRAPPER_PATH"
-        else
-            # Fallback: simple symlink into PATH
-            info_message "Linking suricata-update into /usr/local/bin"
-            maybe_sudo ln -sf /opt/suricata/bin/suricata-update /usr/local/bin/suricata-update || {
-                warn_message "Could not create symbolic link for suricata-update"
-            }
-        fi
+        # Create a simple symlink into PATH
+        info_message "Linking suricata-update into /usr/local/bin"
+        maybe_sudo ln -sf /opt/suricata/bin/suricata-update /usr/local/bin/suricata-update || {
+            warn_message "Could not create symbolic link for suricata-update"
+        }
     fi
     
     # Clean up temporary directory
