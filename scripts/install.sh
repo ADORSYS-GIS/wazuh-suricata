@@ -571,14 +571,14 @@ download_and_install_suricata_macos() {
         # Check if this is actually a Python script before modifying shebang
         if head -1 /opt/suricata/bin/suricata-update | grep -q "python"; then
             # Fix the shebang in suricata-update to use the discovered Python
-            info_message "Updating suricata-update to use Python at: $python_bin"
+            info_message "Standardizing suricata-update shebang to /usr/bin/env python3"
             # Use sed with different syntax for macOS (BSD sed) vs Linux (GNU sed)
             if [ "$OS" = "darwin" ]; then
-                maybe_sudo sed -i '' "1s|^#!.*python.*|#!${python_bin}|" /opt/suricata/bin/suricata-update || {
+                maybe_sudo sed -i '' "1s|^#!.*python.*|#!/usr/bin/env python3|" /opt/suricata/bin/suricata-update || {
                     warn_message "Could not update Python interpreter path in suricata-update"
                 }
             else
-                maybe_sudo sed -i "1s|^#!.*python.*|#!${python_bin}|" /opt/suricata/bin/suricata-update || {
+                maybe_sudo sed -i "1s|^#!.*python.*|#!/usr/bin/env python3|" /opt/suricata/bin/suricata-update || {
                     warn_message "Could not update Python interpreter path in suricata-update"
                 }
             fi
@@ -599,25 +599,18 @@ download_and_install_suricata_macos() {
         done
         
         if [ -n "$python_paths" ]; then
-            info_message "Creating Python-based suricata-update wrapper with PYTHONPATH=$python_paths and Python=$python_bin"
+            info_message "Creating Python-based suricata-update wrapper with PYTHONPATH=$python_paths"
             maybe_sudo bash -c "cat > /usr/local/bin/suricata-update << 'PYWRAP'
-#!REPLACE_WITH_PYTHON
+#!/usr/bin/env python3
 import os, sys
 
 extra_paths = 'REPLACE_WITH_PY_PATHS'
 existing = os.environ.get('PYTHONPATH', '')
-os.environ['PYTHONPATH'] = f'{extra_paths}:{existing}'.strip(':')
-
-py_dir = os.path.dirname('REPLACE_WITH_PYTHON')
-os.environ['PATH'] = f'{py_dir}:{os.environ.get("PATH", "")}'
+os.environ['PYTHONPATH'] = (extra_paths + ':' + existing).strip(':')
 
 target = '/opt/suricata/bin/suricata-update'
 os.execv(target, [target] + sys.argv[1:])
 PYWRAP"
-            # Replace placeholders with discovered python path and library paths
-            maybe_sudo sed -i '' "1s|REPLACE_WITH_PYTHON|$python_bin|" /usr/local/bin/suricata-update || {
-                warn_message "Failed to set Python shebang in wrapper"
-            }
             maybe_sudo sed -i '' "s|REPLACE_WITH_PY_PATHS|$python_paths|" /usr/local/bin/suricata-update || {
                 warn_message "Failed to embed PYTHONPATH in wrapper"
             }
