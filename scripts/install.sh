@@ -449,10 +449,13 @@ download_and_install_suricata_macos() {
         error_exit "Expected opt/suricata directory not found in archive"
     fi
     
-    # Remove quarantine attributes from all extracted files
-    info_message "Removing macOS quarantine attributes from extracted files"
-    maybe_sudo find "$SURICATA_INSTALL_DIR" -type f -exec xattr -d com.apple.quarantine {} \; 2>/dev/null || {
-        warn_message "Some files may not have had quarantine attributes removed"
+    # Remove quarantine attributes from all extracted files and directories recursively
+    info_message "Removing macOS quarantine attributes from all files and directories"
+    maybe_sudo xattr -dr com.apple.quarantine "$SURICATA_INSTALL_DIR" 2>/dev/null || {
+        # Fallback to find if xattr -r doesn't work
+        maybe_sudo find "$SURICATA_INSTALL_DIR" -exec xattr -d com.apple.quarantine {} \; 2>/dev/null || {
+            warn_message "Some files may not have had quarantine attributes removed"
+        }
     }
     
     # Make binaries executable
