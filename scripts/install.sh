@@ -568,20 +568,25 @@ download_and_install_suricata_macos() {
             error_exit "No Python interpreter found. Please install Python 3."
         fi
         
-        # Fix the shebang in suricata-update to use the discovered Python
-        info_message "Updating suricata-update to use Python at: $python_bin"
-        # Use sed with different syntax for macOS (BSD sed) vs Linux (GNU sed)
-        if [ "$OS" = "darwin" ]; then
-            maybe_sudo sed -i '' "1s|^#!.*python.*|#!${python_bin}|" /opt/suricata/bin/suricata-update || {
-                warn_message "Could not update Python interpreter path in suricata-update"
-            }
+        # Check if this is actually a Python script before modifying shebang
+        if head -1 /opt/suricata/bin/suricata-update | grep -q "python"; then
+            # Fix the shebang in suricata-update to use the discovered Python
+            info_message "Updating suricata-update to use Python at: $python_bin"
+            # Use sed with different syntax for macOS (BSD sed) vs Linux (GNU sed)
+            if [ "$OS" = "darwin" ]; then
+                maybe_sudo sed -i '' "1s|^#!.*python.*|#!${python_bin}|" /opt/suricata/bin/suricata-update || {
+                    warn_message "Could not update Python interpreter path in suricata-update"
+                }
+            else
+                maybe_sudo sed -i "1s|^#!.*python.*|#!${python_bin}|" /opt/suricata/bin/suricata-update || {
+                    warn_message "Could not update Python interpreter path in suricata-update"
+                }
+            fi
         else
-            maybe_sudo sed -i "1s|^#!.*python.*|#!${python_bin}|" /opt/suricata/bin/suricata-update || {
-                warn_message "Could not update Python interpreter path in suricata-update"
-            }
+            warn_message "suricata-update does not appear to be a Python script, skipping shebang fix"
         fi
         
-        # Check for Python library paths and create wrapper script
+        # Check for Python library paths and create wrapper script at /usr/local/bin only
         local python_paths=""
         for py_dir in /opt/suricata/lib/suricata/python /opt/suricata/lib/python* /opt/suricata/lib64/python*; do
             if [ -d "$py_dir" ]; then
