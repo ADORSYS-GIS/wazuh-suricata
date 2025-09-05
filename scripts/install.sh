@@ -636,23 +636,19 @@ if [ "$OS" = "linux" ]; then
 elif [ "$OS" = "darwin" ]; then
     # Install required dependencies
     if command_exists brew; then
-        info_message "Installing required dependencies..."
+        info_message "Installing required dependencies for Suricata..."
         
-        # Install yq if not present
-        if ! command_exists yq; then
-            info_message "Installing yq..."
-            brew_command install yq
-        else
-            info_message "yq is already installed."
-        fi
+        # Define all required dependencies
+        local deps=("yq" "jansson" "libmagic" "libnet" "libyaml" "lz4" "pcre2" "python@3.13")
         
-        # Install libmagic (required for Suricata file magic support)
-        if ! brew_command list libmagic >/dev/null 2>&1; then
-            info_message "Installing libmagic..."
-            brew_command install libmagic
-        else
-            info_message "libmagic is already installed."
-        fi
+        for dep in "${deps[@]}"; do
+            if ! brew_command list "$dep" >/dev/null 2>&1; then
+                info_message "Installing $dep..."
+                brew_command install "$dep" || warn_message "Failed to install $dep"
+            else
+                info_message "$dep is already installed."
+            fi
+        done
     else
         # Manual yq installation if Homebrew not available
         if ! command_exists yq; then
@@ -660,7 +656,8 @@ elif [ "$OS" = "darwin" ]; then
             maybe_sudo curl -SL --progress-bar https://github.com/mikefarah/yq/releases/latest/download/${YQ_BINARY} -o /usr/local/bin/yq
             maybe_sudo chmod +x /usr/local/bin/yq
         fi
-        warn_message "libmagic cannot be installed without Homebrew. Suricata may have limited functionality."
+        warn_message "Critical dependencies (jansson, libmagic, libnet, libyaml, lz4, pcre2, python) cannot be installed without Homebrew."
+        warn_message "Suricata may not function properly. Please install Homebrew and re-run this script."
     fi
     
     # Install Python pip if not present
