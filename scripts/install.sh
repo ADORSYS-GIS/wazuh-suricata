@@ -549,8 +549,20 @@ download_and_install_suricata_macos() {
         warn_message "Could not create symbolic link in /usr/local/bin"
     }
     
-    # Also link suricata-update if it exists (no wrapper, no shebang edits)
+    # Also link suricata-update if it exists
     if [ -f /opt/suricata/bin/suricata-update ]; then
+        # For ARM architecture, standardize the shebang
+        if [ "$arch" = "arm64" ]; then
+            # If it's a Python script, standardize to env-based shebang
+            if head -1 /opt/suricata/bin/suricata-update | grep -qi "python"; then
+                info_message "Standardizing suricata-update shebang to /usr/bin/python3 for ARM architecture"
+                maybe_sudo sed -i '' '1s|^#!.*|#!/usr/bin/python3|' /opt/suricata/bin/suricata-update || {
+                    warn_message "Could not update suricata-update shebang"
+                }
+            fi
+        fi
+        
+        # Create a simple symlink into PATH
         info_message "Linking suricata-update into /usr/local/bin"
         maybe_sudo ln -sf /opt/suricata/bin/suricata-update /usr/local/bin/suricata-update || {
             warn_message "Could not create symbolic link for suricata-update"
