@@ -4,11 +4,12 @@ MODE=${MODE:-"ids"}
 
 setup() {
     if [ "$(uname)" = "Darwin" ]; then
-        export BIN_FOLDER=$(brew --prefix)
-        export LOG_DIR="$BIN_FOLDER/var/log/suricata"
-        export CONFIG_DIR="$BIN_FOLDER/etc/suricata"
+        # New installation uses /opt/suricata instead of Homebrew paths
+        export BIN_FOLDER="/opt/suricata"
+        export LOG_DIR="/var/log/suricata"
+        export CONFIG_DIR="/etc/suricata"
         export CONFIG_FILE="$CONFIG_DIR/suricata.yaml"
-        export RULES_DIR="$BIN_FOLDER/var/lib/suricata/rules"
+        export RULES_DIR="/var/lib/suricata/rules"
     else
         export LOG_DIR="/var/log/suricata"
         export CONFIG_DIR="/etc/suricata"
@@ -25,6 +26,35 @@ setup() {
 @test "Suricata is installed" {
     run command -v suricata
     [ "$status" -eq 0 ]
+}
+
+@test "Suricata-update is accessible" {
+    run command -v suricata-update
+    [ "$status" -eq 0 ]
+}
+
+@test "Suricata-update wrapper works on ARM (macOS only)" {
+    if [ "$(uname)" = "Darwin" ] && [ "$(uname -m)" = "arm64" ]; then
+        # Check if wrapper script exists
+        [ -f "/usr/local/bin/suricata-update" ]
+        # Check if it's a bash script (wrapper) not a symlink
+        run head -1 /usr/local/bin/suricata-update
+        [[ "$output" == "#!/bin/bash" ]]
+    else
+        skip "This test is specific to macOS ARM64"
+    fi
+}
+
+@test "Suricata-update symlink exists on Intel (macOS only)" {
+    if [ "$(uname)" = "Darwin" ] && [ "$(uname -m)" = "x86_64" ]; then
+        # Check if symlink exists
+        [ -L "/usr/local/bin/suricata-update" ]
+        # Verify it points to the right location
+        run readlink /usr/local/bin/suricata-update
+        [[ "$output" == "/opt/suricata/bin/suricata-update" ]]
+    else
+        skip "This test is specific to macOS Intel"
+    fi
 }
 
 @test "Rules file exists" {
