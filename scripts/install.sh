@@ -510,7 +510,15 @@ if [ "$OS" = "linux" ]; then
 
         info_message "Installing Suricata..."
         maybe_sudo $PACKAGE_MANAGER $INSTALL_CMD suricata
-        SURICATA_BIN=$(command -v suricata || echo "/usr/bin/suricata")
+        # Use exact path for Linux
+        SURICATA_BIN="/usr/bin/suricata"
+        if [ ! -f "$SURICATA_BIN" ]; then
+            # Fallback to searching in PATH if not in expected location
+            SURICATA_BIN=$(command -v suricata || echo "not found")
+            if [ "$SURICATA_BIN" = "not found" ]; then
+                error_exit "Suricata binary not found after installation"
+            fi
+        fi
         success_message "Suricata installed at: $SURICATA_BIN"
 
         if ! command_exists pip && ! command_exists pip3; then
@@ -561,7 +569,15 @@ elif [ "$OS" = "darwin" ]; then
     fi
 
     download_and_install_suricata_macos "$SURICATA_GITHUB_TAG" "$ARCH"
-    SURICATA_BIN=$(command -v suricata || echo "/opt/suricata/bin/suricata")
+    # Use exact path for macOS prebuilt binary
+    SURICATA_BIN="/usr/local/bin/suricata"
+    if [ ! -L "$SURICATA_BIN" ] && [ ! -f "$SURICATA_BIN" ]; then
+        # If symlink wasn't created, use direct path
+        SURICATA_BIN="/opt/suricata/bin/suricata"
+        if [ ! -f "$SURICATA_BIN" ]; then
+            error_exit "Suricata binary not found after installation"
+        fi
+    fi
     success_message "Suricata installed at: $SURICATA_BIN"
 fi
 
@@ -591,11 +607,13 @@ if maybe_sudo [ -f "$CONFIG_FILE" ]; then
 else
     error_exit "Suricata configuration file is missing: $CONFIG_FILE."
 fi
-SURICATA_BIN=$(command -v suricata || echo "not found")
-if [ "$SURICATA_BIN" != "not found" ]; then
-    success_message "Suricata executable found at: $SURICATA_BIN"
+# Validate the SURICATA_BIN path that was set during installation
+if [ -z "${SURICATA_BIN:-}" ]; then
+    error_exit "SURICATA_BIN variable not set during installation"
+elif [ ! -f "$SURICATA_BIN" ] && [ ! -L "$SURICATA_BIN" ]; then
+    error_exit "Suricata executable not found at: $SURICATA_BIN"
 else
-    error_exit "Suricata executable not found in PATH."
+    success_message "Suricata executable validated at: $SURICATA_BIN"
 fi
 
 # Bonus: show suricata-update wiring
