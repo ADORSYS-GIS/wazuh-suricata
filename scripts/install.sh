@@ -246,10 +246,20 @@ download_rules() {
         info_message "Set PYTHONPATH=$python_paths for suricata-update"
     fi
 
-    # Use the exact path to suricata-update wrapper
-    local suricata_update_cmd="/usr/local/bin/suricata-update"
-    if [ ! -f "$suricata_update_cmd" ]; then
-        error_exit "suricata-update is not installed at $suricata_update_cmd. Please ensure installation completed successfully."
+    # Determine the suricata-update command based on OS
+    local suricata_update_cmd
+    if [ "$OS" = "darwin" ]; then
+        # On macOS, use our wrapper script
+        suricata_update_cmd="/usr/local/bin/suricata-update"
+        if [ ! -f "$suricata_update_cmd" ]; then
+            error_exit "suricata-update is not installed at $suricata_update_cmd. Please ensure installation completed successfully."
+        fi
+    else
+        # On Linux, use the command from PATH
+        if ! command_exists suricata-update; then
+            error_exit "suricata-update is required to download and manage rules. Please install it."
+        fi
+        suricata_update_cmd="suricata-update"
     fi
 
     info_message "Updating suricata-update sources..."
