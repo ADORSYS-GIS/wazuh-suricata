@@ -246,15 +246,17 @@ download_rules() {
         info_message "Set PYTHONPATH=$python_paths for suricata-update"
     fi
 
-    if ! command_exists suricata-update; then
-        error_exit "suricata-update is required to download and manage rules. Please install it."
+    # Use the exact path to suricata-update wrapper
+    local suricata_update_cmd="/usr/local/bin/suricata-update"
+    if [ ! -f "$suricata_update_cmd" ]; then
+        error_exit "suricata-update is not installed at $suricata_update_cmd. Please ensure installation completed successfully."
     fi
 
     info_message "Updating suricata-update sources..."
-    maybe_sudo suricata-update update-sources || error_exit "Failed to update suricata-update sources."
+    maybe_sudo "$suricata_update_cmd" update-sources || error_exit "Failed to update suricata-update sources."
 
     info_message "Enabling et/open source..."
-    maybe_sudo suricata-update enable-source et/open || error_exit "Failed to enable et/open source."
+    maybe_sudo "$suricata_update_cmd" enable-source et/open || error_exit "Failed to enable et/open source."
 
     if [[ "$MODE" == "ips" ]]; then
         local DROP_CONF_PATH="$CONFIG_DIR/drop.conf"
@@ -271,7 +273,7 @@ EOF"
     fi
 
     info_message "Downloading and applying rules using suricata-update..."
-    maybe_sudo suricata-update || error_exit "Failed to download and apply rules."
+    maybe_sudo "$suricata_update_cmd" || error_exit "Failed to download and apply rules."
     success_message "Suricata rules downloaded and applied successfully."
 
     if maybe_sudo test -f "$RULES_FILE"; then
