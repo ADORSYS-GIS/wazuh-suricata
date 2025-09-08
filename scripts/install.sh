@@ -567,10 +567,15 @@ download_and_install_suricata_macos() {
             
             if [ -n "$python_paths" ]; then
                 info_message "Creating suricata-update wrapper for ARM with PYTHONPATH=$python_paths"
+                # First check what type of file the suricata-update binary is
+                local suricata_update_bin="/opt/suricata/bin/suricata-update"
+                local python_interpreter="/usr/bin/python3"
+                
+                # Create wrapper that calls Python directly with the script
                 maybe_sudo bash -c "cat > /usr/local/bin/suricata-update << 'EOF'
 #!/bin/bash
 export PYTHONPATH=\"$python_paths:\${PYTHONPATH:-}\"
-exec /opt/suricata/bin/suricata-update \"\$@\"
+exec $python_interpreter $suricata_update_bin \"\$@\"
 EOF"
                 maybe_sudo chmod +x /usr/local/bin/suricata-update
             else
