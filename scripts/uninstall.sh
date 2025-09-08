@@ -159,32 +159,70 @@ remove_suricata_residuals() {
     done
 }
 
-# Uninstall Suricata using package managers
-if command_exists suricata; then
-    info_message "Uninstalling Suricata using the package manager..."
-    if [ "$OS" = "linux" ]; then
-        if command_exists apt; then
-            maybe_sudo apt remove --purge -y suricata || warn_message "Failed to uninstall Suricata using apt-get."
-        elif command_exists yum; then
-            maybe_sudo yum remove -y suricata || warn_message "Failed to uninstall Suricata using yum."
-        else
-            warn_message "No supported package manager found. Skipping Suricata uninstallation."
+# Function to detect and remove prebuilt binary installation
+remove_prebuilt_suricata() {
+    info_message "Checking for prebuilt Suricata installation..."
+    
+    # Check if /opt/suricata exists (prebuilt installation)
+    if [ -d "/opt/suricata" ]; then
+        info_message "Found prebuilt Suricata installation at /opt/suricata. Removing..."
+        
+        # Remove the entire /opt/suricata directory
+        maybe_sudo rm -rf "/opt/suricata" || warn_message "Failed to remove /opt/suricata directory."
+        
+        # Remove symlinks from /usr/local/bin
+        if [ -L "/usr/local/bin/suricata" ]; then
+            info_message "Removing Suricata symlink from /usr/local/bin..."
+            maybe_sudo rm -f "/usr/local/bin/suricata" || warn_message "Failed to remove Suricata symlink."
         fi
-    elif [ "$OS" = "darwin" ]; then
-        if  brew_command list "$FORMULA" >/dev/null 2>&1; then
-            brew_command uninstall "$FORMULA" || {
-                warn_message "Failed to remove $FORMULA"
-            }
-        else
-            brew_command unpin suricata
-            brew_command uninstall suricata || {
-                warn_message "Failed to remove Homebrew default Suricata"
-            }
+        
+        if [ -e "/usr/local/bin/suricata-update" ]; then
+            info_message "Removing suricata-update from /usr/local/bin..."
+            maybe_sudo rm -f "/usr/local/bin/suricata-update" || warn_message "Failed to remove suricata-update."
         fi
-        remove_suricata_residuals 
+        
+        # Update paths for prebuilt installation cleanup
+        CONFIG_DIR="/etc/suricata"
+        LOG_DIR="/var/log/suricata" 
+        RULES_DIR="/var/lib/suricata"
+        
+        success_message "Prebuilt Suricata installation removed."
+        return 0
+    else
+        info_message "No prebuilt Suricata installation found at /opt/suricata."
+        return 1
     fi
-else
-    info_message "Suricata is not installed. Skipping uninstallation."
+}
+
+# Try to remove prebuilt installation first, then fall back to package managers
+if ! remove_prebuilt_suricata; then
+    # If no prebuilt installation found, try package managers
+    if command_exists suricata; then
+        info_message "Uninstalling Suricata using the package manager..."
+        if [ "$OS" = "linux" ]; then
+            if command_exists apt; then
+                maybe_sudo apt remove --purge -y suricata || warn_message "Failed to uninstall Suricata using apt-get."
+            elif command_exists yum; then
+                maybe_sudo yum remove -y suricata || warn_message "Failed to uninstall Suricata using yum."
+            else
+                warn_message "No supported package manager found. Skipping Suricata uninstallation."
+            fi
+        elif [ "$OS" = "darwin" ]; then
+            if  brew_command list "$FORMULA" >/dev/null 2>&1; then
+                brew_command uninstall "$FORMULA" || {
+                    warn_message "Failed to remove $FORMULA"
+                }
+            else
+                brew_command unpin suricata
+                brew_command uninstall suricata || {
+                    warn_message "Failed to remove Homebrew default Suricata"
+                }
+            fi
+            remove_suricata_residuals 
+        fi
+    else
+        info_message "Suricata is not installed. Skipping uninstallation."
+    fi
 fi
 
 # Delete Suricata configuration folder after uninstallation
