@@ -239,35 +239,53 @@ compute_pythonpaths() {
 
 # Download and Extract Rules
 download_rules() {
-    local python_paths
-    python_paths="$(compute_pythonpaths)"
-    if [ -n "$python_paths" ]; then
-        export PYTHONPATH="$python_paths:${PYTHONPATH:-}"
-        info_message "Set PYTHONPATH=$python_paths for suricata-update"
-    fi
+    local rules_url="https://rules.emergingthreats.net/open/suricata-8.0.1/emerging-all.rules.tar.gz"
+    local temp_dir="/tmp/suricata-rules-$$"
+    local rules_archive="$temp_dir/emerging-all.rules.tar.gz"
 
-    # Determine the suricata-update command based on OS
-    local suricata_update_cmd
-    if [ "$OS" = "darwin" ]; then
-        # On macOS, use our wrapper script
-        suricata_update_cmd="/usr/local/bin/suricata-update"
-        if [ ! -f "$suricata_update_cmd" ]; then
-            error_exit "suricata-update is not installed at $suricata_update_cmd. Please ensure installation completed successfully."
-        fi
+    # Create temporary directory for downloading and extracting rules
+    info_message "Creating temporary directory: $temp_dir"
+    mkdir -p "$temp_dir" || error_exit "Failed to create temporary directory: $temp_dir"
+
+    # Download the rules tarball
+    info_message "Downloading rules from: $rules_url"
+    if command_exists curl; then
+        curl -L --fail --progress-bar -o "$rules_archive" "$rules_url" || {
+            rm -rf "$temp_dir"
+            error_exit "Failed to download rules from $rules_url"
+        }
     else
-        # On Linux, use the command from PATH
-        if ! command_exists suricata-update; then
-            error_exit "suricata-update is required to download and manage rules. Please install it."
-        fi
-        suricata_update_cmd="suricata-update"
+        rm -rf "$temp_dir"
+        error_exit "curl is required to download rules but is not installed"
+    fi
+    success_message "Rules downloaded successfully"
+
+    # On macOS, remove quarantine attributes from the downloaded file
+    if [ "$OS" = "darwin" ]; then
+        info_message "Removing macOS quarantine attribute from downloaded file"
+        xattr -d com.apple.quarantine "$rules_archive" 2>/dev/null || warn_message "Quarantine attribute not present"
     fi
 
-    info_message "Updating suricata-update sources..."
-    maybe_sudo "$suricata_update_cmd" update-sources || error_exit "Failed to update suricata-update sources."
+    # Extract the rules archive
+    info_message "Extracting rules archive"
+    tar -xzf "$rules_archive" -C "$temp_dir" || {
+        rm -rf "$temp_dir"
+        error_exit "Failed to extract rules archive"
+    }
 
-    info_message "Enabling et/open source..."
-    maybe_sudo "$suricata_update_cmd" enable-source et/open || error_exit "Failed to enable et/open source."
+    # Ensure the rules directory exists
+    info_message "Creating rules directory: $RULES_DIR"
+    maybe_sudo mkdir -p "$RULES_DIR" || error_exit "Failed to create rules directory: $RULES_DIR"
 
+    # Move extracted rules to RULES_DIR
+    info_message "Moving rules to $RULES_DIR"
+    maybe_sudo rsync -av --progress "$temp_dir/"*.rules "$RULES_DIR/" || {
+        rm -rf "$temp_dir"
+        error_exit "Failed to move rules to $RULES_DIR"
+    }
+    success_message "Rules moved to $RULES_DIR successfully"
+
+    # For IPS mode, create drop.conf
     if [[ "$MODE" == "ips" ]]; then
         local DROP_CONF_PATH="$CONFIG_DIR/drop.conf"
         info_message "Creating drop.conf for IPS mode at $DROP_CONF_PATH..."
@@ -282,10 +300,7 @@ EOF"
         success_message "drop.conf created successfully."
     fi
 
-    info_message "Downloading and applying rules using suricata-update..."
-    maybe_sudo "$suricata_update_cmd" || error_exit "Failed to download and apply rules."
-    success_message "Suricata rules downloaded and applied successfully."
-
+    # Add custom drop rule to RULES_FILE if it exists
     if maybe_sudo test -f "$RULES_FILE"; then
         info_message "Adding custom drop rule to $RULES_FILE..."
         maybe_sudo bash -c "echo 'drop tcp any any -> \$HOME_NET any (msg:\"TCP Scan ?\"; flow:from_client;flags:S; sid:992002087;rev:1;)' >> \"$RULES_FILE\""
@@ -293,6 +308,11 @@ EOF"
     else
         warn_message "$RULES_FILE not found. Skipping custom rule addition."
     fi
+
+    # Clean up temporary directory
+    info_message "Cleaning up temporary files"
+    rm -rf "$temp_dir"
+    success_message "Rules download and installation completed successfully"
 }
 
 # Create and Update Suricata Configuration
