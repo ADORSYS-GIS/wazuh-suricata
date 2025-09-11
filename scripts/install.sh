@@ -263,7 +263,7 @@ download_rules() {
     fi
 
     info_message "Updating suricata-update sources..."
-    maybe_sudo "$suricata_update_cmd" update-sources || error_exit "Failed to update suricata-update sources."
+    maybe_sudo "$suricata_update_cmd" update-sources --no-check-certificate || error_exit "Failed to update suricata-update sources."
 
     info_message "Enabling et/open source..."
     maybe_sudo "$suricata_update_cmd" enable-source et/open || error_exit "Failed to enable et/open source."
