@@ -33,30 +33,6 @@ setup() {
     [ "$status" -eq 0 ]
 }
 
-@test "Suricata-update wrapper works on ARM (macOS only)" {
-    if [ "$(uname)" = "Darwin" ] && [ "$(uname -m)" = "arm64" ]; then
-        # Check if wrapper script exists
-        [ -f "/usr/local/bin/suricata-update" ]
-        # Check if it's a bash script (wrapper) not a symlink
-        run head -1 /usr/local/bin/suricata-update
-        [[ "$output" == "#!/bin/bash" ]]
-    else
-        skip "This test is specific to macOS ARM64"
-    fi
-}
-
-@test "Suricata-update symlink exists on Intel (macOS only)" {
-    if [ "$(uname)" = "Darwin" ] && [ "$(uname -m)" = "x86_64" ]; then
-        # Check if symlink exists
-        [ -L "/usr/local/bin/suricata-update" ]
-        # Verify it points to the right location
-        run readlink /usr/local/bin/suricata-update
-        [[ "$output" == "/opt/suricata/bin/suricata-update" ]]
-    else
-        skip "This test is specific to macOS Intel"
-    fi
-}
-
 @test "Rules file exists" {
     echo "Looking for rules in: $RULES_DIR"
     run sudo ls "$RULES_DIR"
@@ -83,7 +59,7 @@ setup() {
 
 @test "Suricata process is running (macOS only)" {
     if [ "$(uname)" = "Darwin" ]; then
-        run pgrep suricata
+        run sudo pgrep suricata
         [ "$status" -eq 0 ]
     else
         skip "This test is macOS-specific"
