@@ -286,13 +286,25 @@ download_rules() {
     info_message "Creating rules directory: $RULES_DIR"
     maybe_sudo mkdir -p "$RULES_DIR" || error_exit "Failed to create rules directory: $RULES_DIR"
 
-    # Move extracted rules to RULES_DIR
-    info_message "Moving rules to $RULES_DIR"
-    maybe_sudo rsync -av --progress "$temp_dir/"*.rules "$RULES_DIR/" || {
-        rm -rf "$temp_dir"
-        error_exit "Failed to move rules to $RULES_DIR"
-    }
-    success_message "Rules moved to $RULES_DIR successfully"
+    # Initialize suricata.rules
+    info_message "Initializing $RULES_FILE"
+    maybe_sudo touch "$RULES_FILE" || error_exit "Failed to create $RULES_FILE"
+    maybe_sudo chmod 644 "$RULES_FILE" || error_exit "Failed to set permissions on $RULES_FILE"
+
+    # Combine all .rules files into suricata.rules
+    info_message "Combining .rules files into $RULES_FILE"
+    local rules_files
+    rules_files=$(find "$temp_dir" -type f -name "*.rules")
+    if [ -n "$rules_files" ]; then
+        info_message "Found rules files: $rules_files"
+        maybe_sudo bash -c "cat $rules_files > \"$RULES_FILE\"" || {
+            rm -rf "$temp_dir"
+            error_exit "Failed to combine rules into $RULES_FILE"
+        }
+        success_message "Rules combined into $RULES_FILE successfully"
+    else
+        warn_message "No .rules files found in $temp_dir. $RULES_FILE will contain only the custom rule."
+    fi
 
     # For IPS mode, create drop.conf
     if [[ "$MODE" == "ips" ]]; then
