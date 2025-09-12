@@ -69,7 +69,7 @@ jobs:
 
     - name: Install Suricata in IPS mode
       run: |
-        ./scripts/install.sh --mode ips
+        sudo ./scripts/install.sh --mode ips
 
     - name: Run Bats tests for IPS mode
       run: sudo MODE=ips bats tests/
