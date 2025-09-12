@@ -30,6 +30,7 @@ error_exit() {
 }
 
 LOGGED_IN_USER=""
+SURICATA_VERSION=${SURICATA_VERSION:-"7.0"}
 SURICATA_GITHUB_TAG="v8.0.0-adorsys.2-rc.2"
 DOWNLOADS_DIR="${HOME}/suricata-install"
 CONFIG_FILE=""
