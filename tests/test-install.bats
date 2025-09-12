@@ -59,7 +59,7 @@ setup() {
 
 @test "Suricata process is running (macOS only)" {
     if [ "$(uname)" = "Darwin" ]; then
-        run sudo pgrep suricata
+        run sudo launchctl list com.suricata.suricata
         [ "$status" -eq 0 ]
     else
         skip "This test is macOS-specific"
