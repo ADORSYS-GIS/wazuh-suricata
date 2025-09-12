@@ -31,9 +31,10 @@ error_exit() {
 
 LOGGED_IN_USER=""
 SURICATA_GITHUB_TAG="v8.0.0-adorsys.2-rc.2"
-SURICATA_VERSION_MACOS=${SURICATA_VERSION_MACOS:-"8.0.0"}
-SURICATA_INSTALL_DIR="/opt/suricata"
 DOWNLOADS_DIR="${HOME}/suricata-install"
+CONFIG_FILE=""
+INTERFACE=""
+LAUNCH_AGENT_FILE="/Library/LaunchDaemons/com.suricata.suricata.plist"
 
 if [ "$(uname -s)" = "Darwin" ]; then
     LOGGED_IN_USER=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /loginwindow/ {print $3}')
@@ -65,21 +66,6 @@ brew_as_user() {
 }
 
 mkdir -p "$DOWNLOADS_DIR"
-
-get_current_suricata_version() {
-    if command_exists suricata; then
-        maybe_sudo suricata -V | awk '{print $5}' | head -n1
-    else
-        echo ""
-    fi
-}
-
-# Environment Variables
-SURICATA_USER=${SURICATA_USER:-"root"}
-SURICATA_VERSION=${SURICATA_VERSION:-"7.0"}
-CONFIG_FILE=""
-INTERFACE=""
-LAUNCH_AGENT_FILE="/Library/LaunchDaemons/com.suricata.suricata.plist"
 
 show_help() {
     cat <<EOF
@@ -224,17 +210,6 @@ detect_wifi_interface() {
     fi
     if [ -z "$INTERFACE" ]; then INTERFACE="eth0"; warn_message "No Wi-Fi interface detected. Defaulting to: $INTERFACE"; fi
     info_message "Detected interface: $INTERFACE"
-}
-
-# Build PYTHONPATH from installed tree
-compute_pythonpaths() {
-    local python_paths=""
-    for py_dir in /opt/suricata/lib/suricata/python /opt/suricata/lib/python* /opt/suricata/lib64/python*; do
-        if [ -d "$py_dir" ]; then
-            if [ -z "$python_paths" ]; then python_paths="$py_dir"; else python_paths="$python_paths:$py_dir"; fi
-        fi
-    done
-    echo "$python_paths"
 }
 
 # Download and Extract Rules
