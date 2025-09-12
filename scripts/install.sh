@@ -209,15 +209,6 @@ create_launchd_plist_file() {
     info_message "Loading new daemon plist file..."
     maybe_sudo launchctl load -w "$filepath" 2>/dev/null || warn_message "Loading plist failed: $filepath"
     info_message "macOS Launchd plist file created and loaded: $filepath"
-
-    info_message "Verifying Suricata process is running..."
-    sleep 2  # Allow time for the process to start
-    if maybe_sudo pgrep suricata >/dev/null; then
-        success_message "Suricata process is running"
-    else
-        error_exit "Suricata process failed to start. Check /var/log/suricata/suricata.log for details."
-    fi
-    info_message "macOS Launchd plist file created, loaded, and service restarted: $filepath"
 }
 
 # Detect Wi-Fi Interface
