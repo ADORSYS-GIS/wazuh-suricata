@@ -42,7 +42,7 @@ jobs:
       
     - name: Install Suricata
       run: |
-        ./scripts/install.sh
+        sudo ./scripts/install.sh
 
     - name: Run Bats tests
       run: sudo bats tests/
