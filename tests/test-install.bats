@@ -59,19 +59,21 @@ setup() {
 
 @test "Rules file exists" {
     echo "Looking for rules in: $RULES_DIR"
-    run ls "$RULES_DIR"
+    run sudo ls "$RULES_DIR"
     [ "$status" -eq 0 ]
-    [ -f "$RULES_DIR/suricata.rules" ] || skip "suricata.rules not found in expected path"
+    run sudo test -f "$RULES_DIR/suricata.rules"
+    [ "$status" -eq 0 ] || skip "suricata.rules not found in expected path"
 }
 
 @test "Configuration file exists" {
     echo "Checking configuration file: $CONFIG_FILE"
-    [ -f "$CONFIG_FILE" ]
+    run sudo test -f "$CONFIG_FILE"
+    [ "$status" -eq 0 ]
 }
 
 @test "Suricata service is running (Linux only)" {
     if [ "$(uname)" = "Linux" ]; then
-        run systemctl is-active suricata
+        run sudo systemctl is-active suricata
         [ "$status" -eq 0 ]
         [ "$output" = "active" ]
     else
@@ -81,7 +83,10 @@ setup() {
 
 @test "Suricata process is running (macOS only)" {
     if [ "$(uname)" = "Darwin" ]; then
-        run pgrep suricata
+        if ! command -v pgrep >/dev/null; then
+            skip "pgrep is not installed"
+        fi
+        run sudo pgrep suricata
         [ "$status" -eq 0 ]
     else
         skip "This test is macOS-specific"
@@ -89,17 +94,17 @@ setup() {
 }
 
 @test "Community ID is enabled in configuration" {
-    run grep -q "community-id: true" "$CONFIG_FILE"
+    run sudo grep -q "community-id: true" "$CONFIG_FILE"
     [ "$status" -eq 0 ]
 }
 
 @test "Detect-engine configuration is present" {
-    run grep -q "detect-engine:" "$CONFIG_FILE"
+    run sudo grep -q "detect-engine:" "$CONFIG_FILE"
     [ "$status" -eq 0 ]
 }
 
 @test "Eve-log types include 'alert'" {
-    run yq eval '.outputs[] | select(has("eve-log")) | .["eve-log"].types[]' "$CONFIG_FILE"
+    run sudo yq eval '.outputs[] | select(has("eve-log")) | .["eve-log"].types[]' "$CONFIG_FILE"
     echo "$output"
     [ "$status" -eq 0 ]
     [[ "$output" == *"alert"* ]]
@@ -107,26 +112,27 @@ setup() {
 
 @test "Drop.conf is created in IPS mode" {
     if [ "$MODE" = "ips" ]; then
-        [ -f "$CONFIG_DIR/drop.conf" ]
+        run sudo test -f "$CONFIG_DIR/drop.conf"
+        [ "$status" -eq 0 ]
     else
         skip "This test is specific to IPS mode."
     fi
 }
 
 @test "Drop.conf has necessary config" {
-  if [ "$MODE" = "ips" ]; then
-      run grep -q "group:emerging-attack_response" "$CONFIG_DIR/drop.conf"
-      [ "$status" -eq 0 ]
-  else
-      skip "This test is specific to IPS mode."
-  fi
-  
+    if [ "$MODE" = "ips" ]; then
+        run sudo grep -q "group:emerging-attack_response" "$CONFIG_DIR/drop.conf"
+        [ "$status" -eq 0 ]
+    else
+        skip "This test is specific to IPS mode."
+    fi
 }
 
 @test "LISTENMODE is set to nfqueue in IPS mode" {
     if [ "$MODE" = "ips" ]; then
-        [ -f "/etc/default/suricata" ] || skip "/etc/default/suricata not found"
-        run grep -q "LISTENMODE=nfqueue" /etc/default/suricata
+        run sudo test -f "/etc/default/suricata"
+        [ "$status" -eq 0 ] || skip "/etc/default/suricata not found"
+        run sudo grep -q "LISTENMODE=nfqueue" /etc/default/suricata
         [ "$status" -eq 0 ]
     else
         skip "This test is specific to IPS mode."
@@ -135,8 +141,9 @@ setup() {
 
 @test "DEFAULT_INPUT_POLICY is set to ACCEPT in IPS mode" {
     if [ "$MODE" = "ips" ]; then
-        [ -f "/etc/default/ufw" ] || skip "/etc/default/ufw not found"
-        run grep -q "DEFAULT_INPUT_POLICY=\"ACCEPT\"" /etc/default/ufw
+        run sudo test -f "/etc/default/ufw"
+        [ "$status" -eq 0 ] || skip "/etc/default/ufw not found"
+        run sudo grep -q "DEFAULT_INPUT_POLICY=\"ACCEPT\"" /etc/default/ufw
         [ "$status" -eq 0 ]
     else
         skip "This test is specific to IPS mode."
@@ -145,10 +152,11 @@ setup() {
 
 @test "NFQUEUE rules are added to UFW in IPS mode" {
     if [ "$MODE" = "ips" ]; then
-        [ -f "/etc/ufw/before.rules" ] || skip "/etc/ufw/before.rules not found"
-        run grep -q "^-I INPUT -j NFQUEUE" /etc/ufw/before.rules
+        run sudo test -f "/etc/ufw/before.rules"
+        [ "$status" -eq 0 ] || skip "/etc/ufw/before.rules not found"
+        run sudo grep -q "^-I INPUT -j NFQUEUE" /etc/ufw/before.rules
         [ "$status" -eq 0 ]
-        run grep -q "^-I OUTPUT -j NFQUEUE" /etc/ufw/before.rules
+        run sudo grep -q "^-I OUTPUT -j NFQUEUE" /etc/ufw/before.rules
         [ "$status" -eq 0 ]
     else
         skip "This test is specific to IPS mode."
@@ -156,7 +164,8 @@ setup() {
 }
 
 @test "Custom drop rule is present in $RULES_DIR/suricata.rules in IPS mode" {
-    [ -f "$RULES_DIR/suricata.rules" ] || skip "suricata.rules not found in expected path"
+    run sudo test -f "$RULES_DIR/suricata.rules"
+    [ "$status" -eq 0 ] || skip "suricata.rules not found in expected path"
     run sudo grep -q "sid:992002087" "$RULES_DIR/suricata.rules"
     [ "$status" -eq 0 ]
 }
