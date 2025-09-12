@@ -59,7 +59,7 @@ setup() {
 
 @test "Rules file exists" {
     echo "Looking for rules in: $RULES_DIR"
-    run sudo ls "$RULES_DIR"
+    run ls "$RULES_DIR"
     [ "$status" -eq 0 ]
     [ -f "$RULES_DIR/suricata.rules" ] || skip "suricata.rules not found in expected path"
 }
