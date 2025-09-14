@@ -155,6 +155,32 @@ else
     info_message "yq is not installed. Skipping uninstallation."
 fi
 
+# Remove Suricata dependencies on macOS (always check regardless of installation method)
+if [ "$OS" = "darwin" ] && command_exists brew; then
+    info_message "Checking for Suricata dependencies to remove..."
+    deps=("jansson" "libmagic" "libnet" "libyaml" "lz4" "pcre2")
+    
+    for dep in "${deps[@]}"; do
+        if brew_command list "$dep" >/dev/null 2>&1; then
+            info_message "Attempting to remove $dep..."
+            
+            # Check if the package has dependents before attempting removal
+            dependents=$(brew_command uses --installed "$dep" 2>/dev/null || echo "")
+            if [ -n "$dependents" ] && [ "$dependents" != "" ]; then
+                info_message "Skipping $dep - still required by: $(echo "$dependents" | tr '\n' ' ')"
+            else
+                if brew_command uninstall "$dep" 2>/dev/null; then
+                    success_message "$dep removed successfully"
+                else
+                    warn_message "Could not remove $dep - may be required by system or other packages"
+                fi
+            fi
+        else
+            info_message "$dep is not installed - skipping"
+        fi
+    done
+fi
+
 # Removing suricata repository from local package list...
 if [ "$OS" = "linux" ]; then
     case "$DISTRO" in
@@ -265,17 +291,6 @@ if ! remove_prebuilt_suricata; then
             fi
             remove_suricata_residuals
             
-            # Remove Suricata-specific dependencies installed via Homebrew
-            if command_exists brew; then
-                info_message "Removing Suricata-specific dependencies..."
-                local deps=("jansson" "libmagic" "libnet" "libyaml" "lz4" "pcre2")
-                for dep in "${deps[@]}"; do
-                    if brew_command list "$dep" >/dev/null 2>&1; then
-                        info_message "Removing $dep..."
-                        brew_command uninstall "$dep" || warn_message "Failed to remove $dep"
-                    fi
-                done
-            fi
             
             # Clean up PATH modifications made by our installer
             if [ -f "/etc/paths.d/100-usr-local-bin" ]; then
