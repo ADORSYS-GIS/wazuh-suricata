@@ -527,6 +527,41 @@ download_and_install_suricata_macos() {
     success_message "Suricata ${tag} installed successfully"
 }
 
+# Configure systemd service file for CentOS/RHEL
+configure_suricata_systemd_service() {
+    local service_file="/usr/lib/systemd/system/suricata.service"
+    
+    info_message "Configuring systemd service file for Suricata..."
+    create_file "$service_file" "# Sample Suricata systemd unit file.
+[Unit]
+Description=Suricata Intrusion Detection Service
+After=syslog.target network-online.target systemd-tmpfiles-setup.service
+Documentation=man:suricata(1)
+
+[Service]
+# Environment file to pick up \$OPTIONS. On Fedora/EL this would be
+# /etc/sysconfig/suricata, or on Debian/Ubuntu, /etc/default/suricata
+EnvironmentFile=-/etc/sysconfig/suricata
+#EnvironmentFile=-/etc/default/suricata
+ExecStartPre=/bin/rm -f /var/run/suricata.pid
+ExecStart=/sbin/suricata -c /etc/suricata/suricata.yaml --pidfile /var/run/suricata.pid -i $INTERFACE
+ExecReload=/bin/kill -USR2 \$MAINPID
+
+### Security Settings ###
+MemoryDenyWriteExecute=true
+LockPersonality=true
+ProtectControlGroups=true
+ProtectKernelModules=true
+
+[Install]
+WantedBy=multi-user.target"
+
+    # Reload systemd daemon to pick up the new service file
+    maybe_sudo systemctl daemon-reload
+    
+    success_message "Suricata systemd service configured with interface: $INTERFACE"
+}
+
 # --- Installers and flow ---
 
 print_step_header 1 "Installing dependencies and Suricata"
@@ -619,6 +654,9 @@ if [ "$OS" = "linux" ]; then
             fi
         fi
         success_message "Suricata installed at: $SURICATA_BIN"
+        
+        # Configure systemd service file after configuration is updated
+        # Note: This will be called after update_config() sets the interface
     fi
 elif [ "$OS" = "darwin" ]; then
     # Ensure /usr/local/bin exists and is in PATH
@@ -671,6 +709,12 @@ if [ "$OS" = "linux" ]; then
         maybe_sudo ufw disable || true
         maybe_sudo ufw enable || true
     fi
+    
+    # Configure systemd service file for CentOS/RHEL installations  
+    if [ "${DISTRO:-}" = "centos" ] || [ "${DISTRO:-}" = "fedora" ] || [ "${DISTRO:-}" = "rhel" ]; then
+        configure_suricata_systemd_service
+    fi
+    
     info_message "Restarting Suricata service..."
     maybe_sudo systemctl restart suricata
 elif [ "$OS" = "darwin" ]; then
