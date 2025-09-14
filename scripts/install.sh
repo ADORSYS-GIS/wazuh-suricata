@@ -595,6 +595,35 @@ download_and_install_suricata_ubuntu() {
     success_message "Suricata ${tag} installed successfully for Ubuntu ${ubuntu_version}"
 }
 
+# Create systemd service file for Ubuntu prebuilt installations
+create_suricata_systemd_service() {
+    local suricata_bin="$1"
+    local service_file="/etc/systemd/system/suricata.service"
+    
+    info_message "Creating systemd service file for Suricata..."
+    create_file "$service_file" "[Unit]
+Description=Suricata Intrusion Detection Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=$suricata_bin -c $CONFIG_FILE -i $INTERFACE
+ExecReload=/bin/kill -USR2 \$MAINPID
+Restart=on-failure
+RestartSec=5
+User=root
+Group=root
+
+[Install]
+WantedBy=multi-user.target"
+
+    info_message "Enabling and starting Suricata service..."
+    maybe_sudo systemctl daemon-reload
+    maybe_sudo systemctl enable suricata
+    success_message "Suricata systemd service created and enabled"
+}
+
 # --- Installers and flow ---
 
 print_step_header 1 "Installing dependencies and Suricata"
@@ -633,6 +662,9 @@ if [ "$OS" = "linux" ]; then
             error_exit "Suricata binary not found after installation"
         fi
         success_message "Suricata installed at: $SURICATA_BIN"
+
+        # Create systemd service file for prebuilt installation
+        create_suricata_systemd_service "$SURICATA_BIN"
 
         # Install Python dependencies for suricata-update
         if ! command_exists pip && ! command_exists pip3; then
