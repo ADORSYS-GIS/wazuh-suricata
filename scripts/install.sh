@@ -666,10 +666,7 @@ if [ "$OS" = "linux" ]; then
         # Create systemd service file for prebuilt installation
         create_suricata_systemd_service "$SURICATA_BIN"
 
-        # Install Python dependencies for suricata-update
-        info_message "Installing PyYAML for suricata-update..."
-        maybe_sudo "$PACKAGE_MANAGER" update
-        maybe_sudo $PACKAGE_MANAGER $INSTALL_CMD python3-yaml || warn_message "Failed to install python3-yaml package"
+        # Note: PyYAML installation skipped - not using suricata-update yet
 
     elif [ "${DISTRO:-}" = "ubuntu" ] || [ "${DISTRO:-}" = "debian" ]; then
         # Fallback to PPA installation for unsupported Ubuntu versions or Debian
@@ -710,8 +707,7 @@ if [ "$OS" = "linux" ]; then
         fi
         success_message "Suricata installed at: $SURICATA_BIN"
 
-        info_message "Installing PyYAML for suricata-update..."
-        maybe_sudo $PACKAGE_MANAGER $INSTALL_CMD python3-yaml || warn_message "Failed to install python3-yaml package"
+        # Note: PyYAML installation skipped - not using suricata-update yet
     fi
 elif [ "$OS" = "darwin" ]; then
     if command_exists brew; then
@@ -735,20 +731,7 @@ elif [ "$OS" = "darwin" ]; then
         warn_message "Suricata may not function properly. Please install Homebrew and re-run this script."
     fi
 
-    if ! command_exists pip && ! command_exists pip3; then
-        info_message "Installing Python pip..."
-        if command_exists brew; then brew_as_user install python3
-        else warn_message "Cannot install pip without Homebrew. Please install Python 3 manually."; fi
-    fi
-
-    info_message "Installing PyYAML for suricata-update..."
-    if command_exists pip3; then
-        pip3 install --user --break-system-packages pyyaml 2>/dev/null || pip3 install --user pyyaml 2>/dev/null || warn_message "Failed to install pyyaml with pip3"
-    elif command_exists pip; then
-        pip install --user --break-system-packages pyyaml 2>/dev/null || pip install --user pyyaml 2>/dev/null || warn_message "Failed to install pyyaml with pip"
-    else
-        warn_message "pip not found, skipping pyyaml installation"
-    fi
+    # Note: PyYAML installation skipped - not using suricata-update yet
 
     download_and_install_suricata_macos "$SURICATA_GITHUB_TAG" "$ARCH"
     # Use exact path for macOS prebuilt binary
