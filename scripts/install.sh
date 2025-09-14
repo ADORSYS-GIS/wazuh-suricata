@@ -667,16 +667,9 @@ if [ "$OS" = "linux" ]; then
         create_suricata_systemd_service "$SURICATA_BIN"
 
         # Install Python dependencies for suricata-update
-        if ! command_exists pip && ! command_exists pip3; then
-            info_message "Installing Python pip..."
-            maybe_sudo "$PACKAGE_MANAGER" update
-            maybe_sudo $PACKAGE_MANAGER $INSTALL_CMD python3-pip
-        fi
-
         info_message "Installing PyYAML for suricata-update..."
-        if command_exists pip3; then maybe_sudo pip3 install pyyaml || warn_message "Failed to install pyyaml with pip3"
-        elif command_exists pip; then maybe_sudo pip install pyyaml || warn_message "Failed to install pyyaml with pip"
-        else warn_message "pip not found, skipping pyyaml installation"; fi
+        maybe_sudo "$PACKAGE_MANAGER" update
+        maybe_sudo $PACKAGE_MANAGER $INSTALL_CMD python3-yaml || warn_message "Failed to install python3-yaml package"
 
     elif [ "${DISTRO:-}" = "ubuntu" ] || [ "${DISTRO:-}" = "debian" ]; then
         # Fallback to PPA installation for unsupported Ubuntu versions or Debian
@@ -717,15 +710,8 @@ if [ "$OS" = "linux" ]; then
         fi
         success_message "Suricata installed at: $SURICATA_BIN"
 
-        if ! command_exists pip && ! command_exists pip3; then
-            info_message "Installing Python pip..."
-            maybe_sudo $PACKAGE_MANAGER $INSTALL_CMD python3-pip
-        fi
-
         info_message "Installing PyYAML for suricata-update..."
-        if command_exists pip3; then maybe_sudo pip3 install pyyaml || warn_message "Failed to install pyyaml with pip3"
-        elif command_exists pip; then maybe_sudo pip install pyyaml || warn_message "Failed to install pyyaml with pip"
-        else warn_message "pip not found, skipping pyyaml installation"; fi
+        maybe_sudo $PACKAGE_MANAGER $INSTALL_CMD python3-yaml || warn_message "Failed to install python3-yaml package"
     fi
 elif [ "$OS" = "darwin" ]; then
     if command_exists brew; then
