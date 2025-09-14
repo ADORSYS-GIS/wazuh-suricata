@@ -540,15 +540,7 @@ if [ "$OS" = "linux" ]; then
         fi
         success_message "Suricata installed at: $SURICATA_BIN"
 
-        if ! command_exists pip && ! command_exists pip3; then
-            info_message "Installing Python pip..."
-            maybe_sudo $PACKAGE_MANAGER $INSTALL_CMD python3-pip
-        fi
-
-        info_message "Installing PyYAML for suricata-update..."
-        if command_exists pip3; then maybe_sudo pip3 install pyyaml || warn_message "Failed to install pyyaml with pip3"
-        elif command_exists pip; then maybe_sudo pip install pyyaml || warn_message "Failed to install pyyaml with pip"
-        else warn_message "pip not found, skipping pyyaml installation"; fi
+        # Note: Python and PyYAML installation skipped - not needed without suricata-update
 
     elif [ "${DISTRO:-}" = "centos" ] || [ "${DISTRO:-}" = "fedora" ] || [ "${DISTRO:-}" = "rhel" ]; then
         # CentOS/RHEL/Fedora installation using native packages
@@ -619,7 +611,7 @@ elif [ "$OS" = "darwin" ]; then
             maybe_sudo curl -SL --progress-bar "https://github.com/mikefarah/yq/releases/latest/download/${YQ_BINARY}" -o /usr/local/bin/yq
             maybe_sudo chmod +x /usr/local/bin/yq
         fi
-        warn_message "Critical dependencies (jansson, libmagic, libnet, libyaml, lz4, pcre2, python) cannot be installed without Homebrew."
+        warn_message "Critical dependencies (jansson, libmagic, libnet, libyaml, lz4, pcre2) cannot be installed without Homebrew."
         warn_message "Suricata may not function properly. Please install Homebrew and re-run this script."
     fi
 
