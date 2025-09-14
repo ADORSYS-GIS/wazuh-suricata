@@ -618,11 +618,27 @@ Group=root
 [Install]
 WantedBy=multi-user.target"
 
-    info_message "Enabling and starting Suricata service..."
+    info_message "Reloading systemd daemon..."
     maybe_sudo systemctl daemon-reload
+    
+    info_message "Enabling Suricata service..."
     maybe_sudo systemctl enable suricata
-    maybe_sudo systemctl start suricata
-    success_message "Suricata systemd service created, enabled, and started"
+    
+    info_message "Starting Suricata service..."
+    if maybe_sudo systemctl start suricata; then
+        success_message "Suricata systemd service created, enabled, and started"
+        
+        # Give the service a moment to start and check status
+        sleep 2
+        if maybe_sudo systemctl is-active suricata >/dev/null 2>&1; then
+            info_message "Suricata service is running successfully"
+        else
+            warn_message "Suricata service may have failed to start. Check with: sudo systemctl status suricata"
+            maybe_sudo systemctl status suricata --no-pager || true
+        fi
+    else
+        error_exit "Failed to start Suricata service. Check configuration and logs."
+    fi
 }
 
 # --- Installers and flow ---
@@ -664,9 +680,7 @@ if [ "$OS" = "linux" ]; then
         fi
         success_message "Suricata installed at: $SURICATA_BIN"
 
-        # Create systemd service file for prebuilt installation
-        create_suricata_systemd_service "$SURICATA_BIN"
-
+        # Note: systemd service will be created after configuration update
         # Note: PyYAML installation skipped - not using suricata-update yet
 
     elif [ "${DISTRO:-}" = "ubuntu" ] || [ "${DISTRO:-}" = "debian" ]; then
@@ -760,8 +774,15 @@ if [ "$OS" = "linux" ]; then
         maybe_sudo ufw disable || true
         maybe_sudo ufw enable || true
     fi
-    info_message "Restarting Suricata service..."
-    maybe_sudo systemctl restart suricata
+    
+    # Check if this is a prebuilt installation that needs systemd service creation
+    if [ -d "/opt/suricata" ] && [ ! -f "/etc/systemd/system/suricata.service" ]; then
+        info_message "Creating systemd service for prebuilt installation..."
+        create_suricata_systemd_service "$SURICATA_BIN"
+    else
+        info_message "Restarting Suricata service..."
+        maybe_sudo systemctl restart suricata
+    fi
 elif [ "$OS" = "darwin" ]; then
     print_step_header 4 "Setting up Suricata to start at boot"
     create_launchd_plist_file "$LAUNCH_AGENT_FILE" "$SURICATA_BIN"
