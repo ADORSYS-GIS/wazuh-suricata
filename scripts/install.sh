@@ -31,7 +31,7 @@ error_exit() {
 
 LOGGED_IN_USER=""
 SURICATA_VERSION=${SURICATA_VERSION:-"7.0"}
-SURICATA_GITHUB_TAG="v8.0.0-adorsys.2-rc.2"
+SURICATA_GITHUB_TAG="v8.0.0-adorsys.2-rc.3"
 DOWNLOADS_DIR="${HOME}/suricata-install"
 CONFIG_FILE=""
 INTERFACE=""
@@ -524,7 +524,15 @@ download_and_install_suricata_ubuntu() {
     local base_url="https://github.com/ADORSYS-GIS/wazuh-suricata-package/releases/download"
     local version_without_v
     version_without_v=$(echo "$tag" | sed 's/^v//')
-    local filename="suricata-${version_without_v}-ubuntu-${ubuntu_version}-${arch}.tar.gz"
+    local filename
+    
+    # Generate filename based on Ubuntu version and architecture
+    if [ "$ubuntu_version" = "22" ]; then
+        filename="suricata-${version_without_v}-linux-${arch}-ubuntu22.tar.gz"
+    else
+        filename="suricata-${version_without_v}-linux-${arch}.tar.gz"
+    fi
+    
     local download_url="${base_url}/${tag}/${filename}"
     local temp_dir="/tmp/suricata-install-$$"
 
