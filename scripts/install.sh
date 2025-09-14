@@ -567,10 +567,6 @@ if [ "$OS" = "linux" ]; then
         
         # Install required dependencies
         info_message "Installing required dependencies..."
-        # Try hyperscan first (newer systems), fall back to alternatives
-        maybe_sudo $PACKAGE_MANAGER $INSTALL_CMD hyperscan || \
-        maybe_sudo $PACKAGE_MANAGER $INSTALL_CMD hyperscan-devel || \
-        warn_message "Failed to install hyperscan - Suricata may not function properly"
         
         # Install other common dependencies
         maybe_sudo $PACKAGE_MANAGER $INSTALL_CMD curl wget || warn_message "Failed to install basic tools"
@@ -683,12 +679,6 @@ elif [ ! -f "$SURICATA_BIN" ] && [ ! -L "$SURICATA_BIN" ]; then
     error_exit "Suricata executable not found at: $SURICATA_BIN"
 else
     success_message "Suricata executable validated at: $SURICATA_BIN"
-fi
-
-# Bonus: show suricata-update wiring
-if command_exists suricata-update; then
-    info_message "suricata-update path: $(command -v suricata-update)"
-    head -n 3 "$(command -v suricata-update)" || true
 fi
 
 success_message "Suricata installation and configuration complete!"
