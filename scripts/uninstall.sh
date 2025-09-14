@@ -263,7 +263,25 @@ if ! remove_prebuilt_suricata; then
                     warn_message "Failed to remove Homebrew default Suricata"
                 }
             fi
-            remove_suricata_residuals 
+            remove_suricata_residuals
+            
+            # Remove Suricata-specific dependencies installed via Homebrew
+            if command_exists brew; then
+                info_message "Removing Suricata-specific dependencies..."
+                local deps=("jansson" "libmagic" "libnet" "libyaml" "lz4" "pcre2")
+                for dep in "${deps[@]}"; do
+                    if brew_command list "$dep" >/dev/null 2>&1; then
+                        info_message "Removing $dep..."
+                        brew_command uninstall "$dep" || warn_message "Failed to remove $dep"
+                    fi
+                done
+            fi
+            
+            # Clean up PATH modifications made by our installer
+            if [ -f "/etc/paths.d/100-usr-local-bin" ]; then
+                info_message "Removing custom PATH configuration..."
+                maybe_sudo rm -f "/etc/paths.d/100-usr-local-bin" || warn_message "Failed to remove PATH configuration"
+            fi
         fi
     else
         info_message "Suricata is not installed. Skipping uninstallation."
