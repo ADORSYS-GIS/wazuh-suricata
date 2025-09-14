@@ -553,26 +553,18 @@ download_and_install_suricata_ubuntu() {
 
     local src_dir="${temp_dir}"
 
-    info_message "Installing Suricata binaries to /usr/bin"
-    if [ -d "${src_dir}/usr/bin" ]; then
-        maybe_sudo rsync -av --progress "${src_dir}/usr/bin/" /usr/bin/ || { rm -rf "$temp_dir"; error_exit "Failed to copy binaries to /usr/bin"; }
-    else
-        rm -rf "$temp_dir"; error_exit "Expected usr/bin directory not found in archive"
-    fi
-
-    info_message "Installing Suricata libraries"
-    if [ -d "${src_dir}/usr/lib" ]; then
-        maybe_sudo rsync -av --progress "${src_dir}/usr/lib/" /usr/lib/ || warn_message "Failed to copy some libraries to /usr/lib"
-    fi
-    if [ -d "${src_dir}/usr/lib64" ]; then
-        maybe_sudo rsync -av --progress "${src_dir}/usr/lib64/" /usr/lib64/ || warn_message "Failed to copy some libraries to /usr/lib64"
-    fi
-
     info_message "Installing configuration files to /etc"
     if [ -d "${src_dir}/etc" ]; then
         maybe_sudo rsync -av --progress "${src_dir}/etc/" /etc/ || { rm -rf "$temp_dir"; error_exit "Failed to copy configuration files to /etc"; }
     else
         warn_message "No etc directory found in archive"
+    fi
+
+    info_message "Copying Suricata files to /opt"
+    if [ -d "${src_dir}/opt" ]; then
+        maybe_sudo rsync -av --progress "${src_dir}/opt/" /opt/ || { rm -rf "$temp_dir"; error_exit "Failed to copy Suricata files to /opt"; }
+    else
+        rm -rf "$temp_dir"; error_exit "Expected opt directory not found in archive"
     fi
 
     info_message "Creating runtime directories under /var"
@@ -584,11 +576,15 @@ download_and_install_suricata_ubuntu() {
         /var/run/suricata || warn_message "Some runtime directories may not have been created"
 
     info_message "Setting executable permissions on Suricata binaries"
-    maybe_sudo chmod +x /usr/bin/suricata* || { rm -rf "$temp_dir"; error_exit "Failed to set executable permissions"; }
+    maybe_sudo chmod +x /opt/suricata/bin/* || { rm -rf "$temp_dir"; error_exit "Failed to set executable permissions"; }
+
+    info_message "Linking suricata binary to /usr/bin"
+    maybe_sudo ln -sf /opt/suricata/bin/suricata /usr/bin/suricata || warn_message "Could not create symlink for suricata"
 
     # Install suricata-update if present in the package
-    if [ -f "${src_dir}/usr/bin/suricata-update" ]; then
-        info_message "suricata-update found in package and installed to /usr/bin"
+    if [ -f "/opt/suricata/bin/suricata-update" ]; then
+        info_message "Linking suricata-update to /usr/bin"
+        maybe_sudo ln -sf /opt/suricata/bin/suricata-update /usr/bin/suricata-update || warn_message "Could not create symlink for suricata-update"
     else
         warn_message "suricata-update not found in package"
     fi
