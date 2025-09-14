@@ -141,7 +141,15 @@ if [ "$OS" = "linux" ]; then
     DISTRO=$(detect_distro)
     case "$DISTRO" in
       ubuntu|debian) PACKAGE_MANAGER="apt"; INSTALL_CMD="install -y" ;;
-      centos|fedora|rhel) PACKAGE_MANAGER="yum"; INSTALL_CMD="install -y" ;;
+      centos|fedora|rhel) 
+          # Check if dnf is available (newer RHEL/CentOS versions)
+          if command_exists dnf; then
+              PACKAGE_MANAGER="dnf"
+          else
+              PACKAGE_MANAGER="yum"
+          fi
+          INSTALL_CMD="install -y"
+          ;;
       *) error_exit "Unsupported Linux distribution: $DISTRO" ;;
     esac
     if ! command_exists systemctl; then error_exit "This script requires systemd to manage services."; fi
@@ -538,6 +546,59 @@ if [ "$OS" = "linux" ]; then
         if command_exists pip3; then maybe_sudo pip3 install pyyaml || warn_message "Failed to install pyyaml with pip3"
         elif command_exists pip; then maybe_sudo pip install pyyaml || warn_message "Failed to install pyyaml with pip"
         else warn_message "pip not found, skipping pyyaml installation"; fi
+
+    elif [ "${DISTRO:-}" = "centos" ] || [ "${DISTRO:-}" = "fedora" ] || [ "${DISTRO:-}" = "rhel" ]; then
+        # CentOS/RHEL/Fedora installation using native packages
+        info_message "${DISTRO} detected - installing Suricata using ${PACKAGE_MANAGER}"
+        
+        # Install EPEL repository if not already available (for CentOS/RHEL)
+        if [ "${DISTRO:-}" = "centos" ] || [ "${DISTRO:-}" = "rhel" ]; then
+            info_message "Enabling EPEL repository..."
+            if ! maybe_sudo "$PACKAGE_MANAGER" list installed epel-release >/dev/null 2>&1; then
+                maybe_sudo $PACKAGE_MANAGER $INSTALL_CMD epel-release || warn_message "Failed to install EPEL repository"
+            else
+                info_message "EPEL repository already installed"
+            fi
+        fi
+        
+        # Update package cache
+        info_message "Updating package cache..."
+        maybe_sudo "$PACKAGE_MANAGER" update -y || warn_message "Failed to update package cache"
+        
+        # Install required dependencies
+        info_message "Installing required dependencies..."
+        # Try hyperscan first (newer systems), fall back to alternatives
+        maybe_sudo $PACKAGE_MANAGER $INSTALL_CMD hyperscan || \
+        maybe_sudo $PACKAGE_MANAGER $INSTALL_CMD hyperscan-devel || \
+        warn_message "Failed to install hyperscan - Suricata may not function properly"
+        
+        # Install other common dependencies
+        maybe_sudo $PACKAGE_MANAGER $INSTALL_CMD curl wget || warn_message "Failed to install basic tools"
+        
+        # Install yq
+        if command_exists yq; then 
+            info_message "yq is already installed."
+        else
+            info_message "Installing yq..."
+            maybe_sudo curl -SL --progress-bar "https://github.com/mikefarah/yq/releases/latest/download/${YQ_BINARY}" -o /usr/bin/yq
+            maybe_sudo chmod +x /usr/bin/yq
+            info_message "yq installed at: /usr/bin/yq"
+        fi
+        
+        # Install Suricata
+        info_message "Installing Suricata..."
+        maybe_sudo $PACKAGE_MANAGER $INSTALL_CMD suricata
+        
+        # Set binary path
+        SURICATA_BIN="/usr/bin/suricata"
+        if [ ! -f "$SURICATA_BIN" ]; then
+            # Fallback to searching in PATH if not in expected location
+            SURICATA_BIN=$(command -v suricata || echo "not found")
+            if [ "$SURICATA_BIN" = "not found" ]; then
+                error_exit "Suricata binary not found after installation"
+            fi
+        fi
+        success_message "Suricata installed at: $SURICATA_BIN"
     fi
 elif [ "$OS" = "darwin" ]; then
     if command_exists brew; then
