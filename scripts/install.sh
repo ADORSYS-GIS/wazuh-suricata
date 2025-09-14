@@ -138,7 +138,32 @@ if [ "$OS" = "linux" ]; then
         elif [ -f /etc/debian_version ]; then echo "debian"
         else error_exit "Unable to detect Linux distribution"; fi
     }
+    
+    detect_ubuntu_version() {
+        if [ -f /etc/os-release ]; then
+            . /etc/os-release
+            if [ "$ID" = "ubuntu" ]; then
+                case "$VERSION_ID" in
+                    "22.04") echo "22" ;;
+                    "24.04") echo "24" ;;
+                    *) echo "unsupported" ;;
+                esac
+            else
+                echo "not-ubuntu"
+            fi
+        else
+            echo "unknown"
+        fi
+    }
+    
     DISTRO=$(detect_distro)
+    UBUNTU_VERSION=$(detect_ubuntu_version)
+    
+    # Check for unsupported Ubuntu 22 + ARM combination
+    if [ "$DISTRO" = "ubuntu" ] && [ "$UBUNTU_VERSION" = "22" ] && [ "$ARCH" = "arm64" ]; then
+        error_exit "Ubuntu 22.04 ARM64 is not supported. Please use Ubuntu 24.04 or Ubuntu 22.04 AMD64."
+    fi
+    
     case "$DISTRO" in
       ubuntu|debian) PACKAGE_MANAGER="apt"; INSTALL_CMD="install -y" ;;
       centos|fedora|rhel) PACKAGE_MANAGER="yum"; INSTALL_CMD="install -y" ;;
@@ -489,11 +514,138 @@ download_and_install_suricata_macos() {
     success_message "Suricata ${tag} installed successfully"
 }
 
+download_and_install_suricata_ubuntu() {
+    local tag="$1"
+    local ubuntu_version="$2"
+    local arch="$3"
+
+    info_message "Installing Suricata ${tag} for Ubuntu ${ubuntu_version} ${arch}"
+
+    local base_url="https://github.com/ADORSYS-GIS/wazuh-suricata-package/releases/download"
+    local version_without_v
+    version_without_v=$(echo "$tag" | sed 's/^v//')
+    local filename="suricata-${version_without_v}-ubuntu-${ubuntu_version}-${arch}.tar.gz"
+    local download_url="${base_url}/${tag}/${filename}"
+    local temp_dir="/tmp/suricata-install-$$"
+
+    info_message "Creating temporary directory: $temp_dir"
+    mkdir -p "$temp_dir" || error_exit "Failed to create temporary directory"
+
+    info_message "Downloading Suricata from: $download_url"
+    if command_exists curl; then
+        curl -L --fail --progress-bar -o "${temp_dir}/${filename}" "$download_url" || { rm -rf "$temp_dir"; error_exit "Failed to download Suricata from $download_url"; }
+    else
+        rm -rf "$temp_dir"; error_exit "curl is required but not installed"
+    fi
+
+    success_message "Download completed successfully"
+
+    info_message "Extracting Suricata archive"
+    tar -xzf "${temp_dir}/${filename}" -C "${temp_dir}" || { rm -rf "$temp_dir"; error_exit "Failed to extract Suricata archive"; }
+
+    local src_dir="${temp_dir}"
+
+    info_message "Installing Suricata binaries to /usr/bin"
+    if [ -d "${src_dir}/usr/bin" ]; then
+        maybe_sudo rsync -av --progress "${src_dir}/usr/bin/" /usr/bin/ || { rm -rf "$temp_dir"; error_exit "Failed to copy binaries to /usr/bin"; }
+    else
+        rm -rf "$temp_dir"; error_exit "Expected usr/bin directory not found in archive"
+    fi
+
+    info_message "Installing Suricata libraries"
+    if [ -d "${src_dir}/usr/lib" ]; then
+        maybe_sudo rsync -av --progress "${src_dir}/usr/lib/" /usr/lib/ || warn_message "Failed to copy some libraries to /usr/lib"
+    fi
+    if [ -d "${src_dir}/usr/lib64" ]; then
+        maybe_sudo rsync -av --progress "${src_dir}/usr/lib64/" /usr/lib64/ || warn_message "Failed to copy some libraries to /usr/lib64"
+    fi
+
+    info_message "Installing configuration files to /etc"
+    if [ -d "${src_dir}/etc" ]; then
+        maybe_sudo rsync -av --progress "${src_dir}/etc/" /etc/ || { rm -rf "$temp_dir"; error_exit "Failed to copy configuration files to /etc"; }
+    else
+        warn_message "No etc directory found in archive"
+    fi
+
+    info_message "Creating runtime directories under /var"
+    maybe_sudo install -d -m 755 \
+        /var/lib/suricata/cache/sgh \
+        /var/lib/suricata/data \
+        /var/log/suricata/certs \
+        /var/log/suricata/files \
+        /var/run/suricata || warn_message "Some runtime directories may not have been created"
+
+    info_message "Setting executable permissions on Suricata binaries"
+    maybe_sudo chmod +x /usr/bin/suricata* || { rm -rf "$temp_dir"; error_exit "Failed to set executable permissions"; }
+
+    # Install suricata-update if present in the package
+    if [ -f "${src_dir}/usr/bin/suricata-update" ]; then
+        info_message "suricata-update found in package and installed to /usr/bin"
+    else
+        warn_message "suricata-update not found in package"
+    fi
+
+    info_message "Cleaning up temporary files"
+    rm -rf "$temp_dir"
+
+    success_message "Suricata ${tag} installed successfully for Ubuntu ${ubuntu_version}"
+}
+
 # --- Installers and flow ---
 
 print_step_header 1 "Installing dependencies and Suricata"
 if [ "$OS" = "linux" ]; then
-    if [ "${DISTRO:-}" = "ubuntu" ] || [ "${DISTRO:-}" = "debian" ]; then
+    # Check if Ubuntu qualifies for prebuilt binaries
+    if [ "${DISTRO:-}" = "ubuntu" ] && [ "$UBUNTU_VERSION" != "unsupported" ] && [ "$UBUNTU_VERSION" != "not-ubuntu" ] && [ "$UBUNTU_VERSION" != "unknown" ]; then
+        info_message "Ubuntu ${UBUNTU_VERSION} detected with ${ARCH} architecture - using prebuilt binaries"
+        
+        # Clean up any existing Suricata installations
+        if grep -q "oisf/suricata-stable" /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null; then
+            info_message "Removing unsupported Suricata repository..."
+            maybe_sudo add-apt-repository --remove "ppa:oisf/suricata-stable" -y
+            maybe_sudo "$PACKAGE_MANAGER" purge -y suricata || warn_message "Failed to remove Suricata package."
+        fi
+        if grep -q "oisf/suricata-$SURICATA_VERSION" /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null; then
+            info_message "Removing existing Suricata PPA..."
+            maybe_sudo add-apt-repository --remove "ppa:oisf/suricata-$SURICATA_VERSION" -y
+            maybe_sudo "$PACKAGE_MANAGER" purge -y suricata || warn_message "Failed to remove Suricata package."
+        fi
+
+        # Install yq dependency
+        if command_exists yq; then info_message "yq is already installed."
+        else
+            info_message "Installing yq..."
+            maybe_sudo curl -SL --progress-bar "https://github.com/mikefarah/yq/releases/latest/download/${YQ_BINARY}" -o /usr/bin/yq
+            maybe_sudo chmod +x /usr/bin/yq
+            info_message "yq installed at: /usr/bin/yq"
+        fi
+
+        # Download and install prebuilt Suricata
+        download_and_install_suricata_ubuntu "$SURICATA_GITHUB_TAG" "$UBUNTU_VERSION" "$ARCH"
+        
+        # Set binary path
+        SURICATA_BIN="/usr/bin/suricata"
+        if [ ! -f "$SURICATA_BIN" ]; then
+            error_exit "Suricata binary not found after installation"
+        fi
+        success_message "Suricata installed at: $SURICATA_BIN"
+
+        # Install Python dependencies for suricata-update
+        if ! command_exists pip && ! command_exists pip3; then
+            info_message "Installing Python pip..."
+            maybe_sudo "$PACKAGE_MANAGER" update
+            maybe_sudo $PACKAGE_MANAGER $INSTALL_CMD python3-pip
+        fi
+
+        info_message "Installing PyYAML for suricata-update..."
+        if command_exists pip3; then maybe_sudo pip3 install pyyaml || warn_message "Failed to install pyyaml with pip3"
+        elif command_exists pip; then maybe_sudo pip install pyyaml || warn_message "Failed to install pyyaml with pip"
+        else warn_message "pip not found, skipping pyyaml installation"; fi
+
+    elif [ "${DISTRO:-}" = "ubuntu" ] || [ "${DISTRO:-}" = "debian" ]; then
+        # Fallback to PPA installation for unsupported Ubuntu versions or Debian
+        info_message "Using PPA installation for ${DISTRO} (prebuilt binaries not available)"
+        
         if grep -q "oisf/suricata-stable" /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null; then
             info_message "Removing unsupported Suricata repository..."
             maybe_sudo add-apt-repository --remove "ppa:oisf/suricata-stable" -y
