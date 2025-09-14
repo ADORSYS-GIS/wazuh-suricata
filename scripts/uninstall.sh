@@ -247,11 +247,9 @@ if [ -d "$USR_LIB_DIR" ]; then
     maybe_sudo rm -rf "$USR_LIB_DIR" || warn_message "Failed to remove Suricata lib folder."
 fi
 
-if [ "$(uname -s)" = "Darwin" ]; then
-    if [ -d "$CELLAR_DIR" ]; then
-        info_message "Removing Suricata cellar folder..."
-        maybe_sudo rm -rf "$CELLAR_DIR" || warn_message "Failed to remove Suricata cellar folder."
-    fi
+if [ -d "$CELLAR_DIR" ]; then
+    info_message "Removing Suricata cellar folder..."
+    maybe_sudo rm -rf "$CELLAR_DIR" || warn_message "Failed to remove Suricata cellar folder."
 fi
 
 # Only run on Linux

@@ -31,7 +31,7 @@ error_exit() {
 
 LOGGED_IN_USER=""
 SURICATA_VERSION=${SURICATA_VERSION:-"7.0"}
-SURICATA_GITHUB_TAG="v8.0.0-adorsys.2-rc.3"
+SURICATA_GITHUB_TAG="v8.0.0-adorsys.2-rc.2"
 DOWNLOADS_DIR="${HOME}/suricata-install"
 CONFIG_FILE=""
 INTERFACE=""
@@ -64,36 +64,6 @@ sed_alternative() {
 brew_as_user() {
     # Run brew as the logged in user for Homebrew operations
     sudo -u "$LOGGED_IN_USER" -i brew "$@"
-}
-
-# Ensure /usr/local/bin exists and is in PATH for macOS
-setup_usr_local_bin_macos() {
-    if [ ! -d "/usr/local/bin" ]; then
-        info_message "Creating /usr/local/bin directory..."
-        maybe_sudo mkdir -p /usr/local/bin
-        maybe_sudo chown root:admin /usr/local/bin
-        maybe_sudo chmod 755 /usr/local/bin
-    fi
-    
-    # Check if /usr/local/bin is in PATH
-    if ! echo "$PATH" | grep -q "/usr/local/bin"; then
-        info_message "Adding /usr/local/bin to PATH..."
-        # Add to current session
-        export PATH="/usr/local/bin:$PATH"
-        
-        # Add to shell profiles for persistence
-        local shell_profiles=("/etc/paths.d/100-usr-local-bin" "$HOME/.profile" "$HOME/.bash_profile" "$HOME/.zshrc")
-        
-        # Create system-wide path file (preferred method for macOS)
-        if [ ! -f "/etc/paths.d/100-usr-local-bin" ]; then
-            echo "/usr/local/bin" | maybe_sudo tee /etc/paths.d/100-usr-local-bin > /dev/null
-            info_message "Added /usr/local/bin to system PATH via /etc/paths.d/"
-        fi
-        
-        success_message "/usr/local/bin setup completed"
-    else
-        info_message "/usr/local/bin already exists and is in PATH"
-    fi
 }
 
 mkdir -p "$DOWNLOADS_DIR"
@@ -168,32 +138,7 @@ if [ "$OS" = "linux" ]; then
         elif [ -f /etc/debian_version ]; then echo "debian"
         else error_exit "Unable to detect Linux distribution"; fi
     }
-    
-    detect_ubuntu_version() {
-        if [ -f /etc/os-release ]; then
-            . /etc/os-release
-            if [ "$ID" = "ubuntu" ]; then
-                case "$VERSION_ID" in
-                    "22.04") echo "22" ;;
-                    "24.04") echo "24" ;;
-                    *) echo "unsupported" ;;
-                esac
-            else
-                echo "not-ubuntu"
-            fi
-        else
-            echo "unknown"
-        fi
-    }
-    
     DISTRO=$(detect_distro)
-    UBUNTU_VERSION=$(detect_ubuntu_version)
-    
-    # Check for unsupported Ubuntu 22 + ARM combination
-    if [ "$DISTRO" = "ubuntu" ] && [ "$UBUNTU_VERSION" = "22" ] && [ "$ARCH" = "arm64" ]; then
-        error_exit "Ubuntu 22.04 ARM64 is not supported. Please use Ubuntu 24.04 or Ubuntu 22.04 AMD64."
-    fi
-    
     case "$DISTRO" in
       ubuntu|debian) PACKAGE_MANAGER="apt"; INSTALL_CMD="install -y" ;;
       centos|fedora|rhel) PACKAGE_MANAGER="yum"; INSTALL_CMD="install -y" ;;
@@ -544,183 +489,11 @@ download_and_install_suricata_macos() {
     success_message "Suricata ${tag} installed successfully"
 }
 
-download_and_install_suricata_ubuntu() {
-    local tag="$1"
-    local ubuntu_version="$2"
-    local arch="$3"
-
-    info_message "Installing Suricata ${tag} for Ubuntu ${ubuntu_version} ${arch}"
-
-    local base_url="https://github.com/ADORSYS-GIS/wazuh-suricata-package/releases/download"
-    local version_without_v
-    version_without_v=$(echo "$tag" | sed 's/^v//')
-    local filename
-    
-    # Generate filename based on Ubuntu version and architecture
-    if [ "$ubuntu_version" = "22" ]; then
-        filename="suricata-${version_without_v}-linux-${arch}-ubuntu22.tar.gz"
-    else
-        filename="suricata-${version_without_v}-linux-${arch}.tar.gz"
-    fi
-    
-    local download_url="${base_url}/${tag}/${filename}"
-    local temp_dir="/tmp/suricata-install-$$"
-
-    info_message "Creating temporary directory: $temp_dir"
-    mkdir -p "$temp_dir" || error_exit "Failed to create temporary directory"
-
-    info_message "Downloading Suricata from: $download_url"
-    if command_exists curl; then
-        curl -L --fail --progress-bar -o "${temp_dir}/${filename}" "$download_url" || { rm -rf "$temp_dir"; error_exit "Failed to download Suricata from $download_url"; }
-    else
-        rm -rf "$temp_dir"; error_exit "curl is required but not installed"
-    fi
-
-    success_message "Download completed successfully"
-
-    info_message "Extracting Suricata archive"
-    tar -xzf "${temp_dir}/${filename}" -C "${temp_dir}" || { rm -rf "$temp_dir"; error_exit "Failed to extract Suricata archive"; }
-
-    local src_dir="${temp_dir}"
-
-    info_message "Installing configuration files to /etc"
-    if [ -d "${src_dir}/etc" ]; then
-        maybe_sudo rsync -av --progress "${src_dir}/etc/" /etc/ || { rm -rf "$temp_dir"; error_exit "Failed to copy configuration files to /etc"; }
-    else
-        warn_message "No etc directory found in archive"
-    fi
-
-    info_message "Copying Suricata files to /opt"
-    if [ -d "${src_dir}/opt" ]; then
-        maybe_sudo rsync -av --progress "${src_dir}/opt/" /opt/ || { rm -rf "$temp_dir"; error_exit "Failed to copy Suricata files to /opt"; }
-    else
-        rm -rf "$temp_dir"; error_exit "Expected opt directory not found in archive"
-    fi
-
-    info_message "Creating runtime directories under /var"
-    maybe_sudo install -d -m 755 \
-        /var/lib/suricata/cache/sgh \
-        /var/lib/suricata/data \
-        /var/log/suricata/certs \
-        /var/log/suricata/files \
-        /var/run/suricata || warn_message "Some runtime directories may not have been created"
-
-    info_message "Setting executable permissions on Suricata binaries"
-    maybe_sudo chmod +x /opt/suricata/bin/* || { rm -rf "$temp_dir"; error_exit "Failed to set executable permissions"; }
-
-    info_message "Linking suricata binary to /usr/bin"
-    maybe_sudo ln -sf /opt/suricata/bin/suricata /usr/bin/suricata || warn_message "Could not create symlink for suricata"
-
-    # Install suricata-update if present in the package
-    if [ -f "/opt/suricata/bin/suricata-update" ]; then
-        info_message "Linking suricata-update to /usr/bin"
-        maybe_sudo ln -sf /opt/suricata/bin/suricata-update /usr/bin/suricata-update || warn_message "Could not create symlink for suricata-update"
-    else
-        warn_message "suricata-update not found in package"
-    fi
-
-    info_message "Cleaning up temporary files"
-    rm -rf "$temp_dir"
-
-    success_message "Suricata ${tag} installed successfully for Ubuntu ${ubuntu_version}"
-}
-
-# Create systemd service file for Ubuntu prebuilt installations
-create_suricata_systemd_service() {
-    local suricata_bin="$1"
-    local service_file="/etc/systemd/system/suricata.service"
-    
-    info_message "Creating systemd service file for Suricata..."
-    create_file "$service_file" "[Unit]
-Description=Suricata Intrusion Detection Service
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-ExecStart=$suricata_bin -c $CONFIG_FILE -i $INTERFACE
-ExecReload=/bin/kill -USR2 \$MAINPID
-Restart=on-failure
-RestartSec=5
-User=root
-Group=root
-
-[Install]
-WantedBy=multi-user.target"
-
-    info_message "Reloading systemd daemon..."
-    maybe_sudo systemctl daemon-reload
-    
-    info_message "Enabling Suricata service..."
-    maybe_sudo systemctl enable suricata
-    
-    info_message "Starting Suricata service..."
-    if maybe_sudo systemctl start suricata; then
-        success_message "Suricata systemd service created, enabled, and started"
-        
-        # Give the service a moment to start and check status
-        sleep 2
-        if maybe_sudo systemctl is-active suricata >/dev/null 2>&1; then
-            info_message "Suricata service is running successfully"
-        else
-            warn_message "Suricata service may have failed to start. Check with: sudo systemctl status suricata"
-            maybe_sudo systemctl status suricata --no-pager || true
-        fi
-    else
-        error_exit "Failed to start Suricata service. Check configuration and logs."
-    fi
-}
-
 # --- Installers and flow ---
 
 print_step_header 1 "Installing dependencies and Suricata"
 if [ "$OS" = "linux" ]; then
-    # Check if Ubuntu qualifies for prebuilt binaries
-    if [ "${DISTRO:-}" = "ubuntu" ] && [ "$UBUNTU_VERSION" != "unsupported" ] && [ "$UBUNTU_VERSION" != "not-ubuntu" ] && [ "$UBUNTU_VERSION" != "unknown" ]; then
-        info_message "Ubuntu ${UBUNTU_VERSION} detected with ${ARCH} architecture - using prebuilt binaries"
-        
-        # Clean up any existing Suricata installations
-        if grep -q "oisf/suricata-stable" /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null; then
-            info_message "Removing unsupported Suricata repository..."
-            maybe_sudo add-apt-repository --remove "ppa:oisf/suricata-stable" -y
-            maybe_sudo "$PACKAGE_MANAGER" purge -y suricata || warn_message "Failed to remove Suricata package."
-        fi
-        if grep -q "oisf/suricata-$SURICATA_VERSION" /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null; then
-            info_message "Removing existing Suricata PPA..."
-            maybe_sudo add-apt-repository --remove "ppa:oisf/suricata-$SURICATA_VERSION" -y
-            maybe_sudo "$PACKAGE_MANAGER" purge -y suricata || warn_message "Failed to remove Suricata package."
-        fi
-
-        # Install dependencies
-        info_message "Installing required dependencies..."
-        maybe_sudo "$PACKAGE_MANAGER" update
-        maybe_sudo $PACKAGE_MANAGER $INSTALL_CMD libhyperscan5 || warn_message "Failed to install libhyperscan5 - Suricata may not function properly"
-        
-        if command_exists yq; then info_message "yq is already installed."
-        else
-            info_message "Installing yq..."
-            maybe_sudo curl -SL --progress-bar "https://github.com/mikefarah/yq/releases/latest/download/${YQ_BINARY}" -o /usr/bin/yq
-            maybe_sudo chmod +x /usr/bin/yq
-            info_message "yq installed at: /usr/bin/yq"
-        fi
-
-        # Download and install prebuilt Suricata
-        download_and_install_suricata_ubuntu "$SURICATA_GITHUB_TAG" "$UBUNTU_VERSION" "$ARCH"
-        
-        # Set binary path
-        SURICATA_BIN="/usr/bin/suricata"
-        if [ ! -f "$SURICATA_BIN" ]; then
-            error_exit "Suricata binary not found after installation"
-        fi
-        success_message "Suricata installed at: $SURICATA_BIN"
-
-        # Note: systemd service will be created after configuration update
-        # Note: PyYAML installation skipped - not using suricata-update yet
-
-    elif [ "${DISTRO:-}" = "ubuntu" ] || [ "${DISTRO:-}" = "debian" ]; then
-        # Fallback to PPA installation for unsupported Ubuntu versions or Debian
-        info_message "Using PPA installation for ${DISTRO} (prebuilt binaries not available)"
-        
+    if [ "${DISTRO:-}" = "ubuntu" ] || [ "${DISTRO:-}" = "debian" ]; then
         if grep -q "oisf/suricata-stable" /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null; then
             info_message "Removing unsupported Suricata repository..."
             maybe_sudo add-apt-repository --remove "ppa:oisf/suricata-stable" -y
@@ -734,10 +507,6 @@ if [ "$OS" = "linux" ]; then
         else
             info_message "Suricata repository already added, updating package lists..."
         fi
-
-        # Install required dependencies
-        info_message "Installing required dependencies..."
-        maybe_sudo $PACKAGE_MANAGER $INSTALL_CMD libhyperscan5 || warn_message "Failed to install libhyperscan5 - Suricata may not function properly"
 
         if command_exists yq; then info_message "yq is already installed."
         else
@@ -760,12 +529,17 @@ if [ "$OS" = "linux" ]; then
         fi
         success_message "Suricata installed at: $SURICATA_BIN"
 
-        # Note: PyYAML installation skipped - not using suricata-update yet
+        if ! command_exists pip && ! command_exists pip3; then
+            info_message "Installing Python pip..."
+            maybe_sudo $PACKAGE_MANAGER $INSTALL_CMD python3-pip
+        fi
+
+        info_message "Installing PyYAML for suricata-update..."
+        if command_exists pip3; then maybe_sudo pip3 install pyyaml || warn_message "Failed to install pyyaml with pip3"
+        elif command_exists pip; then maybe_sudo pip install pyyaml || warn_message "Failed to install pyyaml with pip"
+        else warn_message "pip not found, skipping pyyaml installation"; fi
     fi
 elif [ "$OS" = "darwin" ]; then
-    # Ensure /usr/local/bin exists and is in PATH
-    setup_usr_local_bin_macos
-    
     if command_exists brew; then
         info_message "Installing required dependencies for Suricata..."
         deps=("yq" "jansson" "libmagic" "libnet" "libyaml" "lz4" "pcre2" "python@3.13")
@@ -787,7 +561,20 @@ elif [ "$OS" = "darwin" ]; then
         warn_message "Suricata may not function properly. Please install Homebrew and re-run this script."
     fi
 
-    # Note: PyYAML installation skipped - not using suricata-update yet
+    if ! command_exists pip && ! command_exists pip3; then
+        info_message "Installing Python pip..."
+        if command_exists brew; then brew_as_user install python3
+        else warn_message "Cannot install pip without Homebrew. Please install Python 3 manually."; fi
+    fi
+
+    info_message "Installing PyYAML for suricata-update..."
+    if command_exists pip3; then
+        pip3 install --user --break-system-packages pyyaml 2>/dev/null || pip3 install --user pyyaml 2>/dev/null || warn_message "Failed to install pyyaml with pip3"
+    elif command_exists pip; then
+        pip install --user --break-system-packages pyyaml 2>/dev/null || pip install --user pyyaml 2>/dev/null || warn_message "Failed to install pyyaml with pip"
+    else
+        warn_message "pip not found, skipping pyyaml installation"
+    fi
 
     download_and_install_suricata_macos "$SURICATA_GITHUB_TAG" "$ARCH"
     # Use exact path for macOS prebuilt binary
@@ -815,15 +602,8 @@ if [ "$OS" = "linux" ]; then
         maybe_sudo ufw disable || true
         maybe_sudo ufw enable || true
     fi
-    
-    # Check if this is a prebuilt installation that needs systemd service creation
-    if [ -d "/opt/suricata" ] && [ ! -f "/etc/systemd/system/suricata.service" ]; then
-        info_message "Creating systemd service for prebuilt installation..."
-        create_suricata_systemd_service "$SURICATA_BIN"
-    else
-        info_message "Restarting Suricata service..."
-        maybe_sudo systemctl restart suricata
-    fi
+    info_message "Restarting Suricata service..."
+    maybe_sudo systemctl restart suricata
 elif [ "$OS" = "darwin" ]; then
     print_step_header 4 "Setting up Suricata to start at boot"
     create_launchd_plist_file "$LAUNCH_AGENT_FILE" "$SURICATA_BIN"
