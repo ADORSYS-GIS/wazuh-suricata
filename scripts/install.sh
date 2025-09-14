@@ -66,6 +66,36 @@ brew_as_user() {
     sudo -u "$LOGGED_IN_USER" -i brew "$@"
 }
 
+# Ensure /usr/local/bin exists and is in PATH for macOS
+setup_usr_local_bin_macos() {
+    if [ ! -d "/usr/local/bin" ]; then
+        info_message "Creating /usr/local/bin directory..."
+        maybe_sudo mkdir -p /usr/local/bin
+        maybe_sudo chown root:admin /usr/local/bin
+        maybe_sudo chmod 755 /usr/local/bin
+    fi
+    
+    # Check if /usr/local/bin is in PATH
+    if ! echo "$PATH" | grep -q "/usr/local/bin"; then
+        info_message "Adding /usr/local/bin to PATH..."
+        # Add to current session
+        export PATH="/usr/local/bin:$PATH"
+        
+        # Add to shell profiles for persistence
+        local shell_profiles=("/etc/paths.d/100-usr-local-bin" "$HOME/.profile" "$HOME/.bash_profile" "$HOME/.zshrc")
+        
+        # Create system-wide path file (preferred method for macOS)
+        if [ ! -f "/etc/paths.d/100-usr-local-bin" ]; then
+            echo "/usr/local/bin" | maybe_sudo tee /etc/paths.d/100-usr-local-bin > /dev/null
+            info_message "Added /usr/local/bin to system PATH via /etc/paths.d/"
+        fi
+        
+        success_message "/usr/local/bin setup completed"
+    else
+        info_message "/usr/local/bin already exists and is in PATH"
+    fi
+}
+
 mkdir -p "$DOWNLOADS_DIR"
 
 show_help() {
@@ -725,6 +755,9 @@ if [ "$OS" = "linux" ]; then
         # Note: PyYAML installation skipped - not using suricata-update yet
     fi
 elif [ "$OS" = "darwin" ]; then
+    # Ensure /usr/local/bin exists and is in PATH
+    setup_usr_local_bin_macos
+    
     if command_exists brew; then
         info_message "Installing required dependencies for Suricata..."
         deps=("yq" "jansson" "libmagic" "libnet" "libyaml" "lz4" "pcre2" "python@3.13")
