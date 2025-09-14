@@ -323,6 +323,9 @@ update_config() {
     fi
 
     maybe_sudo yq -i '(.outputs[] | select(has("eve-log"))."eve-log".types) = ["alert"]' "$CONFIG_FILE" || error_exit "Failed to update eve-log types with yq"
+    
+    # Disable global stats
+    maybe_sudo yq -i '.stats.enabled = "no"' "$CONFIG_FILE" || error_exit "Failed to disable stats in $CONFIG_FILE"
 
     if [[ "$MODE" == "ips" && "$OS" == "linux" ]]; then
         local SURICATA_DEFAULT_FILE="/etc/default/suricata"
@@ -561,10 +564,6 @@ if [ "$OS" = "linux" ]; then
             fi
         fi
         
-        # Update package cache
-        info_message "Updating package cache..."
-        maybe_sudo "$PACKAGE_MANAGER" update -y || warn_message "Failed to update package cache"
-        
         # Install required dependencies
         info_message "Installing required dependencies..."
         
@@ -581,9 +580,15 @@ if [ "$OS" = "linux" ]; then
             info_message "yq installed at: /usr/bin/yq"
         fi
         
-        # Install Suricata
-        info_message "Installing Suricata..."
-        maybe_sudo $PACKAGE_MANAGER $INSTALL_CMD suricata
+        # Install Suricata using OISF COPR repository
+        info_message "Installing COPR plugin for Suricata repository..."
+        maybe_sudo $PACKAGE_MANAGER $INSTALL_CMD yum-plugin-copr || warn_message "Failed to install COPR plugin"
+        
+        info_message "Enabling OISF Suricata ${SURICATA_VERSION} COPR repository..."
+        maybe_sudo $PACKAGE_MANAGER copr enable @oisf/suricata-${SURICATA_VERSION} -y || error_exit "Failed to enable OISF Suricata COPR repository"
+        
+        info_message "Installing Suricata from OISF COPR repository..."
+        maybe_sudo $PACKAGE_MANAGER $INSTALL_CMD suricata || error_exit "Failed to install Suricata from COPR repository"
         
         # Set binary path
         SURICATA_BIN="/usr/bin/suricata"
@@ -599,7 +604,7 @@ if [ "$OS" = "linux" ]; then
 elif [ "$OS" = "darwin" ]; then
     if command_exists brew; then
         info_message "Installing required dependencies for Suricata..."
-        deps=("yq" "jansson" "libmagic" "libnet" "libyaml" "lz4" "pcre2" "python@3.13")
+        deps=("yq" "jansson" "libmagic" "libnet" "libyaml" "lz4" "pcre2")
         for dep in "${deps[@]}"; do
             if ! brew_as_user list "$dep" >/dev/null 2>&1; then
                 info_message "Installing $dep..."
@@ -616,21 +621,6 @@ elif [ "$OS" = "darwin" ]; then
         fi
         warn_message "Critical dependencies (jansson, libmagic, libnet, libyaml, lz4, pcre2, python) cannot be installed without Homebrew."
         warn_message "Suricata may not function properly. Please install Homebrew and re-run this script."
-    fi
-
-    if ! command_exists pip && ! command_exists pip3; then
-        info_message "Installing Python pip..."
-        if command_exists brew; then brew_as_user install python3
-        else warn_message "Cannot install pip without Homebrew. Please install Python 3 manually."; fi
-    fi
-
-    info_message "Installing PyYAML for suricata-update..."
-    if command_exists pip3; then
-        pip3 install --user --break-system-packages pyyaml 2>/dev/null || pip3 install --user pyyaml 2>/dev/null || warn_message "Failed to install pyyaml with pip3"
-    elif command_exists pip; then
-        pip install --user --break-system-packages pyyaml 2>/dev/null || pip install --user pyyaml 2>/dev/null || warn_message "Failed to install pyyaml with pip"
-    else
-        warn_message "pip not found, skipping pyyaml installation"
     fi
 
     download_and_install_suricata_macos "$SURICATA_GITHUB_TAG" "$ARCH"
