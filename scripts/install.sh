@@ -691,7 +691,11 @@ if [ "$OS" = "linux" ]; then
             maybe_sudo "$PACKAGE_MANAGER" purge -y suricata || warn_message "Failed to remove Suricata package."
         fi
 
-        # Install yq dependency
+        # Install dependencies
+        info_message "Installing required dependencies..."
+        maybe_sudo "$PACKAGE_MANAGER" update
+        maybe_sudo $PACKAGE_MANAGER $INSTALL_CMD libhyperscan5 || warn_message "Failed to install libhyperscan5 - Suricata may not function properly"
+        
         if command_exists yq; then info_message "yq is already installed."
         else
             info_message "Installing yq..."
@@ -730,6 +734,10 @@ if [ "$OS" = "linux" ]; then
         else
             info_message "Suricata repository already added, updating package lists..."
         fi
+
+        # Install required dependencies
+        info_message "Installing required dependencies..."
+        maybe_sudo $PACKAGE_MANAGER $INSTALL_CMD libhyperscan5 || warn_message "Failed to install libhyperscan5 - Suricata may not function properly"
 
         if command_exists yq; then info_message "yq is already installed."
         else
