@@ -244,7 +244,14 @@ detect_wifi_interface() {
     else
         INTERFACE=""
     fi
-    if [ -z "$INTERFACE" ]; then INTERFACE="eth0"; warn_message "No Wi-Fi interface detected. Defaulting to: $INTERFACE"; fi
+    if [ -z "$INTERFACE" ]; then 
+        if [ "$OS" = "darwin" ]; then
+            INTERFACE="en0"
+        else
+            INTERFACE="eth0"
+        fi
+        warn_message "No Wi-Fi interface detected. Defaulting to: $INTERFACE"
+    fi
     info_message "Detected interface: $INTERFACE"
 }
 
