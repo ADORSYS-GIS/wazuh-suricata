@@ -76,6 +76,28 @@ Linux)
     SURICATA_DEFAULT_FILE="/etc/default/suricata"
     UFW_DEFAULT_FILE="/etc/default/ufw"
     UFW_BEFORE_RULES="/etc/ufw/before.rules"
+    
+    # Detect Linux Distribution
+    detect_distro() {
+        if [ -f /etc/os-release ]; then . /etc/os-release; echo "$ID"
+        elif [ -f /etc/redhat-release ]; then echo "redhat"
+        elif [ -f /etc/debian_version ]; then echo "debian"
+        else echo "unknown"; fi
+    }
+    DISTRO=$(detect_distro)
+    
+    # Set package manager
+    case "$DISTRO" in
+      ubuntu|debian) PACKAGE_MANAGER="apt" ;;
+      centos|fedora|rhel) 
+          if command_exists dnf; then
+              PACKAGE_MANAGER="dnf"
+          else
+              PACKAGE_MANAGER="yum"
+          fi
+          ;;
+      *) PACKAGE_MANAGER="unknown" ;;
+    esac
     ;;
 Darwin)
     OS="darwin"
@@ -135,11 +157,24 @@ fi
 
 # Removing suricata repository from local package list...
 if [ "$OS" = "linux" ]; then
-    if grep -q "oisf/suricata-stable" /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null; then
-        maybe_sudo add-apt-repository --remove "ppa:oisf/suricata-stable" -y
-    elif grep -q "oisf/suricata-$SURICATA_VERSION" /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null; then
-        maybe_sudo add-apt-repository --remove "ppa:oisf/suricata-$SURICATA_VERSION" -y
-    fi
+    case "$DISTRO" in
+        ubuntu|debian)
+            if grep -q "oisf/suricata-stable" /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null; then
+                info_message "Removing Suricata stable PPA repository..."
+                maybe_sudo add-apt-repository --remove "ppa:oisf/suricata-stable" -y
+            elif grep -q "oisf/suricata-$SURICATA_VERSION" /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null; then
+                info_message "Removing Suricata $SURICATA_VERSION PPA repository..."
+                maybe_sudo add-apt-repository --remove "ppa:oisf/suricata-$SURICATA_VERSION" -y
+            fi
+            ;;
+        centos|fedora|rhel)
+            # Remove OISF COPR repository
+            if maybe_sudo "$PACKAGE_MANAGER" copr list --enabled 2>/dev/null | grep -q "@oisf/suricata-$SURICATA_VERSION"; then
+                info_message "Disabling OISF Suricata $SURICATA_VERSION COPR repository..."
+                maybe_sudo "$PACKAGE_MANAGER" copr disable "@oisf/suricata-$SURICATA_VERSION" -y || warn_message "Failed to disable COPR repository"
+            fi
+            ;;
+    esac
 fi
 
 # Function to remove residual Suricata files from Homebrew Cellar
@@ -200,13 +235,23 @@ if ! remove_prebuilt_suricata; then
     if command_exists suricata; then
         info_message "Uninstalling Suricata using the package manager..."
         if [ "$OS" = "linux" ]; then
-            if command_exists apt; then
-                maybe_sudo apt remove --purge -y suricata || warn_message "Failed to uninstall Suricata using apt-get."
-            elif command_exists yum; then
-                maybe_sudo yum remove -y suricata || warn_message "Failed to uninstall Suricata using yum."
-            else
-                warn_message "No supported package manager found. Skipping Suricata uninstallation."
-            fi
+            case "$DISTRO" in
+                ubuntu|debian)
+                    info_message "Removing Suricata using apt..."
+                    maybe_sudo apt remove --purge -y suricata || warn_message "Failed to uninstall Suricata using apt."
+                    ;;
+                centos|fedora|rhel)
+                    info_message "Removing Suricata using $PACKAGE_MANAGER..."
+                    maybe_sudo "$PACKAGE_MANAGER" remove -y suricata || warn_message "Failed to uninstall Suricata using $PACKAGE_MANAGER."
+                    
+                    # Remove dependencies that were installed specifically for Suricata
+                    info_message "Removing Suricata-related dependencies..."
+                    maybe_sudo "$PACKAGE_MANAGER" remove -y hyperscan hyperscan-devel yum-plugin-copr || warn_message "Some dependencies could not be removed."
+                    ;;
+                *)
+                    warn_message "Unsupported Linux distribution: $DISTRO. Skipping Suricata uninstallation."
+                    ;;
+            esac
         elif [ "$OS" = "darwin" ]; then
             if  brew_command list "$FORMULA" >/dev/null 2>&1; then
                 brew_command uninstall "$FORMULA" || {
@@ -247,7 +292,7 @@ if [ -d "$USR_LIB_DIR" ]; then
     maybe_sudo rm -rf "$USR_LIB_DIR" || warn_message "Failed to remove Suricata lib folder."
 fi
 
-if [ -d "$CELLAR_DIR" ]; then
+if [ "$OS" = "darwin" ] && [ -d "$CELLAR_DIR" ]; then
     info_message "Removing Suricata cellar folder..."
     maybe_sudo rm -rf "$CELLAR_DIR" || warn_message "Failed to remove Suricata cellar folder."
 fi
