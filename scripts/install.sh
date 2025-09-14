@@ -621,7 +621,8 @@ WantedBy=multi-user.target"
     info_message "Enabling and starting Suricata service..."
     maybe_sudo systemctl daemon-reload
     maybe_sudo systemctl enable suricata
-    success_message "Suricata systemd service created and enabled"
+    maybe_sudo systemctl start suricata
+    success_message "Suricata systemd service created, enabled, and started"
 }
 
 # --- Installers and flow ---
