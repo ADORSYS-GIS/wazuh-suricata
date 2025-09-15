@@ -257,7 +257,17 @@ detect_wifi_interface() {
 
 # Download and Extract Rules
 download_rules() {
-    local rules_url="https://rules.emergingthreats.net/open/suricata-8.0.1/emerging-all.rules.tar.gz"
+    # Determine the appropriate rules version based on platform and Suricata version
+    local rules_version
+    if [ "$OS" = "darwin" ]; then
+        # macOS uses v8.x binaries, so use 8.0.1 rules
+        rules_version="8.0.1"
+    else
+        # Linux uses version from SURICATA_VERSION variable (defaults to 7.0)
+        rules_version="$SURICATA_VERSION"
+    fi
+    
+    local rules_url="https://rules.emergingthreats.net/open/suricata-${rules_version}/emerging-all.rules.tar.gz"
     local temp_dir="/tmp/suricata-rules-$$"
     local rules_archive="$temp_dir/emerging-all.rules.tar.gz"
 
@@ -266,7 +276,7 @@ download_rules() {
     mkdir -p "$temp_dir" || error_exit "Failed to create temporary directory: $temp_dir"
 
     # Download the rules tarball
-    info_message "Downloading rules from: $rules_url"
+    info_message "Downloading Suricata ${rules_version} rules from: $rules_url"
     if command_exists curl; then
         curl -L --fail --progress-bar -o "$rules_archive" "$rules_url" || {
             rm -rf "$temp_dir"
