@@ -236,15 +236,23 @@ create_launchd_plist_file() {
 # Detect Wi-Fi Interface
 detect_wifi_interface() {
     if [ "$OS" = "darwin" ]; then
-        INTERFACE=$(networksetup -listallhardwareports | awk '/Device/ {print $2}' | while read dev; do
-            if ifconfig "$dev" 2>/dev/null | grep -q "status: active"; then
-                echo "$dev"
-            fi
-        done | head -n1) || INTERFACE=""
+        if command_exists networksetup; then
+            INTERFACE=$(networksetup -listallhardwareports | awk '/Device/ {print $2}' | while read dev; do
+                if ifconfig "$dev" 2>/dev/null | grep -q "status: active"; then
+                    echo "$dev"
+                fi
+            done | head -n1) || INTERFACE=""
+        else
+            warn_message "networksetup command not found on macOS - setting default interface to en0"
+        fi
     elif [ "$OS" = "linux" ]; then
-        INTERFACE=$(ip -o link show | awk -F': ' '/state UP/ {print $2}' | head -n1) || INTERFACE=""
-    elif command_exists ifconfig; then
-        INTERFACE=$(ifconfig | awk -F': ' '{print $1}' | grep -E '^(en|eth|wl)' | head -n1) || INTERFACE=""
+        if command_exists ip; then
+            INTERFACE=$(ip -o link show | awk -F': ' '/state UP/ {print $2}' | head -n1) || INTERFACE=""
+        elif command_exists ifconfig; then
+            INTERFACE=$(ifconfig | awk -F': ' '{print $1}' | grep -E '^(en|eth|wl)' | head -n1) || INTERFACE=""
+        else
+            INTERFACE=""
+        fi
     else
         INTERFACE=""
     fi
