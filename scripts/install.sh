@@ -235,10 +235,14 @@ create_launchd_plist_file() {
 
 # Detect Wi-Fi Interface
 detect_wifi_interface() {
-    if command_exists networksetup; then
-        INTERFACE=$(networksetup -listallhardwareports | awk '/Wi-Fi|AirPort/{getline; print $2}') || INTERFACE=""
-    elif command_exists ip; then
-        INTERFACE=$(ip -o link show | awk -F': ' '{print $2}' | grep -E '^(en|eth|wl)' | head -n1) || INTERFACE=""
+    if [ "$OS" = "darwin" ]; then
+        INTERFACE=$(networksetup -listallhardwareports | awk '/Device/ {print $2}' | while read dev; do
+            if ifconfig "$dev" 2>/dev/null | grep -q "status: active"; then
+                echo "$dev"
+            fi
+        done | head -n1) || INTERFACE=""
+    elif [ "$OS" = "linux" ]; then
+        INTERFACE=$(ip -o link show | awk -F': ' '/state UP/ {print $2}' | head -n1) || INTERFACE=""
     elif command_exists ifconfig; then
         INTERFACE=$(ifconfig | awk -F': ' '{print $1}' | grep -E '^(en|eth|wl)' | head -n1) || INTERFACE=""
     else
