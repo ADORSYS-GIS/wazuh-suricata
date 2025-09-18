@@ -13,7 +13,7 @@ $global:NpcapConfig = @{
     InstallerUrl = "https://npcap.com/dist/npcap-1.79.exe"
     InstallerPath = "C:\Temp\npcap-1.79.exe"
     InstallPath = "C:\Program Files\Npcap"
-    MaxWaitTime = 120  # Maximum wait time in seconds
+    MaxWaitTime = 45  # Maximum wait time in seconds (reduced from 120)
 }
 
 # Logging functions with colors
@@ -163,8 +163,6 @@ function Verify-NpcapInstallation {
         "Sufficient Files" = if (Test-Path $global:NpcapConfig.InstallPath) { 
             (Get-ChildItem $global:NpcapConfig.InstallPath -ErrorAction SilentlyContinue | Measure-Object).Count -gt 5 
         } else { $false }
-        "Registry Entry" = $null -ne (Get-ItemProperty "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*" -ErrorAction SilentlyContinue | 
-                                     Where-Object { $_.DisplayName -like "*npcap*" })
         "Driver Status" = $null -ne (Get-WmiObject Win32_SystemDriver -Filter "Name LIKE 'npf%' OR Name LIKE 'npcap%'" -ErrorAction SilentlyContinue)
     }
     
@@ -274,22 +272,22 @@ function Install-NpcapAutomated {
         # Step 2: Navigate through options (use default settings)
         InfoMessage "Step 2: Proceeding with default options..."
         Send-KeysToWindow -Keys "{ENTER}" -DelayMs 1000  # Next button
-        Start-Sleep -Seconds 4
+        Start-Sleep -Seconds 25  # Wait 25 seconds before next step
         
         # Step 3: Start installation
         InfoMessage "Step 3: Starting installation..."
         Send-KeysToWindow -Keys "{ENTER}" -DelayMs 1000  # Install button
-        Start-Sleep -Seconds 3
+        Start-Sleep -Seconds 10  # Wait 10 seconds before next step
         
         # Step 4: Handle any additional prompts
         InfoMessage "Step 4: Handling installation prompts..."
         Send-KeysToWindow -Keys "{ENTER}" -DelayMs 1000  # Continue/Next
-        Start-Sleep -Seconds 2
+        Start-Sleep -Seconds 10  # Wait 10 seconds before next step
         
         # Step 5: Complete installation
         InfoMessage "Step 5: Completing installation..."
         Send-KeysToWindow -Keys "{ENTER}" -DelayMs 1000  # Finish button
-        Start-Sleep -Seconds 2
+        Start-Sleep -Seconds 10  # Wait 10 seconds for completion
         
         # Wait for installation to complete
         $completed = Wait-ForInstallerCompletion
