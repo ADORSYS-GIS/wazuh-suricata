@@ -392,7 +392,7 @@ function Install-Suricata {
         } catch {
             WarnMessage "Suricata installed but command verification failed: $_"
             InfoMessage "Try opening a new PowerShell session or use full path:"
-            InfoMessage '  & "C:\Program Files\Suricata\suricata.exe" --version'
+            InfoMessage "  & `"C:\Program Files\Suricata\suricata.exe`" --version"
         }
     } catch {
         ErrorMessage "Installation failed: $_"
