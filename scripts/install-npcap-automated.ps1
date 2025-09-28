@@ -110,9 +110,13 @@ function Test-NpcapInstalled {
     $hasRegistry = $null -ne (Get-ItemProperty "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*" -ErrorAction SilentlyContinue | 
                              Where-Object { $_.DisplayName -like "*npcap*" })
     
-    # Check 3: Drivers (existing check)
-$hasDrivers = $null -ne (Get-CimInstance Win32_SystemDriver `
-  -Filter "Name='npcap' OR Name='npf'" -ErrorAction SilentlyContinue)
+    # Check 3: Driver/service (exact names only: npcap or legacy npf) ---
+    $drivers = Get-CimInstance Win32_SystemDriver `
+        -Filter "Name='npcap' OR Name='npf'" `
+        -ErrorAction SilentlyContinue
+    $hasDrivers = $null -ne $drivers
+    $hasRunningDriver = $null -ne ($drivers | Where-Object State -eq 'Running')
+
     # Require BOTH files AND drivers for complete installation
     if ($hasFiles -and $hasDrivers) {
         InfoMessage "Complete Npcap installation detected (Files: $hasFiles, Registry: $hasRegistry, Drivers: $hasDrivers)"
@@ -129,30 +133,72 @@ $hasDrivers = $null -ne (Get-CimInstance Win32_SystemDriver `
 # Remove partial Npcap installation
 function Remove-PartialNpcapInstallation {
     WarnMessage "Cleaning up partial Npcap installation..."
-    
-    # Stop and remove drivers
-    $drivers = Get-WmiObject Win32_SystemDriver -Filter "Name LIKE 'npf%' OR Name LIKE 'npcap%'" -ErrorAction SilentlyContinue
-    foreach ($driver in $drivers) {
-        try {
-            if ($driver.State -eq "Running") {
-                $driver.StopService()
-                WarnMessage "Stopped driver: $($driver.Name)"
+
+    # --- Target only capture drivers/services (exact names) ---
+    $svcNames = @('npcap','npf')  # npf only if legacy WinPcap mode was ever enabled
+
+    foreach ($name in $svcNames) {
+        $svc = Get-Service -Name $name -ErrorAction SilentlyContinue
+        if ($svc) {
+            try {
+                if ($svc.Status -eq 'Running') {
+                    Stop-Service -Name $name -Force -ErrorAction Stop
+                    WarnMessage "Stopped service: $name"
+                }
+            } catch {
+                WarnMessage "Could not stop service $name: $($_.Exception.Message)"
             }
-        } catch {
-            WarnMessage "Could not stop driver: $($driver.Name) - $($_.Exception.Message)"
+
+            # Remove the service if it exists (prevents ghost entries)
+            try {
+                sc.exe delete $name | Out-Null
+                InfoMessage "Deleted service: $name"
+            } catch {
+                WarnMessage "Could not delete service $name: $($_.Exception.Message)"
+            }
         }
     }
-    
-    # Remove installation directory if exists
-    if (Test-Path $global:NpcapConfig.InstallPath) {
+
+    # --- Extra: stop any matching system driver instances (exact names only) ---
+    $drivers = Get-CimInstance Win32_SystemDriver -Filter "Name='npcap' OR Name='npf'" -ErrorAction SilentlyContinue
+    foreach ($d in ($drivers | Where-Object State -eq 'Running')) {
         try {
-            Remove-Item $global:NpcapConfig.InstallPath -Recurse -Force -ErrorAction Stop
-            InfoMessage "Removed partial installation directory"
+            $null = Invoke-CimMethod -InputObject $d -MethodName StopService
+            WarnMessage "Stopped driver: $($d.Name)"
+        } catch {
+            WarnMessage "Could not stop driver $($d.Name): $($_.Exception.Message)"
+        }
+    }
+
+    # --- Remove driver file if present (harmless if missing) ---
+    foreach ($path in @("$env:WINDIR\System32\drivers\npcap.sys")) {
+        if (Test-Path -LiteralPath $path) {
+            try {
+                Remove-Item -LiteralPath $path -Force -ErrorAction Stop
+                InfoMessage "Removed file: $path"
+            } catch {
+                WarnMessage "Could not remove $path: $($_.Exception.Message)"
+            }
+        }
+    }
+
+    # --- Remove installation directory if exists ---
+    $installRoot = if ($global:NpcapConfig -and $global:NpcapConfig.InstallPath) {
+        $global:NpcapConfig.InstallPath
+    } else {
+        "C:\Program Files\Npcap"
+    }
+
+    if (Test-Path -LiteralPath $installRoot) {
+        try {
+            Remove-Item -LiteralPath $installRoot -Recurse -Force -ErrorAction Stop
+            InfoMessage "Removed partial installation directory: $installRoot"
         } catch {
             WarnMessage "Could not remove installation directory: $($_.Exception.Message)"
         }
     }
 }
+
 
 # Comprehensive installation verification
 function Verify-NpcapInstallation {
