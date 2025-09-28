@@ -1,387 +1,406 @@
-# Automated Npcap Installation using SendKeys
-# This script uses keyboard automation to interact with the Npcap installer
-# Designed for headless Windows Server environments where GUI interaction is required
+# Optimized Suricata Installation Script for Silent Windows Server Environments
+# This version replaces manual Npcap installation with automated installation
+# Based on the original wazuh-suricata v0.1.4 script with improvements
 
-# Requires Administrator privileges
+
 #Requires -RunAsAdministrator
 
-Add-Type -AssemblyName System.Windows.Forms
 
 # Global configuration
-$global:NpcapConfig = @{
-    TempDir = "C:\Temp"
-    InstallerUrl = "https://npcap.com/dist/npcap-1.79.exe"
-    InstallerPath = "C:\Temp\npcap-1.79.exe"
-    InstallPath = "C:\Program Files\Npcap"
-    MaxWaitTime = 120  # Maximum wait time in seconds
+$global:Config = @{
+    TempDir            = "C:\Temp"
+    SuricataInstallerUrl  = "https://www.openinfosecfoundation.org/download/windows/Suricata-7.0.10-1-64bit.msi"
+    SuricataInstallerPath = "C:\Temp\Suricata_Installer.msi"
+    SuricataDir       = "C:\Program Files\Suricata"
+    SuricataExePath       = "C:\Program Files\Suricata\suricata.exe"
+    NpcapPath          = "C:\Program Files\Npcap"
+    RulesDir           = "C:\Program Files\Suricata\rules"
+    SuricataConfigPath    = "C:\Program Files\Suricata\suricata.yaml"
+    LocalRulesUrl      = "https://rules.emergingthreats.net/open/suricata-7.0.3/emerging.rules"
+    SuricataLogDir        = "C:\Program Files\Suricata\log"
+    TaskName           = "SuricataStartup"
 }
 
-# Logging functions with colors
+
+# Function to handle logging
 function Log {
     param (
         [string]$Level,
         [string]$Message,
-        [string]$Color = "White"
+        [string]$Color = "White"  # Default color
     )
     $Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     Write-Host "$Timestamp $Level $Message" -ForegroundColor $Color
 }
 
+
+# Logging helpers with colors
 function InfoMessage {
     param ([string]$Message)
     Log "[INFO]" $Message "White"
 }
+
 
 function WarnMessage {
     param ([string]$Message)
     Log "[WARNING]" $Message "Yellow"
 }
 
+
 function ErrorMessage {
     param ([string]$Message)
     Log "[ERROR]" $Message "Red"
 }
+
 
 function SuccessMessage {
     param ([string]$Message)
     Log "[SUCCESS]" $Message "Green"
 }
 
-# Helper function to send keyboard input with delay
-function Send-KeysToWindow {
-    param(
-        [string]$Keys, 
-        [int]$DelayMs = 500
+
+function PrintStep {
+    param (
+        [int]$StepNumber,
+        [string]$Message
     )
-    Start-Sleep -Milliseconds $DelayMs
+    Log "[STEP]" "Step ${StepNumber}: $Message" "White"
+}
+
+
+# Helper: Create a directory if it doesn't exist.
+function Ensure-Directory {
+    param (
+        [Parameter(Mandatory)]
+        [string]$Path
+    )
+    if (-Not (Test-Path -Path $Path)) {
+        New-Item -ItemType Directory -Path $Path -Force | Out-Null
+        InfoMessage "Created directory: $Path"
+    }
+}
+
+
+# Helper: Download a file from a URL.
+function Download-File {
+    param (
+        [Parameter(Mandatory)]
+        [string]$Url,
+        [Parameter(Mandatory)]
+        [string]$OutputPath
+    )
     try {
-        [System.Windows.Forms.SendKeys]::SendWait($Keys)
-        InfoMessage "Sent keys: $Keys"
+        # Set TLS protocols for download (Windows Server 2022 compatibility)
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 -bor [Net.SecurityProtocolType]::Tls13
+        
+        Invoke-WebRequest -Uri $Url -OutFile $OutputPath -Headers @{"User-Agent"="Mozilla/5.0"} -ErrorAction Stop
+        InfoMessage "Downloaded file from $Url to $OutputPath"
     }
     catch {
-        WarnMessage "Failed to send keys: $Keys - $_"
+        ErrorMessage "Failed to download file from $Url. $_"
     }
 }
 
-# Ensure temp directory exists
-function Ensure-TempDirectory {
-    if (-not (Test-Path $global:NpcapConfig.TempDir)) {
-        New-Item -ItemType Directory -Path $global:NpcapConfig.TempDir -Force | Out-Null
-        InfoMessage "Created temp directory: $($global:NpcapConfig.TempDir)"
-    }
-}
 
-# Download Npcap installer
-function Download-NpcapInstaller {
-    $installerPath = $global:NpcapConfig.InstallerPath
-    
-    if (Test-Path $installerPath) {
-        InfoMessage "Npcap installer already exists at $installerPath"
-        return $installerPath
+# Install Suricata (only run once)
+function Install-SuricataSoftware {
+    $installerPath = $global:Config.SuricataInstallerPath
+    $arguments = "/i `"$installerPath`" /quiet /norestart"  # OPTIMIZED: Added silent installation flags
+
+
+    if (Test-Path $global:Config.SuricataExePath) {
+        WarnMessage "Suricata is already installed. Skipping installation."
     }
-    
-    InfoMessage "Downloading Npcap installer from $($global:NpcapConfig.InstallerUrl)..."
-    try {
-        Invoke-WebRequest -Uri $global:NpcapConfig.InstallerUrl -OutFile $installerPath -UseBasicParsing -ErrorAction Stop
-        
+    else {
         if (Test-Path $installerPath) {
-            SuccessMessage "Npcap installer downloaded successfully"
-            return $installerPath
+            InfoMessage "Installing Suricata silently..."
+            $process = Start-Process msiexec.exe -ArgumentList $arguments -Wait -PassThru
+            if ($process.ExitCode -eq 0) {
+                SuccessMessage "Suricata installed successfully"
+            } else {
+                ErrorMessage "Suricata installation failed with exit code: $($process.ExitCode)"
+            }
+        }
+        else {
+            InfoMessage "Downloading Suricata installer..."
+            Download-File -Url $global:Config.SuricataInstallerUrl -OutputPath $installerPath
+            InfoMessage "Installing Suricata silently..."
+            $process = Start-Process msiexec.exe -ArgumentList $arguments -Wait -PassThru
+            if ($process.ExitCode -eq 0) {
+                SuccessMessage "Suricata installed successfully"
+            } else {
+                ErrorMessage "Suricata installation failed with exit code: $($process.ExitCode)"
+            }
+        }
+    }
+}
+
+
+# OPTIMIZED: Install Npcap using our automated script instead of manual GUI
+function Install-NpcapSoftware {
+    if (Test-Path $global:Config.NpcapPath) {
+        WarnMessage "Npcap is already installed. Skipping installation."
+        return
+    }
+
+
+    InfoMessage "Installing Npcap using AUTOMATED installation (no GUI interaction required)..."
+    
+    # Get the path to our optimized Npcap installation script
+    $npcapScriptPath = Join-Path -Path $PSScriptRoot -ChildPath "install-npcap-automated.ps1"
+    
+    if (Test-Path $npcapScriptPath) {
+        InfoMessage "Using local optimized Npcap installation script..."
+        try {
+            & $npcapScriptPath
+            if (Test-Path $global:Config.NpcapPath) {
+                SuccessMessage "Npcap installed successfully via automated script"
+            } else {
+                ErrorMessage "Npcap installation failed - directory not found"
+            }
+        } catch {
+            ErrorMessage "Failed to run automated Npcap installation: $_"
+        }
+    } else {
+        InfoMessage "Local script not found, downloading optimized Npcap installation script..."
+        $tempNpcapScript = Join-Path -Path $global:Config.TempDir -ChildPath "install-npcap-automated.ps1"
+        
+        try {
+            # Download our optimized script from the same repository
+            $scriptUrl = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/feature/automated-powershell-installation/scripts/install-npcap-automated.ps1"
+            Download-File -Url $scriptUrl -OutputPath $tempNpcapScript
+            
+            InfoMessage "Running automated Npcap installation..."
+            & $tempNpcapScript
+            
+            if (Test-Path $global:Config.NpcapPath) {
+                SuccessMessage "Npcap installed successfully via automated script"
+            } else {
+                ErrorMessage "Npcap installation failed - directory not found"
+            }
+            
+            # Cleanup
+            if (Test-Path $tempNpcapScript) {
+                Remove-Item $tempNpcapScript -Force
+            }
+        } catch {
+            ErrorMessage "Failed to download or run automated Npcap installation: $_"
+            
+            # Fallback to original method with warning
+            WarnMessage "Falling back to manual installation method..."
+            InfoMessage "Installing Npcap manually - GUI interaction may be required..."
+            
+            $npcapInstallerPath = Join-Path -Path $global:Config.TempDir -ChildPath "npcap-1.79.exe"
+            Download-File -Url "https://npcap.com/dist/npcap-1.79.exe" -OutputPath $npcapInstallerPath
+            
+            if (Test-Path $npcapInstallerPath) {
+                Start-Process -FilePath $npcapInstallerPath -Wait
+                WarnMessage "Please complete the Npcap installation manually if a GUI appeared"
+            }
+        }
+    }
+}
+
+
+# Update environment variables to include Suricata and Npcap directories.
+function Update-EnvironmentVariables {
+    $envPath = [Environment]::GetEnvironmentVariable("Path", "Machine")
+    
+    # Check if Suricata is already in PATH
+    if ($envPath -notlike "*$($global:Config.SuricataDir)*") {
+        $newPath = "$envPath;$($global:Config.SuricataDir)"
+        [Environment]::SetEnvironmentVariable("Path", $newPath, "Machine")
+        InfoMessage "Added Suricata directory to system PATH: $($global:Config.SuricataDir)"
+    } else {
+        InfoMessage "Suricata directory already in system PATH"
+    }
+    
+    # Check if Npcap is already in PATH  
+    if ($envPath -notlike "*$($global:Config.NpcapPath)*") {
+        $currentPath = [Environment]::GetEnvironmentVariable("Path", "Machine")
+        $newPath = "$currentPath;$($global:Config.NpcapPath)"
+        [Environment]::SetEnvironmentVariable("Path", $newPath, "Machine")
+        InfoMessage "Added Npcap directory to system PATH: $($global:Config.NpcapPath)"
+    } else {
+        InfoMessage "Npcap directory already in system PATH"
+    }
+    
+    # Update current session PATH immediately
+    $env:PATH = [Environment]::GetEnvironmentVariable("Path", "Machine")
+    InfoMessage "Current session PATH updated - Suricata commands now available"
+    
+    # Verify Suricata is accessible
+    try {
+        $suricataPath = Get-Command "suricata.exe" -ErrorAction SilentlyContinue
+        if ($suricataPath) {
+            SuccessMessage "✓ Suricata is now accessible via command line"
+            InfoMessage "Try: suricata --version"
         } else {
-            ErrorMessage "Failed to download Npcap installer"
+            WarnMessage "Suricata may require a new PowerShell session to be accessible"
+        }
+    } catch {
+        WarnMessage "Could not verify Suricata command accessibility"
+    }
+}
+
+
+# Update local.rules file.
+function Update-RulesFile {
+    $zipUrl = "https://rules.emergingthreats.net/open/suricata-7.0.3/emerging.rules.zip"
+    $zipPath = Join-Path -Path $global:Config.TempDir -ChildPath "emerging.rules.zip"
+    $extractPath = $global:Config.SuricataDir
+
+
+    try {
+        Download-File -Url $zipUrl -OutputPath $zipPath
+        if (Test-Path $zipPath) {
+            Ensure-Directory -Path $extractPath
+            Expand-Archive -Path $zipPath -DestinationPath $extractPath -Force
+            SuccessMessage "Suricata rules updated successfully"
+        } else {
+            ErrorMessage "Failed to download emerging.rules.zip."
+        }
+    } catch {
+        ErrorMessage "Failed to update rules files: $_"
+    } finally {
+        if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
+    }
+}
+
+
+# Get the Network Adapter GUID.
+function Get-AdapterName {
+    try {
+        $adapter = Get-NetAdapter | Select-Object -First 1 -ExpandProperty InterfaceGuid
+        if ($adapter) {
+            $adapterName = "\Device\NPF_$adapter"
+            return $adapterName
+        } else {
+            ErrorMessage "No network adapter GUID found."
             return $null
         }
     } catch {
-        ErrorMessage "Failed to download Npcap installer: $($_.Exception.Message)"
+        ErrorMessage "Failed to get network adapter GUID: $_"
         return $null
     }
 }
 
-# Check if Npcap is completely installed (files + registry + drivers)
-function Test-NpcapInstalled {
-    # Check 1: Installation directory AND sufficient files
-    $hasFiles = $false
-    if (Test-Path $global:NpcapConfig.InstallPath) {
-        $fileCount = (Get-ChildItem $global:NpcapConfig.InstallPath -ErrorAction SilentlyContinue | Measure-Object).Count
-        $hasFiles = ($fileCount -gt 5)  # Require minimum files for complete installation
+
+# Register Suricata as a scheduled task to run at startup.
+function Register-SuricataScheduledTask {
+    $adapterName = Get-AdapterName
+    if (-not $adapterName) {
+        ErrorMessage "Cannot register Suricata scheduled task without a valid adapter name."
+        return
     }
-    
-    # Check 2: Registry entry (proper Windows installation)
-    $hasRegistry = $null -ne (Get-ItemProperty "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*" -ErrorAction SilentlyContinue | 
-                             Where-Object { $_.DisplayName -like "*npcap*" })
-    
-    # Check 3: Drivers (existing check)
-    $hasDrivers = $null -ne (Get-WmiObject Win32_SystemDriver -Filter "Name LIKE 'npf%' OR Name LIKE 'npcap%'" -ErrorAction SilentlyContinue)
-    
-    # Require BOTH files AND drivers for complete installation
-    if ($hasFiles -and $hasDrivers) {
-        InfoMessage "Complete Npcap installation detected (Files: $hasFiles, Registry: $hasRegistry, Drivers: $hasDrivers)"
-        return $true
-    } elseif ($hasDrivers -and -not $hasFiles) {
-        WarnMessage "Partial Npcap installation detected (drivers only). Reinstallation required..."
-        return $false
-    } else {
-        InfoMessage "Npcap not installed or incomplete"
-        return $false
+
+
+    InfoMessage "Adapter Name: $adapterName"
+
+
+    # Build the action in clear, separate steps:
+    $exePath   = $global:Config.SuricataExePath
+    $cfgPath   = $global:Config.SuricataConfigPath
+    # This is the one string PowerShell sees as the arguments to suricata.exe.
+    # Backtick-quote (`") around each path ensures paths with spaces are passed correctly.
+    $arguments = "-c `"$cfgPath`" -i `"$adapterName`""
+
+
+    $taskAction   = New-ScheduledTaskAction  -Execute $exePath    -Argument $arguments
+    $taskTrigger  = New-ScheduledTaskTrigger -AtStartup
+    $taskSettings = New-ScheduledTaskSettingsSet -Hidden `
+                                                  -AllowStartIfOnBatteries `
+                                                  -DontStopIfGoingOnBatteries `
+                                                  -StartWhenAvailable `
+                                                  -RunOnlyIfNetworkAvailable
+
+
+    if ( Get-ScheduledTask -TaskName $global:Config.TaskName -ErrorAction SilentlyContinue ) {
+        Unregister-ScheduledTask -TaskName $global:Config.TaskName -Confirm:$false
+        WarnMessage "Scheduled Task already exists; unregistering so we can update it."
     }
+
+
+    Register-ScheduledTask -TaskName  $global:Config.TaskName `
+                           -Action    $taskAction       `
+                           -Trigger   $taskTrigger      `
+                           -Settings  $taskSettings     `
+                           -User      "SYSTEM"          `
+                           -RunLevel  Highest
+
+
+    SuccessMessage "Registered Suricata to run at startup as SYSTEM."
 }
 
-# Remove partial Npcap installation
-function Remove-PartialNpcapInstallation {
-    WarnMessage "Cleaning up partial Npcap installation..."
-    
-    # Stop and remove drivers
-    $drivers = Get-WmiObject Win32_SystemDriver -Filter "Name LIKE 'npf%' OR Name LIKE 'npcap%'" -ErrorAction SilentlyContinue
-    foreach ($driver in $drivers) {
-        try {
-            if ($driver.State -eq "Running") {
-                $driver.StopService()
-                WarnMessage "Stopped driver: $($driver.Name)"
-            }
-        } catch {
-            WarnMessage "Could not stop driver: $($driver.Name) - $($_.Exception.Message)"
-        }
-    }
-    
-    # Remove installation directory if exists
-    if (Test-Path $global:NpcapConfig.InstallPath) {
-        try {
-            Remove-Item $global:NpcapConfig.InstallPath -Recurse -Force -ErrorAction Stop
-            InfoMessage "Removed partial installation directory"
-        } catch {
-            WarnMessage "Could not remove installation directory: $($_.Exception.Message)"
-        }
-    }
-}
 
-# Comprehensive installation verification
-function Verify-NpcapInstallation {
-    InfoMessage "Performing comprehensive Npcap installation verification..."
-    
-    $checks = @{
-        "Installation Directory" = Test-Path $global:NpcapConfig.InstallPath
-        "Sufficient Files" = if (Test-Path $global:NpcapConfig.InstallPath) { 
-            (Get-ChildItem $global:NpcapConfig.InstallPath -ErrorAction SilentlyContinue | Measure-Object).Count -gt 5 
-        } else { $false }
-        "Registry Entry" = $null -ne (Get-ItemProperty "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*" -ErrorAction SilentlyContinue | 
-                                     Where-Object { $_.DisplayName -like "*npcap*" })
-        "Driver Status" = $null -ne (Get-WmiObject Win32_SystemDriver -Filter "Name LIKE 'npf%' OR Name LIKE 'npcap%'" -ErrorAction SilentlyContinue)
-    }
-    
-    $allPassed = $true
-    foreach ($check in $checks.GetEnumerator()) {
-        if ($check.Value) {
-            SuccessMessage "[PASS] $($check.Key): OK"
-        } else {
-            ErrorMessage "[FAIL] $($check.Key): MISSING"
-            $allPassed = $false
-        }
-    }
-    
-    return $allPassed
-}
-
-# Wait for installer processes to complete
-function Wait-ForInstallerCompletion {
-    InfoMessage "Waiting for Npcap installer to complete..."
-    
-    $waitTime = 0
-    $maxWait = $global:NpcapConfig.MaxWaitTime
-    
-    while ($waitTime -lt $maxWait) {
-        # Check for Npcap installer processes
-        $installerProcesses = Get-Process | Where-Object { 
-            $_.ProcessName -like "*npcap*" -or 
-            $_.ProcessName -like "*setup*" -or
-            $_.MainWindowTitle -like "*Npcap*"
-        }
-        
-        if ($installerProcesses.Count -eq 0) {
-            SuccessMessage "Npcap installer processes have completed"
-            return $true
-        }
-        
-        InfoMessage "Installer still running... ($($waitTime)/$($maxWait) seconds)"
-        Start-Sleep -Seconds 5
-        $waitTime += 5
-    }
-    
-    WarnMessage "Timeout reached while waiting for installer completion"
-    return $false
-}
-
-# Force close any remaining installer processes
-function Stop-InstallerProcesses {
-    $processes = Get-Process | Where-Object { 
-        $_.ProcessName -like "*npcap*" -or 
-        $_.ProcessName -like "*setup*"
-    }
-    
-    foreach ($process in $processes) {
-        try {
-            $process.Kill()
-            WarnMessage "Force closed process: $($process.ProcessName)"
-        } catch {
-            ErrorMessage "Could not force close process: $($process.ProcessName)"
-        }
-    }
-}
-
-# Perform automated Npcap installation with retry logic
-function Install-NpcapAutomated {
-    InfoMessage "Starting automated Npcap installation..."
-    
-    # Enhanced detection with cleanup
-    if (Test-NpcapInstalled) {
-        SuccessMessage "Complete Npcap installation detected. Skipping installation."
-        return $true
-    }
-    
-    # Clean partial installations
-    Remove-PartialNpcapInstallation
-    
-    # Ensure temp directory exists
-    Ensure-TempDirectory
-    
-    # Download installer
-    $installerPath = Download-NpcapInstaller
-    if (-not $installerPath) {
-        ErrorMessage "Cannot proceed without Npcap installer"
-        return $false
-    }
-    
-    InfoMessage "Starting Npcap installer with keyboard automation..."
-    InfoMessage "This will automatically navigate through the installer using SendKeys"
-    
+# Main function that runs the installation and configuration steps.
+function Install-Suricata {
     try {
-        # Start the installer process
-        $process = Start-Process -FilePath $installerPath -PassThru -ErrorAction Stop
-        InfoMessage "Npcap installer started (PID: $($process.Id))"
+        InfoMessage "=== OPTIMIZED Suricata Installation for Silent Windows Server ===" 
+        InfoMessage "This version uses automated Npcap installation (no GUI required)"
         
-        # Wait for installer window to appear and stabilize
-        InfoMessage "Waiting for installer window to load..."
-        Start-Sleep -Seconds 8
-        
-        # Step 1: Accept license agreement (Alt+A or Enter)
-        InfoMessage "Step 1: Accepting license agreement..."
-        Send-KeysToWindow -Keys "%a" -DelayMs 1000  # Alt+A for "I Agree"
-        Start-Sleep -Seconds 2
-        
-        # Fallback: Try Enter if Alt+A doesn't work
-        Send-KeysToWindow -Keys "{ENTER}" -DelayMs 1000
-        Start-Sleep -Seconds 3
-        
-        # Step 2: Navigate through options (use default settings)
-        InfoMessage "Step 2: Proceeding with default options..."
-        Send-KeysToWindow -Keys "{ENTER}" -DelayMs 1000  # Next button
-        Start-Sleep -Seconds 4
-        
-        # Step 3: Start installation
-        InfoMessage "Step 3: Starting installation..."
-        Send-KeysToWindow -Keys "{ENTER}" -DelayMs 1000  # Install button
-        Start-Sleep -Seconds 3
-        
-        # Step 4: Handle any additional prompts
-        InfoMessage "Step 4: Handling installation prompts..."
-        Send-KeysToWindow -Keys "{ENTER}" -DelayMs 1000  # Continue/Next
-        Start-Sleep -Seconds 2
-        
-        # Step 5: Complete installation
-        InfoMessage "Step 5: Completing installation..."
-        Send-KeysToWindow -Keys "{ENTER}" -DelayMs 1000  # Finish button
-        Start-Sleep -Seconds 2
-        
-        # Wait for installation to complete
-        $completed = Wait-ForInstallerCompletion
-        
-        if (-not $completed) {
-            WarnMessage "Installation may not have completed properly. Forcing cleanup..."
-            Stop-InstallerProcesses
+        # Ensure the temporary directory exists.
+        Ensure-Directory -Path $global:Config.TempDir
+
+
+        InfoMessage "=== Installing Npcap (Automated) ===" 
+        Install-NpcapSoftware
+
+
+        InfoMessage "=== Installing Suricata (Silent) ==="
+        Install-SuricataSoftware
+
+
+        InfoMessage "=== Updating Environment Variables ==="
+        Update-EnvironmentVariables
+
+
+        InfoMessage "=== Updating local.rules file ==="
+        Update-RulesFile
+
+
+        InfoMessage "=== Registering Scheduled Task ==="
+        Register-SuricataScheduledTask
+
+
+        # Clean up temporary files.
+        try {
+            Remove-Item -Path $global:Config.TempDir -Recurse -Force -ErrorAction Stop
+            InfoMessage "Cleaned up temporary directory: $($global:Config.TempDir)"
+        } catch {
+            WarnMessage "Could not clean up temporary directory: $($global:Config.TempDir). $_"
         }
-        
-        # Enhanced verification with comprehensive checks
-        InfoMessage "Waiting for installation to complete..."
-        Start-Sleep -Seconds 10  # Allow more time for files to be written
-        
-        if (Verify-NpcapInstallation) {
-            SuccessMessage "Npcap installation completed and verified successfully!"
-            
-            # Additional driver status info
-            $drivers = Get-WmiObject Win32_SystemDriver -Filter "Name LIKE 'npf%' OR Name LIKE 'npcap%'" -ErrorAction SilentlyContinue
-            if ($drivers) {
-                SuccessMessage "Npcap drivers are loaded and running!"
-                $drivers | ForEach-Object { 
-                    InfoMessage "  - Driver: $($_.Name) - Status: $($_.State)" 
-                }
-            }
-            
-            return $true
-        } else {
-            ErrorMessage "Npcap installation verification failed!"
-            return $false
-        }
+
+
+        SuccessMessage "OPTIMIZED Suricata installation and configuration completed successfully!"
+        InfoMessage "Suricata is now configured to run automatically at startup"
         
     } catch {
-        ErrorMessage "Failed to start Npcap installer: $($_.Exception.Message)"
-        return $false
-    } finally {
-        # Cleanup installer file
-        if (Test-Path $installerPath) {
-            try {
-                Remove-Item $installerPath -Force -ErrorAction SilentlyContinue
-                InfoMessage "Cleaned up installer file"
-            } catch {
-                WarnMessage "Could not remove installer file: $installerPath"
-            }
-        }
-    }
-}
-
-# Install Npcap with retry logic
-function Install-NpcapWithRetry {
-    $maxRetries = 2
-    for ($attempt = 1; $attempt -le $maxRetries; $attempt++) {
-        InfoMessage "Installation attempt $attempt of $maxRetries"
-        
-        if (Install-NpcapAutomated) {
-            return $true
-        }
-        
-        if ($attempt -lt $maxRetries) {
-            WarnMessage "Installation failed. Cleaning up and retrying..."
-            Remove-PartialNpcapInstallation
-            Start-Sleep -Seconds 10
-        }
-    }
-    
-    ErrorMessage "All installation attempts failed"
-    return $false
-}
-
-# Main execution
-function Main {
-    InfoMessage "=== Automated Npcap Installation Script ==="
-    InfoMessage "This script will install Npcap using keyboard automation"
-    InfoMessage "Designed for headless Windows Server environments with enhanced detection"
-    
-    try {
-        $result = Install-NpcapWithRetry
-        
-        if ($result) {
-            SuccessMessage "Npcap installation process completed successfully!"
-            InfoMessage "Npcap is now ready for use with Suricata and other network monitoring tools"
-            exit 0
-        } else {
-            ErrorMessage "Npcap installation failed after all retry attempts!"
-            exit 1
-        }
-    } catch {
-        ErrorMessage "Script execution failed: $($($_.Exception.Message))"
+        ErrorMessage "Installation failed: $_"
         exit 1
     }
+    
+    # Immediately test Suricata command accessibility (outside the main try-catch)
+    InfoMessage "=== Testing Suricata Command Access ==="
+    try {
+        $suricataVersion = & "suricata.exe" --version 2>$null
+        if ($LASTEXITCODE -eq 0) {
+            SuccessMessage "✓ Suricata command is immediately accessible!"
+            InfoMessage "Version: $($suricataVersion | Select-Object -First 1)"
+            InfoMessage "You can now use commands like:"
+            InfoMessage "  - suricata --version"
+            InfoMessage "  - suricata --help" 
+            InfoMessage "  - suricata --dump-config"
+        } else {
+            WarnMessage "Suricata installed but command may need new session"
+        }
+    } catch {
+        WarnMessage "Suricata installed but command verification failed: $_"
+        InfoMessage "Try opening a new PowerShell session or use full path:"
+        InfoMessage "  & 'C:\Program Files\Suricata\suricata.exe' --version"
+    }
 }
 
-# Execute main function if script is run directly
-if ($MyInvocation.InvocationName -ne '.') {
-    Main
-}
+
+# Execute the main installation function.
+Install-Suricata
