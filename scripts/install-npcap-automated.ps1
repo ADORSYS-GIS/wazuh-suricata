@@ -143,18 +143,18 @@ function Remove-PartialNpcapInstallation {
             try {
                 if ($svc.Status -eq 'Running') {
                     Stop-Service -Name $name -Force -ErrorAction Stop
-                    WarnMessage "Stopped service: $name"
+                    WarnMessage "Stopped service: ${name}"
                 }
             } catch {
-                WarnMessage "Could not stop service $name: $($_.Exception.Message)"
+                WarnMessage "Could not stop service ${name}: $($_.Exception.Message)"
             }
 
             # Remove the service if it exists (prevents ghost entries)
             try {
                 sc.exe delete $name | Out-Null
-                InfoMessage "Deleted service: $name"
+                InfoMessage "Deleted service: ${name}"
             } catch {
-                WarnMessage "Could not delete service $name: $($_.Exception.Message)"
+                WarnMessage "Could not delete service ${name}: $($_.Exception.Message)"
             }
         }
     }
@@ -209,7 +209,7 @@ function Verify-NpcapInstallation {
         "Sufficient Files" = if (Test-Path $global:NpcapConfig.InstallPath) { 
             (Get-ChildItem $global:NpcapConfig.InstallPath -ErrorAction SilentlyContinue | Measure-Object).Count -gt 5 
         } else { $false }
-        "Driver Status" = $null -ne (Get-WmiObject Win32_SystemDriver -Filter "Name LIKE 'npf%' OR Name LIKE 'npcap%'" -ErrorAction SilentlyContinue)
+        "Driver Status" = $null -ne (Get-CimInstance Win32_SystemDriver -Filter "Name='npcap' OR Name='npf'" -ErrorAction SilentlyContinue)
     }
     
     $allPassed = $true
