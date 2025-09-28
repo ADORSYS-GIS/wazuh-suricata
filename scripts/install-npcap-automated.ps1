@@ -97,107 +97,31 @@ function Download-NpcapInstaller {
     }
 }
 
-# Check if Npcap is functionally installed and working
+# Check if Npcap is completely installed (files + registry + drivers)
 function Test-NpcapInstalled {
-    InfoMessage "Checking Npcap installation status..."
-    
-    # PRIORITY 1: Check if Npcap drivers are running (most important)
-    $driversRunning = $false
-    $drivers = Get-WmiObject Win32_SystemDriver -Filter "Name LIKE 'npf%' OR Name LIKE 'npcap%'" -ErrorAction SilentlyContinue
-    
-    if ($drivers) {
-        $runningDrivers = $drivers | Where-Object { $_.State -eq "Running" }
-        $driversRunning = ($runningDrivers.Count -gt 0)
-        InfoMessage "Found $($drivers.Count) Npcap driver(s), $($runningDrivers.Count) running"
-        
-        if ($driversRunning) {
-            InfoMessage "✓ Npcap drivers are running - this is the key indicator"
-        } else {
-            WarnMessage "✗ Npcap drivers exist but are not running"
-        }
-    } else {
-        InfoMessage "✗ No Npcap drivers found"
-    }
-    
-    # PRIORITY 2: Check essential files (secondary validation)
-    $hasEssentialFiles = $false
+    # Check 1: Installation directory AND sufficient files
+    $hasFiles = $false
     if (Test-Path $global:NpcapConfig.InstallPath) {
-        $essentialFiles = @(
-            "npcap.sys",     # Most critical - the driver
-            "NPFInstall.exe", # Installer
-            "npcap.inf"      # Driver info
-        )
-        
-        $foundFiles = 0
-        $missingFiles = @()
-        foreach ($file in $essentialFiles) {
-            $filePath = Join-Path $global:NpcapConfig.InstallPath $file
-            if (Test-Path $filePath) {
-                $foundFiles++
-            } else {
-                $missingFiles += $file
-            }
-        }
-        
-        $hasEssentialFiles = ($foundFiles -eq $essentialFiles.Count)
-        InfoMessage "Essential files: $foundFiles/$($essentialFiles.Count) found"
-        
-        if ($missingFiles.Count -gt 0) {
-            WarnMessage "Missing essential files: $($missingFiles -join ', ')"
-        }
-        
-        # Check if directory only contains install.log (failed installation indicator)
-        $allFiles = Get-ChildItem $global:NpcapConfig.InstallPath -ErrorAction SilentlyContinue
-        if ($allFiles.Count -le 2 -and ($allFiles | Where-Object { $_.Name -like "*install.log*" })) {
-            WarnMessage "Directory contains only install logs - indicates failed installation"
-            $hasEssentialFiles = $false
-        }
-    } else {
-        InfoMessage "Npcap installation directory not found"
+        $fileCount = (Get-ChildItem $global:NpcapConfig.InstallPath -ErrorAction SilentlyContinue | Measure-Object).Count
+        $hasFiles = ($fileCount -gt 5)  # Require minimum files for complete installation
     }
     
-    # PRIORITY 3: Registry check (tertiary validation)
-    $hasRegistry = $false
-    $registryPaths = @(
-        "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*",
-        "HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
-    )
+    # Check 2: Registry entry (proper Windows installation)
+    $hasRegistry = $null -ne (Get-ItemProperty "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*" -ErrorAction SilentlyContinue | 
+                             Where-Object { $_.DisplayName -like "*npcap*" })
     
-    foreach ($regPath in $registryPaths) {
-        $npcapEntry = Get-ItemProperty $regPath -ErrorAction SilentlyContinue | 
-                      Where-Object { $_.DisplayName -like "*npcap*" }
-        if ($npcapEntry) {
-            $hasRegistry = $true
-            InfoMessage "✓ Registry entry found: $($npcapEntry.DisplayName)"
-            break
-        }
-    }
+    # Check 3: Drivers (existing check)
+    $hasDrivers = $null -ne (Get-WmiObject Win32_SystemDriver -Filter "Name LIKE 'npf%' OR Name LIKE 'npcap%'" -ErrorAction SilentlyContinue)
     
-    # DECISION LOGIC: Prioritize functional checks
-    if ($driversRunning -and $hasEssentialFiles) {
-        SuccessMessage "✓ Npcap is fully functional (drivers running + files present)"
-        InfoMessage "Installation status summary:"
-        InfoMessage "  - Drivers Running: ✓"
-        InfoMessage "  - Essential Files: ✓" 
-        InfoMessage "  - Registry Entry: $(if ($hasRegistry) { '✓' } else { '✗' })"
+    # Require BOTH files AND drivers for complete installation
+    if ($hasFiles -and $hasDrivers) {
+        InfoMessage "Complete Npcap installation detected (Files: $hasFiles, Registry: $hasRegistry, Drivers: $hasDrivers)"
         return $true
-    } 
-    elseif ($driversRunning -and -not $hasEssentialFiles) {
-        WarnMessage "⚠ Drivers running but files missing - unusual state"
-        InfoMessage "Will reinstall to ensure complete installation"
+    } elseif ($hasDrivers -and -not $hasFiles) {
+        WarnMessage "Partial Npcap installation detected (drivers only). Reinstallation required..."
         return $false
-    }
-    elseif (-not $driversRunning -and $hasEssentialFiles) {
-        WarnMessage "⚠ Files present but drivers not running - installation incomplete"
-        InfoMessage "Will clean up and reinstall"
-        return $false
-    }
-    else {
-        InfoMessage "✗ Npcap not functionally installed"
-        InfoMessage "Installation status summary:"
-        InfoMessage "  - Drivers Running: ✗"
-        InfoMessage "  - Essential Files: ✗"
-        InfoMessage "  - Registry Entry: $(if ($hasRegistry) { '✓' } else { '✗' })"
+    } else {
+        InfoMessage "Npcap not installed or incomplete"
         return $false
     }
 }
@@ -305,20 +229,14 @@ function Stop-InstallerProcesses {
 function Install-NpcapAutomated {
     InfoMessage "Starting automated Npcap installation..."
     
-    # Function-first detection - check if Npcap is actually working
+    # Enhanced detection with cleanup
     if (Test-NpcapInstalled) {
-        SuccessMessage "Functional Npcap installation detected. Skipping installation."
+        SuccessMessage "Complete Npcap installation detected. Skipping installation."
         return $true
     }
     
-    # If we get here, Npcap is either not installed or not working properly
-    InfoMessage "Npcap is not functional - proceeding with installation"
-    
-    # Always clean up any existing installation (including failed ones with just logs)
-    if (Test-Path $global:NpcapConfig.InstallPath) {
-        WarnMessage "Removing existing Npcap installation directory..."
-        Remove-PartialNpcapInstallation
-    }
+    # Clean partial installations
+    Remove-PartialNpcapInstallation
     
     # Ensure temp directory exists
     Ensure-TempDirectory
