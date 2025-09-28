@@ -399,7 +399,6 @@ function Install-Suricata {
         InfoMessage "Try opening a new PowerShell session or use full path:"
         InfoMessage "  & 'C:\Program Files\Suricata\suricata.exe' --version"
     }
-}
 
 
 # Execute the main installation function.
