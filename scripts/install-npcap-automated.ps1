@@ -111,8 +111,8 @@ function Test-NpcapInstalled {
                              Where-Object { $_.DisplayName -like "*npcap*" })
     
     # Check 3: Drivers (existing check)
-    $hasDrivers = $null -ne (Get-WmiObject Win32_SystemDriver -Filter "Name LIKE 'npf%' OR Name LIKE 'npcap%'" -ErrorAction SilentlyContinue)
-    
+$hasDrivers = $null -ne (Get-CimInstance Win32_SystemDriver `
+  -Filter "Name='npcap' OR Name='npf'" -ErrorAction SilentlyContinue)
     # Require BOTH files AND drivers for complete installation
     if ($hasFiles -and $hasDrivers) {
         InfoMessage "Complete Npcap installation detected (Files: $hasFiles, Registry: $hasRegistry, Drivers: $hasDrivers)"
