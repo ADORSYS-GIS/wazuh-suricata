@@ -333,92 +333,61 @@ function Register-SuricataScheduledTask {
 }
 
 
-# Main function that runs the installation and configuration steps.
-function Install-Suricata {
-    try {
-        InfoMessage "=== OPTIMIZED Suricata Installation for Silent Windows Server ===" 
-        InfoMessage "This version uses automated Npcap installation (no GUI required)"
-        
-        # Ensure the temporary directory exists.
-        Ensure-Directory -Path $global:Config.TempDir
-
-
-        InfoMessage "=== Installing Npcap (Automated) ===" 
-        Install-NpcapSoftware
-
-
-        InfoMessage "=== Installing Suricata (Silent) ==="
-        Install-SuricataSoftware
-
-
-        InfoMessage "=== Updating Environment Variables ==="
-        Update-EnvironmentVariables
-
-
-        InfoMessage "=== Updating local.rules file ==="
-        Update-RulesFile
-
-
-        InfoMessage "=== Registering Scheduled Task ==="
-        Register-SuricataScheduledTask
-
-
-        # Clean up temporary files.
-        try {
-            Remove-Item -Path $global:Config.TempDir -Recurse -Force -ErrorAction Stop
-            InfoMessage "Cleaned up temporary directory: $($global:Config.TempDir)"
-        } catch {
-            WarnMessage "Could not clean up temporary directory: $($global:Config.TempDir). $_"
-        }
-
-
-        SuccessMessage "OPTIMIZED Suricata installation and configuration completed successfully!"
-        InfoMessage "Suricata is now configured to run automatically at startup"
-        
-    } catch {
-        ErrorMessage "Installation failed: $_"
-        exit 1
-    }
+# DIRECT EXECUTION - No function scoping issues
+try {
+    InfoMessage "=== OPTIMIZED Suricata Installation for Silent Windows Server ===" 
+    InfoMessage "This version uses automated Npcap installation (no GUI required)"
     
-    # Immediately test Suricata command accessibility (outside the main try-catch)
-    InfoMessage "=== Testing Suricata Command Access ==="
+    # Ensure the temporary directory exists.
+    Ensure-Directory -Path $global:Config.TempDir
+
+    InfoMessage "=== Installing Npcap (Automated) ===" 
+    Install-NpcapSoftware
+
+    InfoMessage "=== Installing Suricata (Silent) ==="
+    Install-SuricataSoftware
+
+    InfoMessage "=== Updating Environment Variables ==="
+    Update-EnvironmentVariables
+
+    InfoMessage "=== Updating local.rules file ==="
+    Update-RulesFile
+
+    InfoMessage "=== Registering Scheduled Task ==="
+    Register-SuricataScheduledTask
+
+    # Clean up temporary files.
     try {
-        $suricataVersion = & "suricata.exe" --version 2>$null
-        if ($LASTEXITCODE -eq 0) {
-            SuccessMessage "✓ Suricata command is immediately accessible!"
-            InfoMessage "Version: $($suricataVersion | Select-Object -First 1)"
-            InfoMessage "You can now use commands like:"
-            InfoMessage "  - suricata --version"
-            InfoMessage "  - suricata --help" 
-            InfoMessage "  - suricata --dump-config"
-        } else {
-            WarnMessage "Suricata installed but command may need new session"
-        }
+        Remove-Item -Path $global:Config.TempDir -Recurse -Force -ErrorAction Stop
+        InfoMessage "Cleaned up temporary directory: $($global:Config.TempDir)"
     } catch {
-        WarnMessage "Suricata installed but command verification failed: $_"
-        InfoMessage "Try opening a new PowerShell session or use full path:"
-        InfoMessage "  & 'C:\Program Files\Suricata\suricata.exe' --version"
+        WarnMessage "Could not clean up temporary directory: $($global:Config.TempDir). $_"
     }
+
+    SuccessMessage "OPTIMIZED Suricata installation and configuration completed successfully!"
+    InfoMessage "Suricata is now configured to run automatically at startup"
+    
+} catch {
+    ErrorMessage "Installation failed: $_"
+    exit 1
 }
 
-
-# Execute the main installation function with proper error handling
+# Immediately test Suricata command accessibility (outside the main try-catch)
+InfoMessage "=== Testing Suricata Command Access ==="
 try {
-    Write-Host "Attempting to execute Install-Suricata function..." -ForegroundColor Cyan
-    
-    if (Get-Command "Install-Suricata" -ErrorAction SilentlyContinue) {
-        Write-Host "Function found, executing..." -ForegroundColor Green
-        & Install-Suricata
+    $suricataVersion = & "suricata.exe" --version 2>$null
+    if ($LASTEXITCODE -eq 0) {
+        SuccessMessage "✓ Suricata command is immediately accessible!"
+        InfoMessage "Version: $($suricataVersion | Select-Object -First 1)"
+        InfoMessage "You can now use commands like:"
+        InfoMessage "  - suricata --version"
+        InfoMessage "  - suricata --help" 
+        InfoMessage "  - suricata --dump-config"
     } else {
-        Write-Host "ERROR: Install-Suricata function not found in current scope." -ForegroundColor Red
-        Write-Host "This is likely a PowerShell scoping issue." -ForegroundColor Red
-        
-        # As a fallback, try to call the function directly by name
-        Write-Host "Attempting direct function call..." -ForegroundColor Yellow
-        Install-Suricata
+        WarnMessage "Suricata installed but command may need new session"
     }
 } catch {
-    Write-Host "ERROR: Failed to execute Install-Suricata function: $_" -ForegroundColor Red
-    Write-Host "This might be due to PowerShell execution policy or scoping issues." -ForegroundColor Red
-    exit 1
+    WarnMessage "Suricata installed but command verification failed: $_"
+    InfoMessage "Try opening a new PowerShell session or use full path:"
+    InfoMessage "  & 'C:\Program Files\Suricata\suricata.exe' --version"
 }
