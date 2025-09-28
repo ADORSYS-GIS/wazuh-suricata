@@ -375,28 +375,29 @@ function Install-Suricata {
         SuccessMessage "OPTIMIZED Suricata installation and configuration completed successfully!"
         InfoMessage "Suricata is now configured to run automatically at startup"
         
-        # Immediately test Suricata command accessibility
-        InfoMessage "=== Testing Suricata Command Access ==="
-        try {
-            $suricataVersion = & "suricata.exe" --version 2>$null
-            if ($LASTEXITCODE -eq 0) {
-                SuccessMessage "✓ Suricata command is immediately accessible!"
-                InfoMessage "Version: $($suricataVersion | Select-Object -First 1)"
-                InfoMessage "You can now use commands like:"
-                InfoMessage "  - suricata --version"
-                InfoMessage "  - suricata --help" 
-                InfoMessage "  - suricata --dump-config"
-            } else {
-                WarnMessage "Suricata installed but command may need new session"
-            }
-        } catch {
-            WarnMessage "Suricata installed but command verification failed: $_"
-            InfoMessage "Try opening a new PowerShell session or use full path:"
-            InfoMessage "  & `"C:\Program Files\Suricata\suricata.exe`" --version"
-        }
     } catch {
         ErrorMessage "Installation failed: $_"
         exit 1
+    }
+    
+    # Immediately test Suricata command accessibility (outside the main try-catch)
+    InfoMessage "=== Testing Suricata Command Access ==="
+    try {
+        $suricataVersion = & "suricata.exe" --version 2>$null
+        if ($LASTEXITCODE -eq 0) {
+            SuccessMessage "✓ Suricata command is immediately accessible!"
+            InfoMessage "Version: $($suricataVersion | Select-Object -First 1)"
+            InfoMessage "You can now use commands like:"
+            InfoMessage "  - suricata --version"
+            InfoMessage "  - suricata --help" 
+            InfoMessage "  - suricata --dump-config"
+        } else {
+            WarnMessage "Suricata installed but command may need new session"
+        }
+    } catch {
+        WarnMessage "Suricata installed but command verification failed: $_"
+        InfoMessage "Try opening a new PowerShell session or use full path:"
+        InfoMessage "  & `"C:\Program Files\Suricata\suricata.exe`" --version"
     }
 }
 
