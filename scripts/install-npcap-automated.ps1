@@ -177,7 +177,7 @@ function Remove-PartialNpcapInstallation {
                 Remove-Item -LiteralPath $path -Force -ErrorAction Stop
                 InfoMessage "Removed file: $path"
             } catch {
-                WarnMessage "Could not remove $path: $($_.Exception.Message)"
+                WarnMessage "Could not remove ${path}: $($_.Exception.Message)"
             }
         }
     }
