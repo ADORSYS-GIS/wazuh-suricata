@@ -167,9 +167,11 @@ if [ "$OS" = "linux" ]; then
     }
     DISTRO=$(detect_distro)
     case "$DISTRO" in
-      ubuntu|debian) PACKAGE_MANAGER="apt"; INSTALL_CMD="install -y" ;;
-      centos|fedora|rhel) 
-          # Check if dnf is available (newer RHEL/CentOS versions)
+      ubuntu|debian)
+          PACKAGE_MANAGER="apt"; INSTALL_CMD="install -y"
+          ;;
+      centos|fedora|rhel|rocky|almalinux|ol|oraclelinux)
+          # Check if dnf is available (newer RHEL/CentOS/Rocky/Alma/OL versions)
           if command_exists dnf; then
               PACKAGE_MANAGER="dnf"
           else
@@ -178,6 +180,47 @@ if [ "$OS" = "linux" ]; then
           INSTALL_CMD="install -y"
           ;;
       *) error_exit "Unsupported Linux distribution: $DISTRO" ;;
+    esac
+
+    # Helper: derive EL major version for RHEL-like platforms
+    detect_el_major() {
+        local el_major=""
+        if command_exists rpm; then
+            # rpm -E %rhel works on EL family; may return empty/0 elsewhere
+            el_major=$(rpm -E %rhel 2>/dev/null || true)
+        fi
+        if [[ -n "$el_major" && "$el_major" =~ ^[0-9]+$ && "$el_major" -gt 0 ]]; then
+            echo "$el_major"; return 0
+        fi
+        # Fallback: parse common release files
+        for f in /etc/rocky-release /etc/almalinux-release /etc/centos-release /etc/redhat-release /etc/oracle-release; do
+            if [ -f "$f" ]; then
+                el_major=$(grep -oE '([0-9]+)\.' "$f" | head -n1 | tr -d '.')
+                if [[ -n "$el_major" ]]; then echo "$el_major"; return 0; fi
+            fi
+        done
+        # Fallback to /etc/os-release VERSION_ID
+        if [ -f /etc/os-release ]; then
+            . /etc/os-release
+            if [[ -n "${VERSION_ID:-}" ]]; then
+                echo "${VERSION_ID%%.*}"
+                return 0
+            fi
+        fi
+        echo ""
+    }
+
+    # Enforce Suricata 7.x support only on EL9+ for RHEL-like systems
+    case "$DISTRO" in
+      centos|rhel|rocky|almalinux|ol|oraclelinux)
+          EL_MAJOR=$(detect_el_major)
+          if [[ -z "${EL_MAJOR}" ]]; then
+              error_exit "Unable to determine Enterprise Linux major version. Aborting."
+          fi
+          if [[ "$EL_MAJOR" -lt 9 ]]; then
+              error_exit "Suricata 7.x is only supported on EL9 (RHEL 9, Rocky 9, Alma 9, OL9, CentOS Stream 9). Detected EL${EL_MAJOR}. Please upgrade to EL9."
+          fi
+          ;;
     esac
     if ! command_exists systemctl; then error_exit "This script requires systemd to manage services."; fi
 fi

@@ -1,5 +1,16 @@
 #!/bin/bash
 
+# Suricata Uninstallation Script
+# This script removes all components installed by install.sh including:
+# - Suricata packages (via package managers or prebuilt binaries)
+# - Configuration files and directories (/etc/suricata, /var/lib/suricata, /var/log/suricata)
+# - Runtime directories (/var/lib/suricata/cache, /var/log/suricata/certs, etc.)
+# - System service files (systemd units, LaunchDaemon plists)
+# - Repository configurations (PPAs, COPR repos)
+# - Dependencies (yq, Homebrew packages)
+# - IPS mode configurations (UFW rules, drop.conf)
+# - Symlinks and PATH modifications
+
 # Set shell options
 if [ -n "$BASH_VERSION" ]; then
     set -euo pipefail
@@ -143,13 +154,18 @@ elif [ "$OS" = "darwin" ]; then
     fi
 fi
 
-#Uninstall yq if installed
+# Uninstall yq if installed
 if command_exists yq; then
     info_message "Uninstalling yq..."
     if [ "$OS" = "linux" ]; then
         maybe_sudo rm -f /usr/bin/yq || warn_message "Failed to uninstall yq."
     elif [ "$OS" = "darwin" ]; then
-        brew_command uninstall yq || warn_message "Failed to uninstall yq."
+        # Check both Homebrew and manual installation locations
+        if brew_command list yq >/dev/null 2>&1; then
+            brew_command uninstall yq || warn_message "Failed to uninstall yq via Homebrew."
+        fi
+        # Also remove manual installation
+        maybe_sudo rm -f /usr/local/bin/yq || warn_message "Failed to remove manually installed yq."
     fi
 else
     info_message "yq is not installed. Skipping uninstallation."
@@ -199,6 +215,9 @@ if [ "$OS" = "linux" ]; then
                 info_message "Disabling OISF Suricata $SURICATA_VERSION COPR repository..."
                 maybe_sudo "$PACKAGE_MANAGER" copr disable "@oisf/suricata-$SURICATA_VERSION" -y || warn_message "Failed to disable COPR repository"
             fi
+
+            # Note: We don't automatically remove EPEL repository as it may be used by other software
+            # Users can remove it manually if desired: sudo dnf remove epel-release
             ;;
     esac
 fi
@@ -265,14 +284,24 @@ if ! remove_prebuilt_suricata; then
                 ubuntu|debian)
                     info_message "Removing Suricata using apt..."
                     maybe_sudo apt remove --purge -y suricata || warn_message "Failed to uninstall Suricata using apt."
+
+                    # Remove systemd service file if it exists (can be created by install.sh on some systems)
+                    if [ -f "/usr/lib/systemd/system/suricata.service" ]; then
+                        info_message "Removing Suricata systemd service file..."
+                        maybe_sudo rm -f "/usr/lib/systemd/system/suricata.service" || warn_message "Failed to remove systemd service file."
+                        maybe_sudo systemctl daemon-reload || warn_message "Failed to reload systemd daemon."
+                    fi
                     ;;
                 centos|fedora|rhel)
                     info_message "Removing Suricata using $PACKAGE_MANAGER..."
                     maybe_sudo "$PACKAGE_MANAGER" remove -y suricata || warn_message "Failed to uninstall Suricata using $PACKAGE_MANAGER."
-                    
-                    # Remove dependencies that were installed specifically for Suricata
-                    info_message "Removing Suricata-related dependencies..."
-                    maybe_sudo "$PACKAGE_MANAGER" remove -y hyperscan hyperscan-devel yum-plugin-copr || warn_message "Some dependencies could not be removed."
+
+                    # Remove systemd service file if it exists
+                    if [ -f "/usr/lib/systemd/system/suricata.service" ]; then
+                        info_message "Removing Suricata systemd service file..."
+                        maybe_sudo rm -f "/usr/lib/systemd/system/suricata.service" || warn_message "Failed to remove systemd service file."
+                        maybe_sudo systemctl daemon-reload || warn_message "Failed to reload systemd daemon."
+                    fi
                     ;;
                 *)
                     warn_message "Unsupported Linux distribution: $DISTRO. Skipping Suricata uninstallation."
@@ -297,6 +326,12 @@ if ! remove_prebuilt_suricata; then
                 info_message "Removing custom PATH configuration..."
                 maybe_sudo rm -f "/etc/paths.d/100-usr-local-bin" || warn_message "Failed to remove PATH configuration"
             fi
+
+            # Remove Homebrew taps that might have been added for Suricata
+            if brew_command tap | grep -q "adorsys-gis/tools"; then
+                info_message "Removing adorsys-gis/tools Homebrew tap..."
+                brew_command untap adorsys-gis/tools || warn_message "Failed to remove adorsys-gis/tools tap"
+            fi
         fi
     else
         info_message "Suricata is not installed. Skipping uninstallation."
@@ -305,6 +340,7 @@ fi
 
 # Delete Suricata configuration folder after uninstallation
 
+# Remove Suricata configuration and data directories
 if [ -d "$CONFIG_DIR" ]; then
     info_message "Removing Suricata configuration folder..."
     maybe_sudo rm -rf "$CONFIG_DIR" || warn_message "Failed to remove Suricata configuration folder."
@@ -329,6 +365,36 @@ if [ "$OS" = "darwin" ] && [ -d "$CELLAR_DIR" ]; then
     info_message "Removing Suricata cellar folder..."
     maybe_sudo rm -rf "$CELLAR_DIR" || warn_message "Failed to remove Suricata cellar folder."
 fi
+
+# Remove runtime directories created by install.sh
+runtime_dirs=(
+    "/var/lib/suricata/cache"
+    "/var/lib/suricata/cache/sgh"
+    "/var/lib/suricata/data"
+    "/var/log/suricata/certs"
+    "/var/log/suricata/files"
+    "/var/run/suricata"
+)
+
+for runtime_dir in "${runtime_dirs[@]}"; do
+    if [ -d "$runtime_dir" ]; then
+        info_message "Removing runtime directory: $runtime_dir"
+        maybe_sudo rm -rf "$runtime_dir" || warn_message "Failed to remove $runtime_dir"
+    fi
+done
+
+# Remove IPS mode configuration files that may have been created
+drop_conf_locations=(
+    "/etc/suricata/drop.conf"
+    "$CONFIG_DIR/drop.conf"
+)
+
+for drop_conf in "${drop_conf_locations[@]}"; do
+    if [ -f "$drop_conf" ]; then
+        info_message "Removing drop.conf file: $drop_conf"
+        maybe_sudo rm -f "$drop_conf" || warn_message "Failed to remove $drop_conf"
+    fi
+done
 
 # Only run on Linux
 if [ "$(uname -s)" = "Linux" ] && [ "$MODE" = "ips" ]; then
