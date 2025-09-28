@@ -1,4 +1,4 @@
-# FINAL & COMPLETE SCRIPT - Uninstalls Suricata, Npcap, and cleans up all leftover folders.
+# Uninstalls Suricata, Npcap, and cleans up all leftover folders.
 # MUST BE RUN AS ADMINISTRATOR
 
 Write-Host "--- Starting Total Silent Uninstall ---" -ForegroundColor Cyan
