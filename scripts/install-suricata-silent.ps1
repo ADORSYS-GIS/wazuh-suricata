@@ -402,5 +402,23 @@ function Install-Suricata {
 }
 
 
-# Execute the main installation function.
-Install-Suricata
+# Execute the main installation function with proper error handling
+try {
+    Write-Host "Attempting to execute Install-Suricata function..." -ForegroundColor Cyan
+    
+    if (Get-Command "Install-Suricata" -ErrorAction SilentlyContinue) {
+        Write-Host "Function found, executing..." -ForegroundColor Green
+        & Install-Suricata
+    } else {
+        Write-Host "ERROR: Install-Suricata function not found in current scope." -ForegroundColor Red
+        Write-Host "This is likely a PowerShell scoping issue." -ForegroundColor Red
+        
+        # As a fallback, try to call the function directly by name
+        Write-Host "Attempting direct function call..." -ForegroundColor Yellow
+        Install-Suricata
+    }
+} catch {
+    Write-Host "ERROR: Failed to execute Install-Suricata function: $_" -ForegroundColor Red
+    Write-Host "This might be due to PowerShell execution policy or scoping issues." -ForegroundColor Red
+    exit 1
+}
