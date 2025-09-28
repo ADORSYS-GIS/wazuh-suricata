@@ -167,7 +167,7 @@ function Install-NpcapSoftware {
         
         try {
             # Download our optimized script from the same repository
-            $scriptUrl = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-server/feature/silent-windows-server-scripts/scripts/install-npcap-automated.ps1"
+            $scriptUrl = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/feature/automated-powershell-installation/scripts/install-npcap-automated.ps1"
             Download-File -Url $scriptUrl -OutputPath $tempNpcapScript
             
             InfoMessage "Running automated Npcap installation..."
