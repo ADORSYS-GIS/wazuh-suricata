@@ -99,29 +99,86 @@ function Download-NpcapInstaller {
 
 # Check if Npcap is completely installed (files + registry + drivers)
 function Test-NpcapInstalled {
-    # Check 1: Installation directory AND sufficient files
+    # Check 1: Essential Npcap files exist (not just any files)
     $hasFiles = $false
     if (Test-Path $global:NpcapConfig.InstallPath) {
-        $fileCount = (Get-ChildItem $global:NpcapConfig.InstallPath -ErrorAction SilentlyContinue | Measure-Object).Count
-        $hasFiles = ($fileCount -gt 5)  # Require minimum files for complete installation
+        # Check for specific essential Npcap files
+        $essentialFiles = @(
+            "NPFInstall.exe",
+            "npcap.cat",
+            "npcap.inf",
+            "npcap.sys"
+        )
+        
+        $foundFiles = 0
+        foreach ($file in $essentialFiles) {
+            $filePath = Join-Path $global:NpcapConfig.InstallPath $file
+            if (Test-Path $filePath) {
+                $foundFiles++
+            }
+        }
+        
+        # Require at least 3 out of 4 essential files
+        $hasFiles = ($foundFiles -ge 3)
+        InfoMessage "Found $foundFiles out of $($essentialFiles.Count) essential Npcap files"
     }
     
     # Check 2: Registry entry (proper Windows installation)
-    $hasRegistry = $null -ne (Get-ItemProperty "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*" -ErrorAction SilentlyContinue | 
-                             Where-Object { $_.DisplayName -like "*npcap*" })
+    $registryPaths = @(
+        "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*",
+        "HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
+    )
     
-    # Check 3: Drivers (existing check)
-    $hasDrivers = $null -ne (Get-WmiObject Win32_SystemDriver -Filter "Name LIKE 'npf%' OR Name LIKE 'npcap%'" -ErrorAction SilentlyContinue)
+    $hasRegistry = $false
+    foreach ($regPath in $registryPaths) {
+        $npcapEntry = Get-ItemProperty $regPath -ErrorAction SilentlyContinue | 
+                      Where-Object { $_.DisplayName -like "*npcap*" }
+        if ($npcapEntry) {
+            $hasRegistry = $true
+            break
+        }
+    }
     
-    # Require BOTH files AND drivers for complete installation
-    if ($hasFiles -and $hasDrivers) {
-        InfoMessage "Complete Npcap installation detected (Files: $hasFiles, Registry: $hasRegistry, Drivers: $hasDrivers)"
+    # Check 3: Drivers are loaded and running
+    $drivers = Get-WmiObject Win32_SystemDriver -Filter "Name LIKE 'npf%' OR Name LIKE 'npcap%'" -ErrorAction SilentlyContinue
+    $hasDrivers = $null -ne $drivers
+    $driversRunning = $false
+    
+    if ($drivers) {
+        $runningDrivers = $drivers | Where-Object { $_.State -eq "Running" }
+        $driversRunning = $null -ne $runningDrivers
+        InfoMessage "Found $($drivers.Count) Npcap driver(s), $($runningDrivers.Count) running"
+    }
+    
+    # Check 4: Service exists and can be started
+    $hasService = $false
+    try {
+        $npcapService = Get-Service -Name "npcap" -ErrorAction SilentlyContinue
+        $hasService = $null -ne $npcapService
+        if ($hasService) {
+            InfoMessage "Npcap service status: $($npcapService.Status)"
+        }
+    } catch {
+        # Service check failed, but this is not critical
+    }
+    
+    # Require essential files AND (drivers OR registry) for complete installation
+    if ($hasFiles -and ($hasDrivers -or $hasRegistry)) {
+        InfoMessage "Complete Npcap installation detected:"
+        InfoMessage "  - Essential Files: $hasFiles"
+        InfoMessage "  - Registry Entry: $hasRegistry" 
+        InfoMessage "  - Drivers Present: $hasDrivers"
+        InfoMessage "  - Drivers Running: $driversRunning"
+        InfoMessage "  - Service Present: $hasService"
         return $true
     } elseif ($hasDrivers -and -not $hasFiles) {
         WarnMessage "Partial Npcap installation detected (drivers only). Reinstallation required..."
         return $false
     } else {
-        InfoMessage "Npcap not installed or incomplete"
+        InfoMessage "Npcap not installed or incomplete:"
+        InfoMessage "  - Essential Files: $hasFiles"
+        InfoMessage "  - Registry Entry: $hasRegistry"
+        InfoMessage "  - Drivers Present: $hasDrivers"
         return $false
     }
 }
