@@ -205,9 +205,42 @@ function Install-NpcapSoftware {
 # Update environment variables to include Suricata and Npcap directories.
 function Update-EnvironmentVariables {
     $envPath = [Environment]::GetEnvironmentVariable("Path", "Machine")
-    $newPath = "$envPath;$($global:Config.SuricataDir);$($global:Config.NpcapPath)"
-    [Environment]::SetEnvironmentVariable("Path", $newPath, "Machine")
-    InfoMessage "Environment PATH updated with Suricata and Npcap directories."
+    
+    # Check if Suricata is already in PATH
+    if ($envPath -notlike "*$($global:Config.SuricataDir)*") {
+        $newPath = "$envPath;$($global:Config.SuricataDir)"
+        [Environment]::SetEnvironmentVariable("Path", $newPath, "Machine")
+        InfoMessage "Added Suricata directory to system PATH: $($global:Config.SuricataDir)"
+    } else {
+        InfoMessage "Suricata directory already in system PATH"
+    }
+    
+    # Check if Npcap is already in PATH  
+    if ($envPath -notlike "*$($global:Config.NpcapPath)*") {
+        $currentPath = [Environment]::GetEnvironmentVariable("Path", "Machine")
+        $newPath = "$currentPath;$($global:Config.NpcapPath)"
+        [Environment]::SetEnvironmentVariable("Path", $newPath, "Machine")
+        InfoMessage "Added Npcap directory to system PATH: $($global:Config.NpcapPath)"
+    } else {
+        InfoMessage "Npcap directory already in system PATH"
+    }
+    
+    # Update current session PATH immediately
+    $env:PATH = [Environment]::GetEnvironmentVariable("Path", "Machine")
+    InfoMessage "Current session PATH updated - Suricata commands now available"
+    
+    # Verify Suricata is accessible
+    try {
+        $suricataPath = Get-Command "suricata.exe" -ErrorAction SilentlyContinue
+        if ($suricataPath) {
+            SuccessMessage "✓ Suricata is now accessible via command line"
+            InfoMessage "Try: suricata --version"
+        } else {
+            WarnMessage "Suricata may require a new PowerShell session to be accessible"
+        }
+    } catch {
+        WarnMessage "Could not verify Suricata command accessibility"
+    }
 }
 
 
@@ -341,6 +374,26 @@ function Install-Suricata {
 
         SuccessMessage "OPTIMIZED Suricata installation and configuration completed successfully!"
         InfoMessage "Suricata is now configured to run automatically at startup"
+        
+        # Immediately test Suricata command accessibility
+        InfoMessage "=== Testing Suricata Command Access ==="
+        try {
+            $suricataVersion = & "suricata.exe" --version 2>$null
+            if ($LASTEXITCODE -eq 0) {
+                SuccessMessage "✓ Suricata command is immediately accessible!"
+                InfoMessage "Version: $($suricataVersion | Select-Object -First 1)"
+                InfoMessage "You can now use commands like:"
+                InfoMessage "  - suricata --version"
+                InfoMessage "  - suricata --help" 
+                InfoMessage "  - suricata --dump-config"
+            } else {
+                WarnMessage "Suricata installed but command may need new session"
+            }
+        } catch {
+            WarnMessage "Suricata installed but command verification failed: $_"
+            InfoMessage "Try opening a new PowerShell session or use full path:"
+            InfoMessage '  & "C:\Program Files\Suricata\suricata.exe" --version'
+        }
     } catch {
         ErrorMessage "Installation failed: $_"
         exit 1
