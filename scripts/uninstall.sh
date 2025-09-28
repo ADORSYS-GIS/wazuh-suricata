@@ -296,10 +296,6 @@ if ! remove_prebuilt_suricata; then
                     info_message "Removing Suricata using $PACKAGE_MANAGER..."
                     maybe_sudo "$PACKAGE_MANAGER" remove -y suricata || warn_message "Failed to uninstall Suricata using $PACKAGE_MANAGER."
 
-                    # Remove dependencies that were installed specifically for Suricata
-                    info_message "Removing Suricata-related dependencies..."
-                    maybe_sudo "$PACKAGE_MANAGER" remove -y hyperscan hyperscan-devel yum-plugin-copr curl wget || warn_message "Some dependencies could not be removed."
-
                     # Remove systemd service file if it exists
                     if [ -f "/usr/lib/systemd/system/suricata.service" ]; then
                         info_message "Removing Suricata systemd service file..."
