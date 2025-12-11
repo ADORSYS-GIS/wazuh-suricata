@@ -816,8 +816,7 @@ main() {
 }
 
 # Execute main function
-main "$@"_message "You can now use Suricata with Wazuh for network intrusion detection"
-}
+main "$@"
 
 # Main Suricata installation for macOS
 suricata_macos_installation() {
