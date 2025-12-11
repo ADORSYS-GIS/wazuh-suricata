@@ -55,9 +55,9 @@ INTERFACE=""
 GITHUB_RELEASE_BASE_URL="https://github.com/ADORSYS-GIS/wazuh-plugins/releases/download"
 RELEASE_TAG="suricata-v0.5.2"
 
-# Cleanup script URLs
-CLEANUP_LEGACY_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/main/scripts/cleanup-legacy.sh"
+# Remote script URLs
 UNINSTALL_MODERN_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/main/scripts/uninstall.sh"
+REMOTE_MAC_AMD64_INSTALL_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/v0.1.5/scripts/install.sh"
 
 TMP_DIR=$(mktemp -d)
 LOGGED_IN_USER=""
@@ -291,15 +291,8 @@ pre_installation_check() {
         return 0
     fi
     
-    # Automatically remove legacy installation if found
-    if [ "$has_legacy" -eq 1 ]; then
-        info_message "Legacy Suricata installation detected - removing automatically..."
-        if ! run_cleanup_script "$CLEANUP_LEGACY_URL" "cleanup-legacy.sh"; then
-            error_message "Failed to remove legacy Suricata installation"
-            exit 1
-        fi
-    fi
-    
+    # Note: Legacy installations will no longer be auto-removed here.
+    # We only remove modern installations via the uninstall script.
     # Automatically remove modern installation if found
     if [ "$has_modern" -eq 1 ]; then
         info_message "Modern Suricata installation detected - removing automatically..."
@@ -774,7 +767,21 @@ suricata_installation() {
 main() {
     info_message "Starting Suricata installation script v${SURICATA_VERSION}"
     info_message "Detected OS: ${OS}"
-    
+
+    # Special case: macOS Intel (amd64) should delegate entirely to v0.1.5 installer
+    if [ "$OS" = "darwin" ] && [ "$(detect_architecture)" = "amd64" ]; then
+        info_message "macOS Intel detected. Delegating to remote v0.1.5 installer and exiting."
+        local remote_installer="$TMP_DIR/remote-install.sh"
+        if ! curl -fsSL -o "$remote_installer" "$REMOTE_MAC_AMD64_INSTALL_URL"; then
+            error_message "Failed to download remote installer from $REMOTE_MAC_AMD64_INSTALL_URL"
+            exit 1
+        fi
+        chmod +x "$remote_installer"
+        # Run the remote installer with the same privileges and arguments
+        bash "$remote_installer" "$@"
+        exit $?
+    fi
+
     # Check if Wazuh agent is installed
     if [ "$OS" = "darwin" ]; then
         if [ ! -d "/Library/Ossec" ]; then
