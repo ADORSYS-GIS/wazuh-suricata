@@ -465,6 +465,20 @@ install_suricata_package() {
     success_message "Suricata package installed successfully"
 }
 
+ensure_symlinks() {
+    # Ensure suricata and suricata-update are available on PATH
+    info_message "Ensuring Suricata symlinks exist"
+    maybe_sudo mkdir -p /usr/local/bin
+    if [ ! -x /usr/local/bin/suricata ] || [ "$(readlink -f /usr/local/bin/suricata 2>/dev/null || true)" != "/opt/wazuh/suricata/bin/suricata" ]; then
+        maybe_sudo ln -sf /opt/wazuh/suricata/bin/suricata /usr/local/bin/suricata || warn_message "Failed to create suricata symlink"
+    fi
+    if [ -x /opt/wazuh/suricata/bin/suricata-update ]; then
+        if [ ! -x /usr/local/bin/suricata-update ] || [ "$(readlink -f /usr/local/bin/suricata-update 2>/dev/null || true)" != "/opt/wazuh/suricata/bin/suricata-update" ]; then
+            maybe_sudo ln -sf /opt/wazuh/suricata/bin/suricata-update /usr/local/bin/suricata-update || warn_message "Failed to create suricata-update symlink"
+        fi
+    fi
+}
+
 # Install Suricata from DMG on macOS
 install_suricata_macos_dmg() {
     local arch="$1"
@@ -754,6 +768,7 @@ suricata_installation() {
     install_dependencies
     download_suricata_package "$DISTRO" "$arch"
     install_suricata_package "$DISTRO"
+    ensure_symlinks
     download_rules
     setup_suricata_config
     validate_installation
