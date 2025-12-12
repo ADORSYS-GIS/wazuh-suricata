@@ -820,6 +820,7 @@ suricata_installation() {
     download_suricata_package "$DISTRO" "$arch"
     install_suricata_package "$DISTRO"
     ensure_symlinks
+    ensure_path_profile
     download_rules
     setup_suricata_config
     validate_installation
