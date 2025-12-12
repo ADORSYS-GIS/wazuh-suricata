@@ -502,6 +502,7 @@ ensure_symlinks() {
         if [ ! -L /usr/local/bin/suricata ] || [ "$(readlink -f /usr/local/bin/suricata 2>/dev/null || true)" != "$bin_path" ]; then
             maybe_sudo ln -sf "$bin_path" /usr/local/bin/suricata || warn_message "Failed to create suricata symlink"
         fi
+        info_message "Suricata binary resolved at: $bin_path"
     else
         warn_message "Could not locate Suricata binary under /opt/wazuh/suricata"
     fi
@@ -513,6 +514,16 @@ ensure_symlinks() {
         if [ ! -L /usr/local/bin/suricata-update ] || [ "$(readlink -f /usr/local/bin/suricata-update 2>/dev/null || true)" != "$upd" ]; then
             maybe_sudo ln -sf "$upd" /usr/local/bin/suricata-update || warn_message "Failed to create suricata-update symlink"
         fi
+    fi
+}
+
+# Ensure PATH fallback via profile.d if suricata still not discoverable
+ensure_path_profile() {
+    if ! command -v suricata >/dev/null 2>&1; then
+        info_message "Installing PATH fallback in /etc/profile.d/suricata.sh"
+        maybe_sudo bash -c 'echo "export PATH=/opt/wazuh/suricata/bin:\$PATH" > /etc/profile.d/suricata.sh'
+        maybe_sudo chmod 644 /etc/profile.d/suricata.sh || true
+        info_message "Open a new shell session or run: source /etc/profile.d/suricata.sh"
     fi
 }
 
