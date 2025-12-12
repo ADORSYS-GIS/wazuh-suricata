@@ -837,4 +837,5 @@ suricata_macos_installation() {
     restart_wazuh_agent
     
     success_message "Suricata installation completed successfully!"
-    info
+}
+
