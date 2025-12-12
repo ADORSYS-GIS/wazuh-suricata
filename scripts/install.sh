@@ -471,6 +471,21 @@ install_suricata_package() {
         warn_message "Failed to create symlink at /usr/local/bin/suricata"
     fi
     
+    print_step 3 "Configuring system library path"
+    # Binaries with Linux capabilities (cap_net_admin, cap_net_raw) ignore LD_LIBRARY_PATH
+    # for security. We must add the library path to the system configuration.
+    if [ "$OS" = "linux" ]; then
+        info_message "Adding Suricata libraries to system library path"
+        echo "/opt/wazuh/suricata/lib" | maybe_sudo tee /etc/ld.so.conf.d/suricata.conf > /dev/null
+        maybe_sudo ldconfig
+        success_message "Library path configured successfully"
+    fi
+    
+    print_step 4 "Setting proper permissions"
+    # Set permissions so all users can read and execute
+    maybe_sudo chmod -R o+rx /opt/wazuh/suricata/ 2>/dev/null || warn_message "Could not set permissions on /opt/wazuh/suricata"
+    info_message "Permissions updated for all users"
+    
     success_message "Suricata package installed successfully"
 
 }
