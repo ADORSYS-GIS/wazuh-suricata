@@ -560,6 +560,7 @@ ensure_symlinks() {
         if [ -d /usr/bin ]; then
             if [ ! -L /usr/bin/suricata-update ] || [ "$(readlink -f /usr/bin/suricata-update 2>/dev/null || true)" != "$upd" ]; then
                 maybe_sudo ln -sf "$upd" /usr/bin/suricata-update || warn_message "Failed to create suricata-update symlink in /usr/bin"
+            fi
         fi
     fi
 }
