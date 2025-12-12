@@ -66,19 +66,19 @@ LOGGED_IN_USER=""
 case "$(uname)" in
 Linux)
     OS="linux"
-    CONFIG_DIR="/etc/suricata"
+    CONFIG_DIR="/opt/wazuh/suricata/etc/suricata"
     CONFIG_FILE="$CONFIG_DIR/suricata.yaml"
-    RULES_DIR="/var/lib/suricata/rules"
-    LOG_DIR="/var/log/suricata"
+    RULES_DIR="/opt/wazuh/suricata/var/lib/suricata/rules"
+    LOG_DIR="/opt/wazuh/suricata/var/log/suricata"
     OSSEC_CONF_PATH="/var/ossec/etc/ossec.conf"
     WAZUH_CONTROL_BIN_PATH="/var/ossec/bin/wazuh-control"
     ;;
 Darwin)
     OS="darwin"
-    CONFIG_DIR="/etc/suricata"
+    CONFIG_DIR="/opt/wazuh/suricata/etc/suricata"
     CONFIG_FILE="$CONFIG_DIR/suricata.yaml"
-    RULES_DIR="/var/lib/suricata/rules"
-    LOG_DIR="/var/log/suricata"
+    RULES_DIR="/opt/wazuh/suricata/var/lib/suricata/rules"
+    LOG_DIR="/opt/wazuh/suricata/var/log/suricata"
     OSSEC_CONF_PATH="/Library/Ossec/etc/ossec.conf"
     WAZUH_CONTROL_BIN_PATH="/Library/Ossec/bin/wazuh-control"
     LOGGED_IN_USER=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /loginwindow/ {print $3}')
@@ -741,8 +741,8 @@ setup_suricata_config() {
     if ! maybe_sudo test -f "$CONFIG_FILE"; then
         # Try to find a default config from the installation
         local default_config=""
-        if [ -f "/opt/wazuh/suricata/etc/suricata.yaml" ]; then
-            default_config="/opt/wazuh/suricata/etc/suricata.yaml"
+        if [ -f "/opt/wazuh/suricata/etc/suricata/suricata.yaml" ]; then
+            default_config="/opt/wazuh/suricata/etc/suricata/suricata.yaml"
         elif [ -f "/usr/share/suricata/suricata.yaml" ]; then
             default_config="/usr/share/suricata/suricata.yaml"
         fi
@@ -765,6 +765,21 @@ setup_suricata_config() {
         
         # Enable community-id
         sed_inplace "s|community-id: false|community-id: true|" "$CONFIG_FILE"
+
+        # Ensure default-rule-path and rule-files are set to our managed rules location
+        if grep -q "^\s*default-rule-path:" "$CONFIG_FILE"; then
+            sed_inplace "s|^\s*default-rule-path:.*|default-rule-path: $RULES_DIR|" "$CONFIG_FILE"
+        else
+            maybe_sudo bash -c "echo 'default-rule-path: $RULES_DIR' >> '$CONFIG_FILE'"
+        fi
+        if ! grep -q "^\s*rule-files:" "$CONFIG_FILE"; then
+            maybe_sudo bash -c "printf '\nrule-files:\n  - suricata.rules\n' >> '$CONFIG_FILE'"
+        else
+            # Ensure suricata.rules is listed
+            if ! grep -q "^\s*-\s*suricata\.rules\b" "$CONFIG_FILE"; then
+                maybe_sudo bash -c "awk '1; /rule-files:/ && !x{print \"  - suricata.rules\"; x=1}' '$CONFIG_FILE' > '$CONFIG_FILE.tmp' && mv '$CONFIG_FILE.tmp' '$CONFIG_FILE'"
+            fi
+        fi
         
         success_message "Suricata configuration updated successfully"
     fi
