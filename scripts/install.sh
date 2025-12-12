@@ -788,26 +788,67 @@ setup_suricata_config() {
 # Validate installation
 validate_installation() {
     info_message "Validating Suricata installation..."
-    info_message "Validating Suricata installation..."
     local validation_failed=0
     
-    local suricata_found=0 actual_version=""
+    # Force hash table refresh to clear command cache
+    hash -r 2>/dev/null || true
     
-    if command_exists suricata; then
-        actual_version=$(suricata --version 2>/dev/null | head -n1 || echo "")
-        suricata_found=1
-    else
-        local bin_path
-        if bin_path=$(find_suricata_binary); then
-            actual_version="$($bin_path --version 2>/dev/null | head -n1 || echo "")"
+    # Try multiple methods to find and validate Suricata
+    local suricata_found=0
+    local actual_version=""
+    local bin_path=""
+    
+    # Method 1: Try direct execution from /usr/local/bin (user PATH)
+    if [ -x /usr/local/bin/suricata ]; then
+        actual_version=$(/usr/local/bin/suricata --version 2>/dev/null | head -n1 || echo "")
+        if [ -n "$actual_version" ]; then
             suricata_found=1
+            bin_path="/usr/local/bin/suricata"
         fi
     fi
     
+    # Method 2: Try /usr/bin symlink (sudo secure_path)
+    if [ $suricata_found -eq 0 ] && [ -x /usr/bin/suricata ]; then
+        actual_version=$(/usr/bin/suricata --version 2>/dev/null | head -n1 || echo "")
+        if [ -n "$actual_version" ]; then
+            suricata_found=1
+            bin_path="/usr/bin/suricata"
+        fi
+    fi
+    
+    # Method 3: Find and execute directly from installation path
+    if [ $suricata_found -eq 0 ]; then
+        if bin_path=$(find_suricata_binary); then
+            actual_version=$("$bin_path" --version 2>/dev/null | head -n1 || echo "")
+            if [ -n "$actual_version" ]; then
+                suricata_found=1
+            fi
+        fi
+    fi
+    
+    # Report results
     if [ $suricata_found -eq 1 ] && [ -n "$actual_version" ]; then
         success_message "Suricata version installed: $actual_version"
+        info_message "Suricata binary location: $bin_path"
     else
         error_message "Suricata command is not available. Please check the installation."
+        # Add debugging information
+        warn_message "Debug: Checking for binary at expected locations:"
+        if maybe_sudo test -f /usr/local/bin/suricata; then
+            warn_message "  - /usr/local/bin/suricata exists"
+        else
+            warn_message "  - /usr/local/bin/suricata NOT found"
+        fi
+        if maybe_sudo test -f /usr/bin/suricata; then
+            warn_message "  - /usr/bin/suricata exists"
+        else
+            warn_message "  - /usr/bin/suricata NOT found"
+        fi
+        if maybe_sudo test -f /opt/wazuh/suricata/bin/suricata; then
+            warn_message "  - /opt/wazuh/suricata/bin/suricata exists"
+        else
+            warn_message "  - /opt/wazuh/suricata/bin/suricata NOT found"
+        fi
         validation_failed=1
     fi
     
