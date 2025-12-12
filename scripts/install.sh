@@ -508,6 +508,25 @@ ensure_symlinks() {
     if bin_path=$(find_suricata_binary); then
         # Ensure it's executable
         maybe_sudo chmod +x "$bin_path" 2>/dev/null || true
+        
+        # Verify the binary is executable
+        if [ -x "$bin_path" ]; then
+            info_message "Binary is executable: $bin_path"
+        else
+            warn_message "Binary exists but is not executable: $bin_path"
+        fi
+        
+        # Test execution
+        if "$bin_path" --version >/dev/null 2>&1; then
+            info_message "Binary execution test: SUCCESS"
+        else
+            warn_message "Binary execution test: FAILED"
+            # Try to capture error details
+            local error_output
+            error_output=$("$bin_path" --version 2>&1 | head -n3 || echo "No error output")
+            warn_message "Error output: $error_output"
+        fi
+        
         # Link to discovered binary in /usr/local/bin (user PATH)
         if [ ! -L /usr/local/bin/suricata ] || [ "$(readlink -f /usr/local/bin/suricata 2>/dev/null || true)" != "$bin_path" ]; then
             maybe_sudo ln -sf "$bin_path" /usr/local/bin/suricata || warn_message "Failed to create suricata symlink in /usr/local/bin"
