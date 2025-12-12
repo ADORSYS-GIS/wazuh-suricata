@@ -462,7 +462,17 @@ install_suricata_package() {
     maybe_sudo mkdir -p /usr/local/bin
     maybe_sudo ln -sf /opt/wazuh/suricata/bin/suricata /usr/local/bin/suricata
     
+    # Verify symlink was created successfully
+    if [ -L /usr/local/bin/suricata ]; then
+        local target
+        target=$(readlink /usr/local/bin/suricata 2>/dev/null || echo "unknown")
+        info_message "Symlink created successfully: /usr/local/bin/suricata -> $target"
+    else
+        warn_message "Failed to create symlink at /usr/local/bin/suricata"
+    fi
+    
     success_message "Suricata package installed successfully"
+
 }
 
 # Try to locate the Suricata binary under the managed prefix
