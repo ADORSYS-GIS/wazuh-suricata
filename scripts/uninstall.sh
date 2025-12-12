@@ -231,18 +231,41 @@ remove_custom_suricata_installation() {
         info_message "Suricata installation directory not found: $suricata_install_dir"
     fi
     
-    # Remove symbolic link
-    local suricata_symlink="/usr/local/bin/suricata"
-    if [ -L "$suricata_symlink" ] || [ -f "$suricata_symlink" ]; then
-        info_message "Removing Suricata symlink: $suricata_symlink"
-        if maybe_sudo rm -f "$suricata_symlink"; then
-            success_message "Removed Suricata symlink"
+    # Remove symbolic links
+    local symlinks=("/usr/local/bin/suricata" "/usr/bin/suricata")
+    for suricata_symlink in "${symlinks[@]}"; do
+        if [ -L "$suricata_symlink" ] || [ -f "$suricata_symlink" ]; then
+            info_message "Removing Suricata symlink: $suricata_symlink"
+            if maybe_sudo rm -f "$suricata_symlink"; then
+                success_message "Removed Suricata symlink"
+                removed=1
+            else
+                warn_message "Failed to remove Suricata symlink"
+            fi
+        fi
+    done
+    
+    # Remove library configuration
+    if [ "$OS" = "linux" ] && [ -f "/etc/ld.so.conf.d/suricata.conf" ]; then
+        info_message "Removing library configuration: /etc/ld.so.conf.d/suricata.conf"
+        if maybe_sudo rm -f "/etc/ld.so.conf.d/suricata.conf"; then
+            maybe_sudo ldconfig
+            success_message "Removed library configuration"
             removed=1
         else
-            warn_message "Failed to remove Suricata symlink"
+            warn_message "Failed to remove library configuration"
         fi
-    else
-        info_message "Suricata symlink not found: $suricata_symlink"
+    fi
+    
+    # Remove PATH configuration
+    if [ -f "/etc/profile.d/suricata.sh" ]; then
+        info_message "Removing PATH configuration: /etc/profile.d/suricata.sh"
+        if maybe_sudo rm -f "/etc/profile.d/suricata.sh"; then
+            success_message "Removed PATH configuration"
+            removed=1
+        else
+            warn_message "Failed to remove PATH configuration"
+        fi
     fi
     
     if [ $removed -eq 0 ]; then
