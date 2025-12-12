@@ -468,17 +468,24 @@ install_suricata_package() {
 # Try to locate the Suricata binary under the managed prefix
 find_suricata_binary() {
     local base="/opt/wazuh/suricata"
-    # Common candidate paths
-    for candidate in \
-        "$base/bin/suricata" \
-        "$base/sbin/suricata" \
-        "$base/suricata" \
-        $(find "$base" -maxdepth 3 -type f -name suricata 2>/dev/null | sort); do
-        if [ -n "$candidate" ] && [ -f "$candidate" ] && [ -x "$candidate" ]; then
-            echo "$candidate"
-            return 0
+    # Search several common locations and a deeper scan as fallback
+    local candidates=(
+        "$base/bin/suricata"
+        "$base/sbin/suricata"
+        "$base/libexec/suricata/suricata"
+        "$base/suricata"
+    )
+    for candidate in "${candidates[@]}"; do
+        if [ -f "$candidate" ] && [ -x "$candidate" ]; then
+            echo "$candidate"; return 0
         fi
     done
+    # Deep search up to depth 6 for any file named 'suricata' or starting with 'suricata'
+    local found
+    found=$(find "$base" -maxdepth 6 -type f \( -name 'suricata' -o -name 'suricata*' \) 2>/dev/null | sort | head -n1)
+    if [ -n "$found" ] && [ -x "$found" ]; then
+        echo "$found"; return 0
+    fi
     return 1
 }
 
