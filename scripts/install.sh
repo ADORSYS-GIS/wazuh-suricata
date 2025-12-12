@@ -465,16 +465,46 @@ install_suricata_package() {
     success_message "Suricata package installed successfully"
 }
 
+# Try to locate the Suricata binary under the managed prefix
+find_suricata_binary() {
+    local base="/opt/wazuh/suricata"
+    # Common candidate paths
+    for candidate in \
+        "$base/bin/suricata" \
+        "$base/sbin/suricata" \
+        "$base/suricata" \
+        $(find "$base" -maxdepth 3 -type f -name suricata 2>/dev/null | sort); do
+        if [ -n "$candidate" ] && [ -f "$candidate" ] && [ -x "$candidate" ]; then
+            echo "$candidate"
+            return 0
+        fi
+    done
+    return 1
+}
+
 ensure_symlinks() {
     # Ensure suricata and suricata-update are available on PATH
     info_message "Ensuring Suricata symlinks exist"
     maybe_sudo mkdir -p /usr/local/bin
-    if [ ! -x /usr/local/bin/suricata ] || [ "$(readlink -f /usr/local/bin/suricata 2>/dev/null || true)" != "/opt/wazuh/suricata/bin/suricata" ]; then
-        maybe_sudo ln -sf /opt/wazuh/suricata/bin/suricata /usr/local/bin/suricata || warn_message "Failed to create suricata symlink"
+
+    local bin_path
+    if bin_path=$(find_suricata_binary); then
+        # Ensure it's executable
+        maybe_sudo chmod +x "$bin_path" 2>/dev/null || true
+        # Link to discovered binary
+        if [ ! -L /usr/local/bin/suricata ] || [ "$(readlink -f /usr/local/bin/suricata 2>/dev/null || true)" != "$bin_path" ]; then
+            maybe_sudo ln -sf "$bin_path" /usr/local/bin/suricata || warn_message "Failed to create suricata symlink"
+        fi
+    else
+        warn_message "Could not locate Suricata binary under /opt/wazuh/suricata"
     fi
-    if [ -x /opt/wazuh/suricata/bin/suricata-update ]; then
-        if [ ! -x /usr/local/bin/suricata-update ] || [ "$(readlink -f /usr/local/bin/suricata-update 2>/dev/null || true)" != "/opt/wazuh/suricata/bin/suricata-update" ]; then
-            maybe_sudo ln -sf /opt/wazuh/suricata/bin/suricata-update /usr/local/bin/suricata-update || warn_message "Failed to create suricata-update symlink"
+
+    # Suricata-update if present
+    local upd="/opt/wazuh/suricata/bin/suricata-update"
+    if [ -f "$upd" ]; then
+        maybe_sudo chmod +x "$upd" 2>/dev/null || true
+        if [ ! -L /usr/local/bin/suricata-update ] || [ "$(readlink -f /usr/local/bin/suricata-update 2>/dev/null || true)" != "$upd" ]; then
+            maybe_sudo ln -sf "$upd" /usr/local/bin/suricata-update || warn_message "Failed to create suricata-update symlink"
         fi
     fi
 }
@@ -702,9 +732,12 @@ validate_installation() {
     if command_exists suricata; then
         actual_version=$(suricata --version 2>/dev/null | head -n1 || echo "")
         suricata_found=1
-    elif [ -f "/opt/wazuh/suricata/bin/suricata" ]; then
-        actual_version=$(/opt/wazuh/suricata/bin/suricata --version 2>/dev/null | head -n1 || echo "")
-        suricata_found=1
+    else
+        local bin_path
+        if bin_path=$(find_suricata_binary); then
+            actual_version="$($bin_path --version 2>/dev/null | head -n1 || echo "")"
+            suricata_found=1
+        fi
     fi
     
     if [ $suricata_found -eq 1 ] && [ -n "$actual_version" ]; then
