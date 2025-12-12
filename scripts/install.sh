@@ -953,8 +953,30 @@ suricata_installation() {
     validate_installation
     restart_wazuh_agent
     
+    
     success_message "Suricata installation completed successfully!"
-    info_message "You can now use Suricata with Wazuh for network intrusion detection"
+    echo ""
+    info_message "========================================="
+    info_message "   How to Use Suricata"
+    info_message "========================================="
+    echo ""
+    info_message "If 'suricata' command is not found in your current shell:"
+    echo ""
+    info_message "  Option 1 - Restart your shell (recommended):"
+    info_message "    exec bash"
+    echo ""
+    info_message "  Option 2 - Use absolute path:"
+    info_message "    /usr/bin/suricata -V"
+    echo ""
+    info_message "  Option 3 - Add to current session:"
+    info_message "    export PATH=/opt/wazuh/suricata/bin:\$PATH"
+    echo ""
+    info_message "To verify installation:"
+    info_message "    suricata -V"
+    echo ""
+    info_message "========================================="
+    echo ""
+
 }
 
 # Main function
