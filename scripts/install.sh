@@ -788,6 +788,7 @@ setup_suricata_config() {
 # Validate installation
 validate_installation() {
     info_message "Validating Suricata installation..."
+    info_message "Validating Suricata installation..."
     local validation_failed=0
     
     local suricata_found=0 actual_version=""
