@@ -498,9 +498,15 @@ ensure_symlinks() {
     if bin_path=$(find_suricata_binary); then
         # Ensure it's executable
         maybe_sudo chmod +x "$bin_path" 2>/dev/null || true
-        # Link to discovered binary
+        # Link to discovered binary in /usr/local/bin (user PATH)
         if [ ! -L /usr/local/bin/suricata ] || [ "$(readlink -f /usr/local/bin/suricata 2>/dev/null || true)" != "$bin_path" ]; then
-            maybe_sudo ln -sf "$bin_path" /usr/local/bin/suricata || warn_message "Failed to create suricata symlink"
+            maybe_sudo ln -sf "$bin_path" /usr/local/bin/suricata || warn_message "Failed to create suricata symlink in /usr/local/bin"
+        fi
+        # Also provide /usr/bin symlink to satisfy sudo secure_path
+        if [ -d /usr/bin ]; then
+            if [ ! -L /usr/bin/suricata ] || [ "$(readlink -f /usr/bin/suricata 2>/dev/null || true)" != "$bin_path" ]; then
+                maybe_sudo ln -sf "$bin_path" /usr/bin/suricata || warn_message "Failed to create suricata symlink in /usr/bin"
+            fi
         fi
         info_message "Suricata binary resolved at: $bin_path"
     else
@@ -512,7 +518,12 @@ ensure_symlinks() {
     if [ -f "$upd" ]; then
         maybe_sudo chmod +x "$upd" 2>/dev/null || true
         if [ ! -L /usr/local/bin/suricata-update ] || [ "$(readlink -f /usr/local/bin/suricata-update 2>/dev/null || true)" != "$upd" ]; then
-            maybe_sudo ln -sf "$upd" /usr/local/bin/suricata-update || warn_message "Failed to create suricata-update symlink"
+            maybe_sudo ln -sf "$upd" /usr/local/bin/suricata-update || warn_message "Failed to create suricata-update symlink in /usr/local/bin"
+        fi
+        if [ -d /usr/bin ]; then
+            if [ ! -L /usr/bin/suricata-update ] || [ "$(readlink -f /usr/bin/suricata-update 2>/dev/null || true)" != "$upd" ]; then
+                maybe_sudo ln -sf "$upd" /usr/bin/suricata-update || warn_message "Failed to create suricata-update symlink in /usr/bin"
+            fi
         fi
     fi
 }
@@ -524,6 +535,25 @@ ensure_path_profile() {
         maybe_sudo bash -c 'echo "export PATH=/opt/wazuh/suricata/bin:\$PATH" > /etc/profile.d/suricata.sh'
         maybe_sudo chmod 644 /etc/profile.d/suricata.sh || true
         info_message "Open a new shell session or run: source /etc/profile.d/suricata.sh"
+    fi
+}
+
+# Set Linux capabilities to allow non-root usage where possible
+set_linux_capabilities() {
+    if [ "$(uname -s)" != "Linux" ]; then
+        return 0
+    fi
+    if ! command -v setcap >/dev/null 2>&1; then
+        return 0
+    fi
+    local bin_path
+    if bin_path=$(find_suricata_binary); then
+        # Some builds use a wrapper that execs suricata.real; set caps on both if present
+        local real_path="${bin_path}.real"
+        maybe_sudo setcap cap_net_admin,cap_net_raw+eip "$bin_path" 2>/dev/null || true
+        if [ -f "$real_path" ]; then
+            maybe_sudo setcap cap_net_admin,cap_net_raw+eip "$real_path" 2>/dev/null || true
+        fi
     fi
 }
 
@@ -821,6 +851,7 @@ suricata_installation() {
     install_suricata_package "$DISTRO"
     ensure_symlinks
     ensure_path_profile
+    set_linux_capabilities
     download_rules
     setup_suricata_config
     validate_installation
