@@ -380,16 +380,12 @@ main() {
     # Skip confirmation prompt - always proceed with uninstallation
     info_message "Automatically proceeding with Suricata uninstallation..."
     info_message "This will remove Suricata installations from /opt/wazuh/suricata"
-    info_message "This includes the Suricata package, binaries, rules, and configurations"
+    info_message "It will also remove /usr/local/bin symlinks pointing into /opt/wazuh/suricata"
     
-    # Perform uninstallation steps
+    # Perform uninstallation steps (narrow scope)
     stop_suricata_services
-    remove_suricata_packages
     remove_custom_suricata_installation
-    remove_suricata_directories
-    remove_systemd_service_files
     validate_removal
-    restart_wazuh_agent
     
     echo ""
     success_message "Modern Suricata uninstallation process completed!"
