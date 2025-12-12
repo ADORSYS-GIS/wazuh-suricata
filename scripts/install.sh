@@ -534,7 +534,15 @@ ensure_symlinks() {
         # Also provide /usr/bin symlink to satisfy sudo secure_path
         if [ -d /usr/bin ]; then
             if [ ! -L /usr/bin/suricata ] || [ "$(readlink -f /usr/bin/suricata 2>/dev/null || true)" != "$bin_path" ]; then
-                maybe_sudo ln -sf "$bin_path" /usr/bin/suricata || warn_message "Failed to create suricata symlink in /usr/bin"
+                if maybe_sudo ln -sf "$bin_path" /usr/bin/suricata; then
+                    info_message "Symlink created: /usr/bin/suricata -> $bin_path"
+                else
+                    warn_message "Failed to create suricata symlink in /usr/bin"
+                fi
+            else
+                local existing_target
+                existing_target=$(readlink /usr/bin/suricata 2>/dev/null || echo "unknown")
+                info_message "Symlink already exists: /usr/bin/suricata -> $existing_target"
             fi
         fi
         info_message "Suricata binary resolved at: $bin_path"
