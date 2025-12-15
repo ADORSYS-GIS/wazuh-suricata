@@ -395,9 +395,9 @@ install_dependencies() {
         print_step 1 "Installing dependencies on macOS"
         if command_exists brew; then
             if [ "$(id -u)" -eq 0 ] && [ -n "$LOGGED_IN_USER" ] && [ "$LOGGED_IN_USER" != "loginwindow" ]; then
-                sudo -u "$LOGGED_IN_USER" brew install jq 2>/dev/null || warn_message "Could not install jq via Homebrew"
+                sudo -u "$LOGGED_IN_USER" brew install jq libpcap 2>/dev/null || warn_message "Could not install dependencies via Homebrew"
             elif [ "$(id -u)" -ne 0 ]; then
-                brew install jq 2>/dev/null || warn_message "Could not install jq via Homebrew"
+                brew install jq libpcap 2>/dev/null || warn_message "Could not install dependencies via Homebrew"
             else
                 warn_message "Cannot install jq via Homebrew as root without a logged in user"
             fi
