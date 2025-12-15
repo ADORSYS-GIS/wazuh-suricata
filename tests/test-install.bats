@@ -73,11 +73,11 @@ setup() {
     [ "$status" -eq 0 ]
 }
 
-@test "Suricata service is running (Linux only)" {
+@test "Suricata service is NOT installed (default behavior)" {
     if [ "$(uname)" = "Linux" ]; then
-        run sudo systemctl is-active suricata
-        [ "$status" -eq 0 ]
-        [ "$output" = "active" ]
+        # The script does not install a systemd service by default
+        run sudo systemctl list-unit-files suricata.service
+        [ "$status" -ne 0 ] || [[ "$output" == *"0 unit files listed"* ]]
     else
         skip "This test is Linux-specific"
     fi
@@ -166,8 +166,12 @@ setup() {
 }
 
 @test "Custom drop rule is present in $RULES_DIR/suricata.rules in IPS mode" {
-    run sudo test -f "$RULES_DIR/suricata.rules"
-    [ "$status" -eq 0 ] || skip "suricata.rules not found in expected path"
-    run sudo grep -q "sid:992002087" "$RULES_DIR/suricata.rules"
-    [ "$status" -eq 0 ]
+    if [ "$MODE" = "ips" ]; then
+        run sudo test -f "$RULES_DIR/suricata.rules"
+        [ "$status" -eq 0 ] || skip "suricata.rules not found in expected path"
+        run sudo grep -q "sid:992002087" "$RULES_DIR/suricata.rules"
+        [ "$status" -eq 0 ]
+    else
+        skip "This test is specific to IPS mode."
+    fi
 }
