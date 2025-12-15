@@ -650,6 +650,21 @@ install_suricata_macos_dmg() {
     fi
     
     maybe_sudo cp "$suricata_binary" "/opt/wazuh/suricata/bin/"
+    
+    # Try to copy suricata-update if it exists
+    local update_binary=""
+    if [ -f "$mount_point/suricata-update" ]; then
+        update_binary="$mount_point/suricata-update"
+    elif [ -f "$mount_point/bin/suricata-update" ]; then
+        update_binary="$mount_point/bin/suricata-update"
+    fi
+    
+    if [ -n "$update_binary" ]; then
+        info_message "Found suricata-update in DMG, installing..."
+        maybe_sudo cp "$update_binary" "/opt/wazuh/suricata/bin/"
+        maybe_sudo chmod 755 "/opt/wazuh/suricata/bin/suricata-update"
+    fi
+    
     maybe_sudo hdiutil detach "$mount_point" -quiet
     
     print_step 3 "Setting permissions"
