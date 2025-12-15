@@ -298,7 +298,7 @@ pre_installation_check() {
         if ! run_cleanup_script "$LEGACY_UNINSTALL_URL" "legacy-uninstall.sh"; then
             error_message "Failed to remove legacy Suricata installation"
             exit 1
-        fi
+        fi 
     fi
     
     # Automatically remove modern installation if found
