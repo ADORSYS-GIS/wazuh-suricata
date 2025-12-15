@@ -573,6 +573,7 @@ ensure_symlinks() {
     else
         warn_message "Could not locate Suricata binary under /opt/wazuh/suricata"
     fi
+}
 
 
 
