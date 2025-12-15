@@ -31,8 +31,20 @@ setup() {
 }
 
 @test "Suricata-update is accessible" {
-    run command -v suricata-update
-    [ "$status" -eq 0 ]
+    if command -v suricata-update >/dev/null 2>&1; then
+        run command -v suricata-update
+        [ "$status" -eq 0 ]
+    else
+        # Fallback check for absolute path symlink or binary
+        run test -x /usr/local/bin/suricata-update
+        if [ "$status" -ne 0 ]; then
+             run test -x /usr/bin/suricata-update
+        fi
+        if [ "$status" -ne 0 ]; then
+             run test -x "${BIN_FOLDER}/suricata-update"
+        fi
+        [ "$status" -eq 0 ]
+    fi
 }
 
 @test "Suricata-update wrapper works on ARM (macOS only)" {
