@@ -882,9 +882,12 @@ validate_installation() {
     # Method 3: Find and execute directly from installation path
     if [ $suricata_found -eq 0 ]; then
         if bin_path=$(find_suricata_binary); then
-            actual_version=$("$bin_path" --version 2>/dev/null | head -n1 || echo "")
-            if [ -n "$actual_version" ]; then
-                suricata_found=1
+            # Verify the found binary is executable
+            if [ -x "$bin_path" ]; then
+                actual_version=$("$bin_path" --version 2>/dev/null | head -n1 || echo "")
+                if [ -n "$actual_version" ]; then
+                    suricata_found=1
+                fi
             fi
         fi
     fi
@@ -894,6 +897,29 @@ validate_installation() {
         success_message "Suricata version installed: $actual_version"
         info_message "Suricata binary location: $bin_path"
     else
+        # Explicit check for binaries at known locations as a last resort
+        # This handles cases where 'find_suricata_binary' might fail or behave unexpectedly
+        local known_bins=(
+            "/usr/local/bin/suricata"
+            "/usr/bin/suricata"
+            "/opt/wazuh/suricata/bin/suricata"
+        )
+        
+        for kbin in "${known_bins[@]}"; do
+            if maybe_sudo test -x "$kbin"; then
+                actual_version=$("$kbin" --version 2>/dev/null | head -n1 || echo "")
+                if [ -n "$actual_version" ]; then
+                    suricata_found=1
+                    bin_path="$kbin"
+                    success_message "Suricata version installed: $actual_version"
+                    info_message "Suricata binary location: $bin_path"
+                    break
+                fi
+            fi
+        done
+    fi
+    
+    if [ $suricata_found -eq 0 ]; then
         error_message "Suricata command is not available. Please check the installation."
         # Add debugging information
         warn_message "Debug: Checking for binary at expected locations:"
