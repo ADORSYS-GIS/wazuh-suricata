@@ -4,17 +4,19 @@ MODE=${MODE:-"ids"}
 
 setup() {
     if [ "$(uname)" = "Darwin" ]; then
-        # New installation uses /opt/suricata instead of Homebrew paths
-        export BIN_FOLDER="/opt/suricata"
-        export LOG_DIR="/var/log/suricata"
-        export CONFIG_DIR="/etc/suricata"
+        # macOS uses /opt/wazuh/suricata for new package-based installation
+        export BIN_FOLDER="/opt/wazuh/suricata/bin"
+        export LOG_DIR="/opt/wazuh/suricata/var/log/suricata"
+        export CONFIG_DIR="/opt/wazuh/suricata/etc/suricata"
         export CONFIG_FILE="$CONFIG_DIR/suricata.yaml"
-        export RULES_DIR="/var/lib/suricata/rules"
+        export RULES_DIR="/opt/wazuh/suricata/var/lib/suricata/rules"
     else
-        export LOG_DIR="/var/log/suricata"
-        export CONFIG_DIR="/etc/suricata"
+        # Linux also uses /opt/wazuh/suricata for new package-based installation
+        export BIN_FOLDER="/opt/wazuh/suricata/bin"
+        export LOG_DIR="/opt/wazuh/suricata/var/log/suricata"
+        export CONFIG_DIR="/opt/wazuh/suricata/etc/suricata"
         export CONFIG_FILE="$CONFIG_DIR/suricata.yaml"
-        export RULES_DIR="/var/lib/suricata/rules"
+        export RULES_DIR="/opt/wazuh/suricata/var/lib/suricata/rules"
     fi
 }
 
@@ -49,7 +51,7 @@ setup() {
     if [ "$(uname)" = "Darwin" ] && [ "$(uname -m)" = "x86_64" ]; then
         # Check if symlink exists
         [ -L "/usr/local/bin/suricata-update" ]
-        # Verify it points to the right location
+        # Verify it points to the right location (v0.1.5 still uses /opt/suricata)
         run readlink /usr/local/bin/suricata-update
         [[ "$output" == "/opt/suricata/bin/suricata-update" ]]
     else
