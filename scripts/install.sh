@@ -1003,6 +1003,27 @@ suricata_installation() {
 
 }
 
+# Main Suricata installation for macOS
+suricata_macos_installation() {
+    info_message "Starting Suricata installation for macOS..."
+    
+    check_disk_space
+    
+    local arch
+    arch=$(detect_architecture)
+    info_message "Detected macOS architecture: $arch"
+    
+    install_dependencies
+    download_suricata_macos_dmg "$arch"
+    install_suricata_macos_dmg "$arch"
+    download_rules
+    setup_suricata_config
+    validate_installation
+    restart_wazuh_agent
+    
+    success_message "Suricata installation completed successfully!"
+}
+
 # Main function
 main() {
     info_message "Starting Suricata installation script v${SURICATA_VERSION}"
@@ -1059,24 +1080,5 @@ main() {
 # Execute main function
 main "$@"
 
-# Main Suricata installation for macOS
-suricata_macos_installation() {
-    info_message "Starting Suricata installation for macOS..."
-    
-    check_disk_space
-    
-    local arch
-    arch=$(detect_architecture)
-    info_message "Detected macOS architecture: $arch"
-    
-    install_dependencies
-    download_suricata_macos_dmg "$arch"
-    install_suricata_macos_dmg "$arch"
-    download_rules
-    setup_suricata_config
-    validate_installation
-    restart_wazuh_agent
-    
-    success_message "Suricata installation completed successfully!"
-}
+
 
