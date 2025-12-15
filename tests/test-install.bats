@@ -36,12 +36,13 @@ setup() {
         [ "$status" -eq 0 ]
     else
         # Fallback check for absolute path symlink or binary
-        run test -x /usr/local/bin/suricata-update
+        # Use sudo to ensure we can see it even if permissions are restricted
+        run sudo test -x /usr/local/bin/suricata-update
         if [ "$status" -ne 0 ]; then
-             run test -x /usr/bin/suricata-update
+             run sudo test -x /usr/bin/suricata-update
         fi
         if [ "$status" -ne 0 ]; then
-             run test -x "${BIN_FOLDER}/suricata-update"
+             run sudo test -x "${BIN_FOLDER}/suricata-update"
         fi
         [ "$status" -eq 0 ]
     fi
