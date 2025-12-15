@@ -905,15 +905,28 @@ validate_installation() {
             "/opt/wazuh/suricata/bin/suricata"
         )
         
+        warn_message "Standard validation failed. Attempting strict fallback validation..."
+        
         for kbin in "${known_bins[@]}"; do
             if maybe_sudo test -x "$kbin"; then
-                actual_version=$("$kbin" --version 2>/dev/null | head -n1 || echo "")
-                if [ -n "$actual_version" ]; then
+                # Attempt version check, capturing output for debug
+                local ver_output
+                ver_output=$("$kbin" --version 2>&1 | head -n1 || echo "ERROR_EXEC")
+                
+                # If checking failed, try with sudo
+                if [ "$ver_output" = "ERROR_EXEC" ] || [ -z "$ver_output" ]; then
+                     ver_output=$(maybe_sudo "$kbin" --version 2>&1 | head -n1 || echo "ERROR_EXEC_SUDO")
+                fi
+
+                if [ -n "$ver_output" ] && [ "$ver_output" != "ERROR_EXEC" ] && [ "$ver_output" != "ERROR_EXEC_SUDO" ]; then
+                    actual_version="$ver_output"
                     suricata_found=1
                     bin_path="$kbin"
-                    success_message "Suricata version installed: $actual_version"
+                    success_message "Suricata version found (fallback): $actual_version"
                     info_message "Suricata binary location: $bin_path"
                     break
+                else
+                     warn_message "Binary found at $kbin but version check failed. Output: $ver_output"
                 fi
             fi
         done
