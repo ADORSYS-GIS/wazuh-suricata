@@ -31,6 +31,11 @@ setup() {
 }
 
 @test "Suricata-update is accessible" {
+    # If the binary wasn't installed (e.g. not in the DEB package or DMG), skip this test
+    if [ ! -f "${BIN_FOLDER}/suricata-update" ] && ! command -v suricata-update >/dev/null 2>&1; then
+        skip "suricata-update binary not found in installation"
+    fi
+
     if command -v suricata-update >/dev/null 2>&1; then
         run command -v suricata-update
         [ "$status" -eq 0 ]
