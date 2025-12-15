@@ -820,7 +820,37 @@ setup_suricata_config() {
                  success_message "Fallback configuration downloaded successfully."
             else
                  error_message "Failed to download fallback configuration."
-                 warn_message "You will need to manually configure $CONFIG_FILE"
+                 warn_message "Generating minimal fallback configuration..."
+                 
+                 # Generate minimal config satisfying basic requirements
+                 maybe_sudo bash -c "cat > '$CONFIG_FILE'" <<EOF
+%YAML 1.1
+---
+vars:
+  address-groups:
+    HOME_NET: "[192.168.0.0/16,10.0.0.0/8,172.16.0.0/12]"
+    EXTERNAL_NET: "!\$HOME_NET"
+    
+default-rule-path: $RULES_DIR
+rule-files:
+  - suricata.rules
+
+community-id: false
+
+outputs:
+  - eve-log:
+      enabled: yes
+      filetype: regular
+      filename: eve.json
+      types:
+        - alert
+EOF
+                 if maybe_sudo test -f "$CONFIG_FILE"; then
+                     success_message "Minimal configuration generated successfully."
+                 else
+                     error_message "Failed to generate configuration file."
+                     exit 1
+                 fi
             fi
         fi
     fi
