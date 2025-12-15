@@ -999,22 +999,8 @@ suricata_installation() {
 main() {
     info_message "Starting Suricata installation script v${SURICATA_VERSION}"
     info_message "Detected OS: ${OS}"
-
-    # Special case: macOS Intel (amd64) should delegate entirely to v0.1.5 installer
-    if [ "$OS" = "darwin" ] && [ "$(detect_architecture)" = "amd64" ]; then
-        info_message "macOS Intel detected. Delegating to remote v0.1.5 installer and exiting."
-        local remote_installer="$TMP_DIR/remote-install.sh"
-        if ! curl -fsSL -o "$remote_installer" "$REMOTE_MAC_AMD64_INSTALL_URL"; then
-            error_message "Failed to download remote installer from $REMOTE_MAC_AMD64_INSTALL_URL"
-            exit 1
-        fi
-        chmod +x "$remote_installer"
-        # Run the remote installer with the same privileges and arguments
-        bash "$remote_installer" "$@"
-        exit $?
-    fi
-
-    # Check if Wazuh agent is installed
+    
+    # Check if Wazuh agent is installed (do this early for all platforms)
     if [ "$OS" = "darwin" ]; then
         if [ ! -d "/Library/Ossec" ]; then
             error_message "Wazuh agent not installed at /Library/Ossec"
@@ -1029,8 +1015,23 @@ main() {
         fi
     fi
     
-    # Run pre-installation checks and automatic cleanup
+    # Run pre-installation checks and automatic cleanup (BEFORE macOS Intel delegation)
+    info_message "Performing pre-installation checks..."
     pre_installation_check
+
+    # Special case: macOS Intel (amd64) should delegate entirely to v0.1.5 installer
+    if [ "$OS" = "darwin" ] && [ "$(detect_architecture)" = "amd64" ]; then
+        info_message "macOS Intel detected. Delegating to remote v0.1.5 installer and exiting."
+        local remote_installer="$TMP_DIR/remote-install.sh"
+        if ! curl -fsSL -o "$remote_installer" "$REMOTE_MAC_AMD64_INSTALL_URL"; then
+            error_message "Failed to download remote installer from $REMOTE_MAC_AMD64_INSTALL_URL"
+            exit 1
+        fi
+        chmod +x "$remote_installer"
+        # Run the remote installer with the same privileges and arguments
+        bash "$remote_installer" "$@"
+        exit $?
+    fi
     
     # Proceed with installation
     case "$OS" in
