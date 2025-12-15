@@ -48,8 +48,34 @@ else
 fi
 
 # Configuration
-SURICATA_VERSION="${1:-8.0.2}"
+# Default Configuration
+SURICATA_VERSION="8.0.2"
+MODE="ids"
 INTERFACE=""
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --mode)
+            MODE="$2"
+            shift 2
+            ;;
+        --version)
+            SURICATA_VERSION="$2"
+            shift 2
+            ;;
+        *)
+            # Backward compatibility: if first argument is not a flag, treat as version
+            if [[ "$1" != -* ]] && [[ -z "$INTERFACE" ]]; then
+                 SURICATA_VERSION="$1"
+                 shift
+            else
+                 error_message "Unknown argument: $1"
+                 exit 1
+            fi
+            ;;
+    esac
+done
 
 # GitHub Release configuration for packages
 GITHUB_RELEASE_BASE_URL="https://github.com/ADORSYS-GIS/wazuh-plugins/releases/download"
@@ -1004,6 +1030,72 @@ validate_installation() {
         error_message "Suricata installation and configuration validation failed."
         exit 1
     fi
+}
+
+# Configure IPS mode settings
+configure_ips_mode() {
+    if [ "$MODE" != "ips" ]; then
+        return 0
+    fi
+
+    info_message "Configuring Suricata for IPS mode..."
+
+    # 1. Create drop.conf
+    info_message "Creating $CONFIG_DIR/drop.conf"
+    maybe_sudo bash -c "cat > '$CONFIG_DIR/drop.conf'" <<EOF
+%YAML 1.1
+---
+locals:
+  - interface: $INTERFACE
+    
+rules:
+  # Block emerging-attack_response rules
+  - group:emerging-attack_response
+EOF
+
+    # 2. Configure /etc/default/suricata for NFQUEUE
+    if [ -f "/etc/default/suricata" ]; then
+        info_message "Configuring /etc/default/suricata for NFQUEUE"
+        if grep -q "^LISTENMODE=" "/etc/default/suricata"; then
+            sed_inplace 's/^LISTENMODE=.*/LISTENMODE=nfqueue/' "/etc/default/suricata"
+        else
+            maybe_sudo bash -c "echo 'LISTENMODE=nfqueue' >> /etc/default/suricata"
+        fi
+    fi
+
+    # 3. Configure UFW if present
+    if command_exists ufw && [ -f "/etc/default/ufw" ]; then
+        info_message "Configuring UFW for IPS mode"
+        
+        # Set default input policy to ACCEPT (as per tests/requirements for IPS)
+        sed_inplace 's/^DEFAULT_INPUT_POLICY=.*/DEFAULT_INPUT_POLICY="ACCEPT"/' "/etc/default/ufw"
+        
+        # Add NFQUEUE rules to before.rules
+        local ufw_before="/etc/ufw/before.rules"
+        if [ -f "$ufw_before" ]; then
+            if ! grep -q "NFQUEUE" "$ufw_before"; then
+                info_message "Adding NFQUEUE rules to $ufw_before"
+                # Insert after header comments
+                maybe_sudo sed -i '/# End required lines/a -I INPUT -j NFQUEUE\n-I OUTPUT -j NFQUEUE' "$ufw_before"
+            fi
+        fi
+        
+        # Reload UFW if active
+        if maybe_sudo ufw status | grep -q "Status: active"; then
+            maybe_sudo ufw reload || warn_message "Failed to reload UFW"
+        fi
+    fi
+
+    # 4. Add custom drop test rule
+    local drop_rule='drop tcp any any -> any any (msg:"Test drop rule"; sid:992002087; rev:1;)'
+    if [ -f "$RULES_DIR/suricata.rules" ]; then
+        info_message "Adding test drop rule to suricata.rules"
+        if ! grep -q "sid:992002087" "$RULES_DIR/suricata.rules"; then
+            maybe_sudo bash -c "echo '$drop_rule' >> '$RULES_DIR/suricata.rules'"
+        fi
+    fi
+    
+    success_message "IPS mode configuration completed"
 }
 
 # Check disk space
