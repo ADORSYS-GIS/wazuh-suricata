@@ -651,6 +651,12 @@ install_suricata_macos_dmg() {
     
     maybe_sudo cp "$suricata_binary" "/opt/wazuh/suricata/bin/"
     
+    # Copy configuration file if present
+    if [ -f "$mount_point/suricata.yaml" ]; then
+        maybe_sudo mkdir -p "/opt/wazuh/suricata/etc/suricata/"
+        maybe_sudo cp "$mount_point/suricata.yaml" "/opt/wazuh/suricata/etc/suricata/"
+    fi
+    
     # Try to copy suricata-update if it exists
     local update_binary=""
     if [ -f "$mount_point/suricata-update" ]; then
@@ -823,6 +829,10 @@ setup_suricata_config() {
             default_config="/opt/wazuh/suricata/etc/suricata/suricata.yaml"
         elif [ -f "/usr/share/suricata/suricata.yaml" ]; then
             default_config="/usr/share/suricata/suricata.yaml"
+        elif [ -f "/Volumes/Suricata_Installer/suricata.yaml" ]; then
+             default_config="/Volumes/Suricata_Installer/suricata.yaml"
+        elif [ -f "/Volumes/Suricata_Installer/etc/suricata/suricata.yaml" ]; then
+             default_config="/Volumes/Suricata_Installer/etc/suricata/suricata.yaml"
         fi
         
         if [ -n "$default_config" ]; then
