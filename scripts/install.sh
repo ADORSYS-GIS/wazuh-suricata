@@ -56,7 +56,8 @@ GITHUB_RELEASE_BASE_URL="https://github.com/ADORSYS-GIS/wazuh-plugins/releases/d
 RELEASE_TAG="suricata-v0.5.2"
 
 # Remote script URLs
-UNINSTALL_MODERN_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/main/scripts/uninstall.sh"
+UNINSTALL_MODERN_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/suricata-modular-scripts/scripts/uninstall.sh"
+LEGACY_UNINSTALL_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/v0.1.5/scripts/uninstall.sh"
 REMOTE_MAC_AMD64_INSTALL_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/v0.1.5/scripts/install.sh"
 
 TMP_DIR=$(mktemp -d)
@@ -291,8 +292,15 @@ pre_installation_check() {
         return 0
     fi
     
-    # Note: Legacy installations will no longer be auto-removed here.
-    # We only remove modern installations via the uninstall script.
+    # Automatically remove legacy installation if found
+    if [ "$has_legacy" -eq 1 ]; then
+        info_message "Legacy Suricata installation detected - removing automatically..."
+        if ! run_cleanup_script "$LEGACY_UNINSTALL_URL" "legacy-uninstall.sh"; then
+            error_message "Failed to remove legacy Suricata installation"
+            exit 1
+        fi
+    fi
+    
     # Automatically remove modern installation if found
     if [ "$has_modern" -eq 1 ]; then
         info_message "Modern Suricata installation detected - removing automatically..."
