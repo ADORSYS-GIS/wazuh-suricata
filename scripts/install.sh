@@ -59,6 +59,7 @@ RELEASE_TAG="suricata-v0.5.2"
 UNINSTALL_MODERN_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/suricata-modular-scripts/scripts/uninstall.sh"
 LEGACY_UNINSTALL_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/v0.1.5/scripts/uninstall.sh"
 REMOTE_MAC_AMD64_INSTALL_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/v0.1.5/scripts/install.sh"
+FALLBACK_CONFIG_URL="https://raw.githubusercontent.com/OISF/suricata/master/suricata.yaml"
 
 TMP_DIR=$(mktemp -d)
 LOGGED_IN_USER=""
@@ -573,20 +574,7 @@ ensure_symlinks() {
         warn_message "Could not locate Suricata binary under /opt/wazuh/suricata"
     fi
 
-    # Suricata-update if present
-    local upd="/opt/wazuh/suricata/bin/suricata-update"
-    if [ -f "$upd" ]; then
-        maybe_sudo chmod +x "$upd" 2>/dev/null || true
-        if [ ! -L /usr/local/bin/suricata-update ] || [ "$(readlink -f /usr/local/bin/suricata-update 2>/dev/null || true)" != "$upd" ]; then
-            maybe_sudo ln -sf "$upd" /usr/local/bin/suricata-update || warn_message "Failed to create suricata-update symlink in /usr/local/bin"
-        fi
-        if [ -d /usr/bin ]; then
-            if [ ! -L /usr/bin/suricata-update ] || [ "$(readlink -f /usr/bin/suricata-update 2>/dev/null || true)" != "$upd" ]; then
-                maybe_sudo ln -sf "$upd" /usr/bin/suricata-update || warn_message "Failed to create suricata-update symlink in /usr/bin"
-            fi
-        fi
-    fi
-}
+
 
 # Ensure PATH fallback via profile.d
 ensure_path_profile() {
@@ -655,20 +643,6 @@ install_suricata_macos_dmg() {
     if [ -f "$mount_point/suricata.yaml" ]; then
         maybe_sudo mkdir -p "/opt/wazuh/suricata/etc/suricata/"
         maybe_sudo cp "$mount_point/suricata.yaml" "/opt/wazuh/suricata/etc/suricata/"
-    fi
-    
-    # Try to copy suricata-update if it exists
-    local update_binary=""
-    if [ -f "$mount_point/suricata-update" ]; then
-        update_binary="$mount_point/suricata-update"
-    elif [ -f "$mount_point/bin/suricata-update" ]; then
-        update_binary="$mount_point/bin/suricata-update"
-    fi
-    
-    if [ -n "$update_binary" ]; then
-        info_message "Found suricata-update in DMG, installing..."
-        maybe_sudo cp "$update_binary" "/opt/wazuh/suricata/bin/"
-        maybe_sudo chmod 755 "/opt/wazuh/suricata/bin/suricata-update"
     fi
     
     maybe_sudo hdiutil detach "$mount_point" -quiet
@@ -839,7 +813,14 @@ setup_suricata_config() {
             info_message "Copying default configuration from $default_config"
             maybe_sudo cp "$default_config" "$CONFIG_FILE"
         else
-            warn_message "No default configuration found, you may need to configure Suricata manually"
+            warn_message "No default configuration found in package."
+            info_message "Downloading fallback configuration from OISF..."
+            if maybe_sudo curl -fsSL -o "$CONFIG_FILE" "$FALLBACK_CONFIG_URL"; then
+                 success_message "Fallback configuration downloaded successfully."
+            else
+                 error_message "Failed to download fallback configuration."
+                 warn_message "You will need to manually configure $CONFIG_FILE"
+            fi
         fi
     fi
     
