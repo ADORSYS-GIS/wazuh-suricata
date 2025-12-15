@@ -494,6 +494,15 @@ install_suricata_package() {
     esac
     
     print_step 2 "Creating symlink to Suricata binary"
+    
+    # Remove systemd service if installed (Wazuh manages Suricata execution)
+    if [ -f "/lib/systemd/system/suricata.service" ] || [ -f "/etc/systemd/system/suricata.service" ]; then
+        info_message "Removing Suricata systemd service (managed by Wazuh)"
+        maybe_sudo systemctl disable suricata.service --now 2>/dev/null || true
+        maybe_sudo rm -f /lib/systemd/system/suricata.service /etc/systemd/system/suricata.service
+        maybe_sudo systemctl daemon-reload 2>/dev/null || true
+    fi
+
     maybe_sudo mkdir -p /usr/local/bin
     maybe_sudo ln -sf /opt/wazuh/suricata/bin/suricata /usr/local/bin/suricata
     
@@ -1142,6 +1151,7 @@ suricata_installation() {
     set_linux_capabilities
     download_rules
     setup_suricata_config
+    configure_ips_mode
     validate_installation
     restart_wazuh_agent
     
