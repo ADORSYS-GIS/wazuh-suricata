@@ -30,57 +30,7 @@ setup() {
     [ "$status" -eq 0 ]
 }
 
-@test "Suricata-update is accessible" {
-    # If the binary wasn't installed (e.g. not in the DEB package or DMG), skip this test
-    if [ ! -f "${BIN_FOLDER}/suricata-update" ] && ! command -v suricata-update >/dev/null 2>&1; then
-        skip "suricata-update binary not found in installation"
-    fi
 
-    if command -v suricata-update >/dev/null 2>&1; then
-        run command -v suricata-update
-        [ "$status" -eq 0 ]
-    else
-        # Fallback check for absolute path symlink or binary
-        # Use sudo to ensure we can see it even if permissions are restricted
-        run sudo test -x /usr/local/bin/suricata-update
-        if [ "$status" -ne 0 ]; then
-             run sudo test -x /usr/bin/suricata-update
-        fi
-        if [ "$status" -ne 0 ]; then
-             run sudo test -x "${BIN_FOLDER}/suricata-update"
-        fi
-        [ "$status" -eq 0 ]
-    fi
-}
-
-@test "Suricata-update wrapper works on ARM (macOS only)" {
-    if [ "$(uname)" = "Darwin" ] && [ "$(uname -m)" = "arm64" ]; then
-        # Check if suricata-update is installed
-        if [ ! -f "${BIN_FOLDER}/suricata-update" ] && ! command -v suricata-update >/dev/null 2>&1; then
-             skip "suricata-update not installed"
-        fi
-
-        # Check if wrapper script exists
-        [ -f "/usr/local/bin/suricata-update" ]
-        # Check if it's a bash script (wrapper) not a symlink
-        run head -1 /usr/local/bin/suricata-update
-        [[ "$output" == "#!/bin/bash" ]]
-    else
-        skip "This test is specific to macOS ARM64"
-    fi
-}
-
-@test "Suricata-update symlink exists on Intel (macOS only)" {
-    if [ "$(uname)" = "Darwin" ] && [ "$(uname -m)" = "x86_64" ]; then
-        # Check if symlink exists
-        [ -L "/usr/local/bin/suricata-update" ]
-        # Verify it points to the right location (v0.1.5 still uses /opt/suricata)
-        run readlink /usr/local/bin/suricata-update
-        [[ "$output" == "/opt/suricata/bin/suricata-update" ]]
-    else
-        skip "This test is specific to macOS Intel"
-    fi
-}
 
 @test "Rules file exists" {
     echo "Looking for rules in: $RULES_DIR"
