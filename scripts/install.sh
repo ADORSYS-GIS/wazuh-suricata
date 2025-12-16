@@ -402,20 +402,40 @@ install_dependencies() {
                 warn_message "Cannot install dependencies (jq, libpcap) via Homebrew as root without a logged in user"
             fi
             
-            # Fix for libpcap linkage on Apple Silicon where binary expects specific path
-            if [ "$(uname -m)" = "arm64" ]; then
-                local expected_lib="/opt/homebrew/opt/libpcap/lib/libpcap.A.dylib"
-                if [ ! -f "$expected_lib" ]; then
-                     local actual_lib=$(brew --prefix libpcap 2>/dev/null)/lib/libpcap.dylib
-                     if [ -f "$actual_lib" ]; then
-                         info_message "Fixing libpcap linkage..."
-                         maybe_sudo mkdir -p "$(dirname "$expected_lib")"
-                         maybe_sudo ln -sf "$actual_lib" "$expected_lib"
-                     fi
-                fi
-            fi
         else
             warn_message "Homebrew not found. Please install jq manually."
+        fi
+        
+        # Fix for libpcap linkage on Apple Silicon where binary expects specific path
+        if [ "$(uname -m)" = "arm64" ]; then
+            local expected_lib="/opt/homebrew/opt/libpcap/lib/libpcap.A.dylib"
+            if [ ! -f "$expected_lib" ]; then
+                 local actual_lib=""
+                 
+                 # Try to find libpcap in common locations
+                 if command_exists brew; then
+                     actual_lib=$(brew --prefix libpcap 2>/dev/null)/lib/libpcap.dylib
+                 fi
+                 
+                 if [ -z "$actual_lib" ] || [ ! -f "$actual_lib" ]; then
+                     if [ -f "/opt/homebrew/lib/libpcap.dylib" ]; then
+                         actual_lib="/opt/homebrew/lib/libpcap.dylib"
+                     elif [ -f "/opt/homebrew/opt/libpcap/lib/libpcap.dylib" ]; then
+                         actual_lib="/opt/homebrew/opt/libpcap/lib/libpcap.dylib"
+                     elif [ -f "/usr/local/lib/libpcap.dylib" ]; then
+                         actual_lib="/usr/local/lib/libpcap.dylib"
+                     fi
+                 fi
+
+                 if [ -n "$actual_lib" ] && [ -f "$actual_lib" ]; then
+                     info_message "Fixing libpcap linkage... Linking $actual_lib to $expected_lib"
+                     maybe_sudo mkdir -p "$(dirname "$expected_lib")"
+                     maybe_sudo ln -sf "$actual_lib" "$expected_lib"
+                 else
+                     warn_message "Could not locate libpcap.dylib. Suricata binary might fail to run."
+                     warn_message "If errors persist, please install libpcap: brew install libpcap"
+                 fi
+            fi
         fi
     fi
     
