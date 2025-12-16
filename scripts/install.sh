@@ -399,7 +399,7 @@ install_dependencies() {
             elif [ "$(id -u)" -ne 0 ]; then
                 brew install jq libpcap 2>/dev/null || warn_message "Could not install dependencies via Homebrew"
             else
-                warn_message "Cannot install jq via Homebrew as root without a logged in user"
+                warn_message "Cannot install dependencies (jq, libpcap) via Homebrew as root without a logged in user"
             fi
         else
             warn_message "Homebrew not found. Please install jq manually."
