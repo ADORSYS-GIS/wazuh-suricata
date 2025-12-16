@@ -188,6 +188,56 @@ sed_inplace() {
     fi
 }
 
+# Create a file with content (helper)
+create_file() {
+    local filepath="$1"
+    local content="$2"
+    
+    maybe_sudo bash -c "cat > '$filepath'" <<EOF
+$content
+EOF
+}
+
+# Create macOS Launchd plist
+create_launchd_plist_file() {
+    local filepath="$1"
+    local suricata_bin="$2"
+    
+    # Ensure binary path is absolute
+    if [[ "$suricata_bin" != /* ]]; then
+        suricata_bin="/usr/local/bin/$suricata_bin"
+    fi
+
+    info_message "Creating plist file for Suricata..."
+    create_file "$filepath" "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+<plist version=\"1.0\">
+<dict>
+    <key>Label</key>
+    <string>com.suricata.suricata</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>$suricata_bin</string>
+        <string>-c</string>
+        <string>$CONFIG_FILE</string>
+        <string>-i</string>
+        <string>$INTERFACE</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+</dict>
+</plist>"
+
+    info_message "Unloading previous plist file (if any)..."
+    maybe_sudo launchctl unload "$filepath" 2>/dev/null || true
+
+    info_message "Loading new daemon plist file..."
+    maybe_sudo launchctl load -w "$filepath" 2>/dev/null || warn_message "Loading plist failed: $filepath"
+    info_message "macOS Launchd plist file created and loaded: $filepath"
+}
+
 #=============================================================================
 # PRE-INSTALLATION CHECKS
 #=============================================================================
@@ -893,6 +943,26 @@ vars:
   address-groups:
     HOME_NET: "[192.168.0.0/16,10.0.0.0/8,172.16.0.0/12]"
     EXTERNAL_NET: "!\$HOME_NET"
+    HTTP_SERVERS: "\$HOME_NET"
+    SQL_SERVERS: "\$HOME_NET"
+    DNS_SERVERS: "\$HOME_NET"
+    SMTP_SERVERS: "\$HOME_NET"
+    DNP3_SERVER: "\$HOME_NET"
+    DNP3_CLIENT: "\$HOME_NET"
+    MODBUS_CLIENT: "\$HOME_NET"
+    MODBUS_SERVER: "\$HOME_NET"
+    ENIP_CLIENT: "\$HOME_NET"
+    ENIP_SERVER: "\$HOME_NET"
+
+  port-groups:
+    HTTP_PORTS: "80"
+    SHELLCODE_PORTS: "!80"
+    ORACLE_PORTS: 1521
+    SSH_PORTS: 22
+    DNP3_PORTS: 20000
+    MODBUS_PORTS: 502
+    FILE_DATA_PORTS: "[\$HTTP_PORTS,110,143]"
+    FTP_PORTS: 21
     
 default-rule-path: $RULES_DIR
 
@@ -1226,6 +1296,10 @@ suricata_macos_installation() {
     install_suricata_macos_dmg "$arch"
     download_rules
     setup_suricata_config
+    
+    # Create and load Launchd daemon for persistence
+    create_launchd_plist_file "/Library/LaunchDaemons/com.suricata.suricata.plist" "/opt/wazuh/suricata/bin/suricata"
+    
     validate_installation
     restart_wazuh_agent
     
