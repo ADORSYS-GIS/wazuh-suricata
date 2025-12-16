@@ -85,7 +85,7 @@ RELEASE_TAG="suricata-v0.5.2"
 UNINSTALL_MODERN_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/suricata-modular-scripts/scripts/uninstall.sh"
 LEGACY_UNINSTALL_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/v0.1.5/scripts/uninstall.sh"
 REMOTE_MAC_AMD64_INSTALL_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/v0.1.5/scripts/install.sh"
-FALLBACK_CONFIG_URL="https://raw.githubusercontent.com/OISF/suricata/master/suricata.yaml"
+FALLBACK_CONFIG_URL="https://raw.githubusercontent.com/OISF/suricata/suricata-8.0.2/suricata.yaml.in"
 
 TMP_DIR=$(mktemp -d)
 LOGGED_IN_USER=""
@@ -400,6 +400,19 @@ install_dependencies() {
                 brew install jq libpcap 2>/dev/null || warn_message "Could not install dependencies via Homebrew"
             else
                 warn_message "Cannot install dependencies (jq, libpcap) via Homebrew as root without a logged in user"
+            fi
+            
+            # Fix for libpcap linkage on Apple Silicon where binary expects specific path
+            if [ "$(uname -m)" = "arm64" ]; then
+                local expected_lib="/opt/homebrew/opt/libpcap/lib/libpcap.A.dylib"
+                if [ ! -f "$expected_lib" ]; then
+                     local actual_lib=$(brew --prefix libpcap 2>/dev/null)/lib/libpcap.dylib
+                     if [ -f "$actual_lib" ]; then
+                         info_message "Fixing libpcap linkage..."
+                         maybe_sudo mkdir -p "$(dirname "$expected_lib")"
+                         maybe_sudo ln -sf "$actual_lib" "$expected_lib"
+                     fi
+                fi
             fi
         else
             warn_message "Homebrew not found. Please install jq manually."
