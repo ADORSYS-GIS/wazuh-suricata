@@ -895,6 +895,9 @@ vars:
     EXTERNAL_NET: "!\$HOME_NET"
     
 default-rule-path: $RULES_DIR
+
+default-log-dir: $LOG_DIR
+
 rule-files:
   - suricata.rules
 
