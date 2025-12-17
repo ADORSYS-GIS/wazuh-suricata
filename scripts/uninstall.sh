@@ -333,6 +333,7 @@ remove_custom_suricata_installation() {
         fi
     fi
     
+    
     # Remove PATH configuration
     if [ -f "/etc/profile.d/suricata.sh" ]; then
         info_message "Removing PATH configuration: /etc/profile.d/suricata.sh"
@@ -343,6 +344,7 @@ remove_custom_suricata_installation() {
             warn_message "Failed to remove PATH configuration"
         fi
     fi
+    
     
     if [ $removed -eq 0 ]; then
         info_message "No custom Suricata installation found"
