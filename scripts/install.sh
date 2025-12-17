@@ -85,7 +85,6 @@ RELEASE_TAG="suricata-v0.5.2"
 UNINSTALL_MODERN_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/suricata-modular-scripts/scripts/uninstall.sh"
 REMOTE_MAC_AMD64_INSTALL_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/v0.1.5/scripts/install.sh"
 FALLBACK_CONFIG_URL="https://raw.githubusercontent.com/OISF/suricata/suricata-8.0.2/suricata.yaml.in"
-
 TMP_DIR=$(mktemp -d)
 LOGGED_IN_USER=""
 
@@ -821,58 +820,13 @@ setup_suricata_config() {
             maybe_sudo cp "$default_config" "$CONFIG_FILE"
         else
             warn_message "No default configuration found in package."
-            info_message "Generating minimal fallback configuration..."
+            info_message "Downloading configuration from fallback URL..."
             
-            # Generate minimal config satisfying basic requirements
-            maybe_sudo bash -c "cat > '$CONFIG_FILE'" <<EOF
-%YAML 1.1
----
-vars:
-  address-groups:
-    HOME_NET: "[192.168.0.0/16,10.0.0.0/8,172.16.0.0/12]"
-    EXTERNAL_NET: "!\$HOME_NET"
-    HTTP_SERVERS: "\$HOME_NET"
-    SQL_SERVERS: "\$HOME_NET"
-    DNS_SERVERS: "\$HOME_NET"
-    SMTP_SERVERS: "\$HOME_NET"
-    DNP3_SERVER: "\$HOME_NET"
-    DNP3_CLIENT: "\$HOME_NET"
-    MODBUS_CLIENT: "\$HOME_NET"
-    MODBUS_SERVER: "\$HOME_NET"
-    ENIP_CLIENT: "\$HOME_NET"
-    ENIP_SERVER: "\$HOME_NET"
-
-  port-groups:
-    HTTP_PORTS: "80"
-    SHELLCODE_PORTS: "!80"
-    ORACLE_PORTS: 1521
-    SSH_PORTS: 22
-    DNP3_PORTS: 20000
-    MODBUS_PORTS: 502
-    FILE_DATA_PORTS: "[\$HTTP_PORTS,110,143]"
-    FTP_PORTS: 21
-    
-default-rule-path: $RULES_DIR
-
-default-log-dir: $LOG_DIR
-
-rule-files:
-  - suricata.rules
-
-community-id: false
-
-outputs:
-  - eve-log:
-      enabled: yes
-      filetype: regular
-      filename: eve.json
-      types:
-        - alert
-EOF
-            if maybe_sudo test -f "$CONFIG_FILE"; then
-                success_message "Minimal configuration generated successfully."
+            # Download configuration from fallback URL
+            if curl -fsSL "$FALLBACK_CONFIG_URL" | maybe_sudo tee "$CONFIG_FILE" > /dev/null; then
+                success_message "Configuration downloaded successfully from fallback URL"
             else
-                error_message "Failed to generate configuration file."
+                error_message "Failed to download configuration from $FALLBACK_CONFIG_URL"
                 exit 1
             fi
         fi
