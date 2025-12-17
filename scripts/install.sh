@@ -819,7 +819,7 @@ setup_suricata_config() {
             info_message "Copying default configuration from $default_config"
             maybe_sudo cp "$default_config" "$CONFIG_FILE"
         else
-            warn_message "No default configuration found in package."
+            info_message "No default configuration in package, using fallback configuration."
             info_message "Downloading configuration from fallback URL..."
             
             # Download configuration from fallback URL
