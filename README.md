@@ -33,6 +33,7 @@ tests/
 
 - **Linux**: Ubuntu/Debian-based distributions with `apt` or Red Hat-based distributions with `yum`.
 - **macOS**: Homebrew package manager.
+- Unified install layout for both OS under `/opt/wazuh/suricata` (bin, etc/suricata, var/lib/suricata/rules, var/log/suricata).
 - **Systemd**: Required for managing services on Linux.
 - **Bats**: Bash Automated Testing System for running tests.
 
@@ -45,10 +46,7 @@ tests/
    curl -SL --progress-bar https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/main/scripts/setup-agent.sh | bash
    ```
 
-   For **IPS** mode, use the following command instead:
-   ```bash
-   curl -SL --progress-bar https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/main/scripts/install.sh | bash -s -- --mode ips
-   ```
+   
 
 ### macOS
 
@@ -62,9 +60,9 @@ tests/
 The installation script automatically configures Suricata. Key configuration details include:
 
 - **HOME_NET**: Automatically detected based on the system's network interface.
-- **Rules Directory**: `/etc/suricata/rules` (Linux) or `/usr/local/etc/suricata/rules` (macOS).
-- **Configuration File**: `/etc/suricata/suricata.yaml` (Linux) or `/usr/local/etc/suricata/suricata.yaml` (macOS).
-- **IPS Mode**: Configures `LISTENMODE` to `nfqueue` and updates UFW rules for traffic inspection.
+- **Rules Directory**: `/opt/wazuh/suricata/var/lib/suricata/rules`.
+- **Configuration File**: `/opt/wazuh/suricata/etc/suricata/suricata.yaml`.
+- This installer manages Suricata under `/opt/wazuh/suricata` only and does not modify system-wide services or firewall settings.
 
 ## Testing
 
@@ -105,10 +103,10 @@ This will:
 
 ## Continuous Integration
 
-The project uses GitHub Actions for CI. The workflow is defined in `.github/workflows/test.yaml` and includes:
+The project uses GitHub Actions for CI. The workflow is defined in `.github/workflows/release.yaml` and includes:
 
 - Running tests on `ubuntu-latest` and `macos-latest`.
-- Installing dependencies and running Bats tests.
+- Running Bats tests that assert the `/opt/wazuh/suricata` layout.
 
 ## Troubleshooting
 

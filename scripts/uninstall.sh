@@ -87,6 +87,18 @@ if [ "$OS" = "linux" ]; then
     DISTRO=$(detect_distro)
 fi
 
+# Remote script URLs and temporary directory
+LEGACY_UNINSTALL_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/v1.5.0/scripts/uninstall.sh"
+TMP_DIR=$(mktemp -d)
+
+# Cleanup function for temporary directory
+cleanup() {
+    if [ -n "$TMP_DIR" ] && [ -d "$TMP_DIR" ]; then
+        rm -rf "$TMP_DIR"
+    fi
+}
+trap cleanup EXIT
+
 # Check if a command exists
 command_exists() {
     command -v "$1" >/dev/null 2>&1
@@ -112,6 +124,70 @@ sed_inplace() {
         maybe_sudo sed -i '' "$@" 2>/dev/null || true
     else
         maybe_sudo sed -i "$@" 2>/dev/null || true
+    fi
+}
+
+# Detect Suricata installations - check for both legacy and modern
+detect_suricata_installation() {
+    local has_legacy=0
+    local has_modern=0
+    local has_softlink=0
+    
+    # Check for legacy installation in /opt/suricata
+    if [ -d "/opt/suricata" ]; then
+        has_legacy=1
+    fi
+    
+    # Check for modern installation in /opt/wazuh/suricata
+    if [ -d "/opt/wazuh/suricata" ]; then
+        has_modern=1
+    fi
+    
+    # Check for softlink in /usr/local/bin/suricata
+    if [ -L "/usr/local/bin/suricata" ] || [ -f "/usr/local/bin/suricata" ]; then
+        has_softlink=1
+    fi
+    
+    # Check if Suricata is installed via package manager (modern)
+    if [ "$OS" = "linux" ]; then
+        case "$DISTRO" in
+            centos|rhel|redhat|rocky|almalinux|fedora)
+                if command_exists rpm && rpm -q suricata >/dev/null 2>&1; then
+                    has_modern=1
+                fi
+                ;;
+            ubuntu|debian)
+                if command_exists dpkg && dpkg -s suricata >/dev/null 2>&1; then
+                    has_modern=1
+                fi
+                ;;
+        esac
+    fi
+    
+    # Return result as "legacy,modern,softlink" format
+    echo "${has_legacy},${has_modern},${has_softlink}"
+}
+
+# Download and execute legacy cleanup script
+run_legacy_cleanup_script() {
+    local cleanup_script="$TMP_DIR/legacy-uninstall.sh"
+    
+    info_message "Downloading legacy uninstall script..."
+    
+    if ! curl -fsSL -o "$cleanup_script" "$LEGACY_UNINSTALL_URL" 2>/dev/null; then
+        error_message "Failed to download legacy uninstall script from $LEGACY_UNINSTALL_URL"
+        return 1
+    fi
+    
+    chmod +x "$cleanup_script"
+    
+    info_message "Running legacy uninstall script..."
+    if bash "$cleanup_script" --silent 2>/dev/null || bash "$cleanup_script" 2>/dev/null; then
+        success_message "Legacy cleanup completed successfully"
+        return 0
+    else
+        error_message "Legacy uninstall script failed"
+        return 1
     fi
 }
 
@@ -390,28 +466,83 @@ validate_removal() {
 
 # Main uninstallation function
 main() {
-    # Always run in automatic mode (no user confirmation)
-    local silent_mode=1
-    
-    info_message "Starting modern Suricata uninstallation..."
+    info_message "Starting Suricata uninstallation..."
     info_message "Detected OS: ${OS}"
     
     if [ "$OS" = "linux" ]; then
         info_message "Detected Linux distribution: ${DISTRO}"
     fi
     
-    # Skip confirmation prompt - always proceed with uninstallation
-    info_message "Automatically proceeding with Suricata uninstallation..."
-    info_message "This will remove Suricata installations from /opt/wazuh/suricata"
-    info_message "It will also remove /usr/local/bin symlinks pointing into /opt/wazuh/suricata"
+    # Detect existing Suricata installations
+    local detection_result
+    detection_result=$(detect_suricata_installation)
     
-    # Perform uninstallation steps (narrow scope)
-    stop_suricata_services
-    remove_custom_suricata_installation
+    # Parse the detection result
+    IFS=',' read -r has_legacy has_modern has_softlink <<<"$detection_result"
+    
+    # Display detection results
+    if [ "$has_legacy" -eq 1 ] || [ "$has_modern" -eq 1 ] || [ "$has_softlink" -eq 1 ]; then
+        echo ""
+        warn_message "Existing Suricata installation(s) detected!"
+        
+        # Check for legacy installation in /opt/suricata
+        if [ -d "/opt/suricata" ]; then
+            info_message "Found Suricata in path: /opt/suricata"
+        fi
+        
+        # Check for modern installation in /opt/wazuh/suricata
+        if [ -d "/opt/wazuh/suricata" ]; then
+            info_message "Found Suricata in path: /opt/wazuh/suricata"
+        fi
+        
+        # Check for softlink in /usr/local/bin/suricata
+        if [ -L "/usr/local/bin/suricata" ] || [ -f "/usr/local/bin/suricata" ]; then
+            info_message "Found Suricata in path: /usr/local/bin/suricata"
+        fi
+        echo ""
+    else
+        info_message "No Suricata installation detected"
+        success_message "Nothing to uninstall"
+        exit 0
+    fi
+    
+    # Handle uninstallation based on what was detected
+    # Case 1: Both legacy and modern installations exist
+    if [ "$has_legacy" -eq 1 ] && [ "$has_modern" -eq 1 ]; then
+        info_message "Removing Suricata found in path: /opt/wazuh/suricata"
+        stop_suricata_services
+        remove_custom_suricata_installation
+        
+        info_message "Removing Suricata found in path: /opt/suricata"
+        if ! run_legacy_cleanup_script; then
+            error_message "Failed to remove legacy Suricata installation"
+            exit 1
+        fi
+    # Case 2: Only modern installation exists
+    elif [ "$has_modern" -eq 1 ]; then
+        info_message "Removing Suricata found in path: /opt/wazuh/suricata"
+        stop_suricata_services
+        remove_custom_suricata_installation
+    # Case 3: Only legacy installation exists
+    elif [ "$has_legacy" -eq 1 ]; then
+        info_message "Removing Suricata found in path: /opt/suricata"
+        if ! run_legacy_cleanup_script; then
+            error_message "Failed to remove legacy Suricata installation"
+            exit 1
+        fi
+    fi
+    
+    # Clean up any remaining softlinks in /usr/local/bin/suricata
+    if [ -L "/usr/local/bin/suricata" ] || [ -f "/usr/local/bin/suricata" ]; then
+        info_message "Cleaning up softlink: /usr/local/bin/suricata"
+        maybe_sudo rm -f "/usr/local/bin/suricata" || warn_message "Failed to remove softlink"
+    fi
+    
+    # Validate removal
     validate_removal
     
     echo ""
-    success_message "Modern Suricata uninstallation process completed!"
+    success_message "Suricata uninstallation process completed!"
     info_message "Your system is now clean and ready for a fresh installation"
 }
 
