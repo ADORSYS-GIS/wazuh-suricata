@@ -448,14 +448,14 @@ install_suricata_package() {
         centos|rhel|redhat|rocky|almalinux|fedora)
             print_step 1 "Installing Suricata RPM package"
             if command_exists dnf; then
-                maybe_sudo dnf install -y "$TMP_DIR/suricata.rpm"
+                maybe_sudo dnf reinstall -y "$TMP_DIR/suricata.rpm"
             else
-                maybe_sudo yum install -y "$TMP_DIR/suricata.rpm"
+                maybe_sudo yum reinstall -y "$TMP_DIR/suricata.rpm"
             fi
             ;;
         ubuntu|debian)
             print_step 1 "Installing Suricata DEB package"
-            maybe_sudo apt-get install -y "$TMP_DIR/suricata.deb"
+            maybe_sudo apt-get install --reinstall -y "$TMP_DIR/suricata.deb"
             ;;
         *)
             error_message "Unsupported Linux distribution: $distro"
@@ -463,7 +463,6 @@ install_suricata_package() {
             ;;
     esac
     
-    print_step 2 "Creating symlink to Suricata binary"
     
     # Remove systemd service if installed (Wazuh manages Suricata execution)
     if [ -f "/lib/systemd/system/suricata.service" ] || [ -f "/etc/systemd/system/suricata.service" ]; then
@@ -473,17 +472,10 @@ install_suricata_package() {
         maybe_sudo systemctl daemon-reload 2>/dev/null || true
     fi
 
-    maybe_sudo mkdir -p /usr/local/bin
-    maybe_sudo ln -sf /opt/wazuh/suricata/bin/suricata /usr/local/bin/suricata
+    # Remove any old symlinks that may cause issues
+    maybe_sudo rm -f /usr/local/bin/suricata /usr/bin/suricata 2>/dev/null || true
+
     
-    # Verify symlink was created successfully
-    if [ -L /usr/local/bin/suricata ]; then
-        local target
-        target=$(readlink /usr/local/bin/suricata 2>/dev/null || echo "unknown")
-        info_message "Symlink created successfully: /usr/local/bin/suricata -> $target"
-    else
-        warn_message "Failed to create symlink at /usr/local/bin/suricata"
-    fi
     
     print_step 3 "Configuring system library path"
     # Binaries with Linux capabilities (cap_net_admin, cap_net_raw) ignore LD_LIBRARY_PATH
@@ -556,24 +548,6 @@ ensure_symlinks() {
             warn_message "Error output: $error_output"
         fi
         
-        # Link to discovered binary in /usr/local/bin (user PATH)
-        if [ ! -L /usr/local/bin/suricata ] || [ "$(readlink -f /usr/local/bin/suricata 2>/dev/null || true)" != "$bin_path" ]; then
-            maybe_sudo ln -sf "$bin_path" /usr/local/bin/suricata || warn_message "Failed to create suricata symlink in /usr/local/bin"
-        fi
-        # Also provide /usr/bin symlink to satisfy sudo secure_path
-        if [ -d /usr/bin ]; then
-            if [ ! -L /usr/bin/suricata ] || [ "$(readlink -f /usr/bin/suricata 2>/dev/null || true)" != "$bin_path" ]; then
-                if maybe_sudo ln -sf "$bin_path" /usr/bin/suricata; then
-                    info_message "Symlink created: /usr/bin/suricata -> $bin_path"
-                else
-                    warn_message "Failed to create suricata symlink in /usr/bin"
-                fi
-            else
-                local existing_target
-                existing_target=$(readlink /usr/bin/suricata 2>/dev/null || echo "unknown")
-                info_message "Symlink already exists: /usr/bin/suricata -> $existing_target"
-            fi
-        fi
         info_message "Suricata binary resolved at: $bin_path"
     else
         warn_message "Could not locate Suricata binary under /opt/wazuh/suricata"
@@ -582,16 +556,40 @@ ensure_symlinks() {
 
 
 
-# Ensure PATH fallback via profile.d
-ensure_path_profile() {
-    info_message "Installing PATH configuration in /etc/profile.d/suricata.sh"
-    maybe_sudo bash -c 'echo "export PATH=/opt/wazuh/suricata/bin:\$PATH" > /etc/profile.d/suricata.sh'
-    maybe_sudo chmod 644 /etc/profile.d/suricata.sh || true
+# Create symlinks for global access
+create_symlinks() {
+    print_step 2 "Creating symlinks for global access"
     
-    # Check if command is discoverable in current environment
-    if ! command -v suricata > /dev/null 2>&1; then
-        warn_message "Suricata not in current shell PATH"
-        info_message "To use Suricata, restart your shell or run: exec bash"
+    # Remove old symlinks
+    maybe_sudo rm -f /usr/local/bin/suricata /usr/bin/suricata 2>/dev/null || true
+    
+    local target_binary="/opt/wazuh/suricata/bin/suricata.real"
+    
+    # Check if we should use the wrapper or real binary
+    # Since we configured ld.so.conf, we can use suricata.real directly
+    if [ ! -f "$target_binary" ]; then
+        target_binary="/opt/wazuh/suricata/bin/suricata"
+    fi
+    
+    # Create /usr/local/bin symlink (standard user PATH)
+    if maybe_sudo ln -sf "$target_binary" /usr/local/bin/suricata; then
+        info_message "Created symlink: /usr/local/bin/suricata -> $target_binary"
+    else
+        warn_message "Failed to create /usr/local/bin/suricata symlink"
+    fi
+    
+    # Create /usr/bin symlink (standard system PATH) - useful for sudo/root
+    if [ -d /usr/bin ] && [ ! -f /usr/bin/suricata ]; then
+        if maybe_sudo ln -sf "$target_binary" /usr/bin/suricata; then
+            info_message "Created symlink: /usr/bin/suricata -> $target_binary"
+        fi
+    fi
+    
+    # Verify installation
+    if command -v suricata >/dev/null 2>&1; then
+        success_message "Suricata is now available in your PATH"
+    else
+        warn_message "Suricata symlinks created but not found in PATH"
     fi
 }
 
@@ -1088,8 +1086,7 @@ suricata_installation() {
     install_dependencies
     download_suricata_package "$DISTRO" "$arch"
     install_suricata_package "$DISTRO"
-    ensure_symlinks
-    ensure_path_profile
+    create_symlinks
     set_linux_capabilities
     download_rules
     setup_suricata_config
