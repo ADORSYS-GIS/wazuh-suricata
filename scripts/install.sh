@@ -823,6 +823,37 @@ setup_suricata_config() {
             # Download configuration from fallback URL
             if curl -fsSL "$FALLBACK_CONFIG_URL" | maybe_sudo tee "$CONFIG_FILE" > /dev/null; then
                 success_message "Configuration downloaded successfully from fallback URL"
+                
+                # Replace autoconf placeholders in the downloaded template
+                info_message "Processing fallback configuration template..."
+                
+                # Define paths based on our installation
+                local install_prefix="/opt/wazuh/suricata"
+                local log_dir="$install_prefix/var/log/suricata"
+                local sysconf_dir="$install_prefix/etc/suricata"
+                local run_dir="$install_prefix/var/run/suricata"
+                
+                # Ensure these directories exist
+                maybe_sudo mkdir -p "$log_dir" "$sysconf_dir" "$run_dir"
+                
+                # Replace placeholders
+                sed_inplace "s|@e_logdir@|$log_dir|g" "$CONFIG_FILE"
+                sed_inplace "s|@e_sysconfdir@|$sysconf_dir/|g" "$CONFIG_FILE"
+                sed_inplace "s|@e_rundir@|$run_dir/|g" "$CONFIG_FILE"
+                sed_inplace "s|@e_defaultruledir@|$RULES_DIR|g" "$CONFIG_FILE"
+                sed_inplace "s|@MAJOR_MINOR@|8.0|g" "$CONFIG_FILE"
+                sed_inplace "s|@e_enable_evelog@|yes|g" "$CONFIG_FILE"
+                sed_inplace "s|@prefix@|$install_prefix|g" "$CONFIG_FILE"
+                sed_inplace "s|@PACKAGE_NAME@|suricata|g" "$CONFIG_FILE"
+                
+                # Comment out optional features that might not be present (pfring, etc.)
+                sed_inplace "s|@pfring_comment@|#|g" "$CONFIG_FILE"
+                sed_inplace "s|@napatech_comment@|#|g" "$CONFIG_FILE"
+                sed_inplace "s|@ndpi_comment@|#|g" "$CONFIG_FILE"
+                sed_inplace "s|@e_magic_file_comment@|#|g" "$CONFIG_FILE"
+                sed_inplace "s|@e_magic_file@|/usr/share/file/magic|g" "$CONFIG_FILE"
+                sed_inplace "s|@e_sghcachedir@|$install_prefix/var/lib/suricata|g" "$CONFIG_FILE"
+                
             else
                 error_message "Failed to download configuration from $FALLBACK_CONFIG_URL"
                 exit 1
