@@ -240,22 +240,55 @@ create_launchd_plist_file() {
 # PRE-INSTALLATION CHECKS
 #=============================================================================
 
-# Download and execute uninstall script
-run_uninstall_script() {
-    local uninstall_script="$TMP_DIR/uninstall.sh"
+# Check if Suricata is already installed with the correct version
+check_installed_version() {
+    local installed_bin="/opt/wazuh/suricata/bin/suricata"
     
-    info_message "Downloading uninstall script..."
-    
-    if ! curl -fsSL -o "$uninstall_script" "$UNINSTALL_MODERN_URL" 2>/dev/null; then
-        error_message "Failed to download uninstall script from $UNINSTALL_MODERN_URL"
+    if [ ! -x "$installed_bin" ]; then
         return 1
     fi
     
-    chmod +x "$uninstall_script"
+    info_message "Checking installed Suricata version..."
     
-    info_message "Running uninstall script..."
-    if bash "$uninstall_script"; then
-        success_message "Uninstallation completed successfully"
+    # Get installed version
+    local output
+    output=$("$installed_bin" -V 2>&1 | head -n1)
+    
+    if [[ "$output" != *"$SURICATA_VERSION"* ]]; then
+        info_message "Installed version ($output) does not match target version ($SURICATA_VERSION)"
+        return 1
+    else
+        success_message "Suricata $SURICATA_VERSION is already installed ($output)"
+        return 0
+    fi
+}
+
+# Download and execute uninstall script
+run_uninstall_script() {
+    local uninstall_args="${1:-}"
+    local download_path="$TMP_DIR/uninstall.sh"
+    local local_script_path
+    
+    # Check if we can find the uninstall script locally (relative to install.sh)
+    # This is useful for development or manual runs from the repo
+    local_script_path="$(dirname "$(readlink -f "$0")")/uninstall.sh"
+    
+    if [ -f "$local_script_path" ]; then
+        info_message "Using local uninstall script: $local_script_path"
+        cp "$local_script_path" "$download_path"
+    else
+        info_message "Downloading uninstall script..."
+        if ! curl -fsSL -o "$download_path" "$UNINSTALL_MODERN_URL" 2>/dev/null; then
+            error_message "Failed to download uninstall script from $UNINSTALL_MODERN_URL"
+            return 1
+        fi
+    fi
+    
+    chmod +x "$download_path"
+    
+    info_message "Running uninstall script with args: ${uninstall_args:-(none)}..."
+    if bash "$download_path" $uninstall_args; then
+        success_message "Uninstallation/Cleanup completed successfully"
         return 0
     else
         error_message "Uninstall script failed"
@@ -267,17 +300,32 @@ run_uninstall_script() {
 pre_installation_check() {
     info_message "Performing pre-installation checks..."
     
-    # The uninstall.sh script handles all detection and cleanup logic
-    # It will detect legacy, modern, and softlink installations and remove them appropriately
-    if ! run_uninstall_script; then
-        error_message "Failed to run uninstall script"
-        exit 1
+    # Check if we should skip installation
+    # Check if we should skip installation
+    if check_installed_version; then
+        # If installed correctly, verify and skip
+        info_message "Target version matches. Verified existing installation."
+        
+        # Set a flag to skip package installation and dependency setup
+        export SKIP_INSTALL=1
+        
+        echo ""
+        success_message "Existing modern installation verified."
+        echo ""
+    else
+        # If not installed or wrong version, run full cleanup
+        info_message "Target version not found. Running full cleanup..."
+        if ! run_uninstall_script; then
+            error_message "Failed to run uninstall script"
+            exit 1
+        fi
+        
+        export SKIP_INSTALL=0
+        
+        echo ""
+        success_message "System cleaned and ready for fresh Suricata installation"
+        echo ""
     fi
-    
-    echo ""
-    success_message "Pre-installation cleanup completed"
-    success_message "System is ready for fresh Suricata installation"
-    echo ""
     
     # Brief pause to let user see the messages
     sleep 2
@@ -1115,8 +1163,16 @@ suricata_installation() {
     esac
     
     install_dependencies
-    download_suricata_package "$DISTRO" "$arch"
-    install_suricata_package "$DISTRO"
+    
+    # If SKIP_INSTALL is set, skip download and installation
+    if [ "${SKIP_INSTALL:-0}" -eq 1 ]; then
+        info_message "Suricata is already installed (checked in pre-checks)."
+        info_message "Skipping package download and installation..."
+    else
+        download_suricata_package "$DISTRO" "$arch"
+        install_suricata_package "$DISTRO"
+    fi
+
     create_symlinks
     set_linux_capabilities
     download_rules
@@ -1162,8 +1218,16 @@ suricata_macos_installation() {
     info_message "Detected macOS architecture: $arch"
     
     install_dependencies
-    download_suricata_macos_dmg "$arch"
-    install_suricata_macos_dmg "$arch"
+    
+    # If SKIP_INSTALL is set, skip download and installation
+    if [ "${SKIP_INSTALL:-0}" -eq 1 ]; then
+        info_message "Suricata is already installed (checked in pre-checks)."
+        info_message "Skipping package download and installation..."
+    else
+        download_suricata_macos_dmg "$arch"
+        install_suricata_macos_dmg "$arch"
+    fi
+
     download_rules
     setup_suricata_config
     
@@ -1199,6 +1263,12 @@ main() {
     # Run pre-installation checks and automatic cleanup (BEFORE macOS Intel delegation)
     info_message "Performing pre-installation checks..."
     pre_installation_check
+    
+    # If existing installation was verified, exit early as per idempotency requirements
+    if [ "${SKIP_INSTALL:-0}" -eq 1 ]; then
+        success_message "Suricata $SURICATA_VERSION is already installed and verified. Exiting."
+        exit 0
+    fi
 
     # Special case: macOS Intel (amd64) should delegate entirely to v0.1.5 installer
     if [ "$OS" = "darwin" ] && [ "$(detect_architecture)" = "amd64" ]; then
