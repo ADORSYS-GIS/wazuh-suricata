@@ -496,14 +496,14 @@ install_suricata_package() {
         centos|rhel|redhat|rocky|almalinux|fedora)
             print_step 1 "Installing Suricata RPM package"
             if command_exists dnf; then
-                maybe_sudo dnf reinstall -y "$TMP_DIR/suricata.rpm"
+                maybe_sudo dnf install -y "$TMP_DIR/suricata.rpm"
             else
-                maybe_sudo yum reinstall -y "$TMP_DIR/suricata.rpm"
+                maybe_sudo yum install -y "$TMP_DIR/suricata.rpm"
             fi
             ;;
         ubuntu|debian)
             print_step 1 "Installing Suricata DEB package"
-            maybe_sudo apt-get install --reinstall -y "$TMP_DIR/suricata.deb"
+            maybe_sudo apt-get install -y "$TMP_DIR/suricata.deb"
             ;;
         *)
             error_message "Unsupported Linux distribution: $distro"
