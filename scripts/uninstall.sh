@@ -545,7 +545,6 @@ main() {
     
     echo ""
     success_message "Suricata uninstallation process completed!"
-    info_message "Your system is now clean and ready for a fresh installation"
 }
 
 # Execute main function
