@@ -540,6 +540,15 @@ main() {
         maybe_sudo rm -f "/usr/local/bin/suricata" || warn_message "Failed to remove softlink"
     fi
     
+    # Remove package manager installations
+    remove_suricata_packages
+    
+    #Remove configuration and data directories
+    remove_suricata_directories
+    
+    # Remove systemd service files (Linux only)
+    remove_systemd_service_files
+    
     # Validate removal
     validate_removal
     
