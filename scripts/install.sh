@@ -1169,8 +1169,6 @@ suricata_installation() {
     setup_suricata_config
     configure_ips_mode
     validate_installation
-    restart_wazuh_agent
-    
     
     success_message "Suricata installation completed successfully!"
     echo ""
@@ -1225,7 +1223,6 @@ suricata_macos_installation() {
     create_launchd_plist_file "/Library/LaunchDaemons/com.suricata.suricata.plist" "/opt/wazuh/suricata/bin/suricata"
     
     validate_installation
-    restart_wazuh_agent
     
     success_message "Suricata installation completed successfully!"
 }
