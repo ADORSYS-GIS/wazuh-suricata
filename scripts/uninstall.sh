@@ -88,7 +88,7 @@ if [ "$OS" = "linux" ]; then
 fi
 
 # Remote script URLs and temporary directory
-LEGACY_UNINSTALL_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/v1.5.0/scripts/uninstall.sh"
+LEGACY_UNINSTALL_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/refs/tags/v0.1.5/scripts/uninstall.sh"
 TMP_DIR=$(mktemp -d)
 
 # Cleanup function for temporary directory
