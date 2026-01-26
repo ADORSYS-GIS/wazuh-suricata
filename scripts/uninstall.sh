@@ -88,7 +88,7 @@ if [ "$OS" = "linux" ]; then
 fi
 
 # Remote script URLs and temporary directory
-LEGACY_UNINSTALL_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/v1.5.0/scripts/uninstall.sh"
+LEGACY_UNINSTALL_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/suricata-modular-scripts/scripts/uninstall.sh"
 TMP_DIR=$(mktemp -d)
 
 # Cleanup function for temporary directory
@@ -175,8 +175,29 @@ run_legacy_cleanup_script() {
     info_message "Downloading legacy uninstall script..."
     
     if ! curl -fsSL -o "$cleanup_script" "$LEGACY_UNINSTALL_URL" 2>/dev/null; then
-        error_message "Failed to download legacy uninstall script from $LEGACY_UNINSTALL_URL"
-        return 1
+        warn_message "Failed to download legacy uninstall script from $LEGACY_UNINSTALL_URL"
+        warn_message "Attempting manual legacy cleanup..."
+        
+        # Fallback: Manual cleanup of legacy installation
+        if [ -d "/opt/suricata" ]; then
+            info_message "Removing legacy Suricata directory: /opt/suricata"
+            if maybe_sudo rm -rf "/opt/suricata"; then
+                success_message "Legacy directory removed successfully"
+            else
+                warn_message "Failed to remove legacy directory"
+            fi
+        fi
+        
+        # Remove legacy symlinks
+        for link in "/usr/local/bin/suricata" "/usr/bin/suricata"; do
+            if [ -L "$link" ] || [ -f "$link" ]; then
+                info_message "Removing legacy symlink: $link"
+                maybe_sudo rm -f "$link" 2>/dev/null || true
+            fi
+        done
+        
+        success_message "Manual legacy cleanup completed"
+        return 0
     fi
     
     chmod +x "$cleanup_script"
