@@ -1247,28 +1247,21 @@ main() {
         fi
     fi
     
-    # Run pre-installation checks and automatic cleanup (BEFORE macOS Intel delegation)
+    # Run pre-installation checks and automatic cleanup
     info_message "Performing pre-installation checks..."
+    
+    # Cleanup any legacy leftover directories from old installers
+    if [ "$OS" = "darwin" ] && [ -d "${HOME}/suricata-install" ]; then
+        info_message "Removing leftover directory from legacy installer: ${HOME}/suricata-install"
+        rm -rf "${HOME}/suricata-install"
+    fi
+
     pre_installation_check
     
     # If existing installation was verified, exit early as per idempotency requirements
     if [ "${SKIP_INSTALL:-0}" -eq 1 ]; then
         success_message "Suricata $SURICATA_VERSION is already installed and verified. Exiting."
         exit 0
-    fi
-
-    # Special case: macOS Intel (amd64) should delegate entirely to v0.1.5 installer
-    if [ "$OS" = "darwin" ] && [ "$(detect_architecture)" = "amd64" ]; then
-        info_message "macOS Intel detected. Delegating to remote v0.1.5 installer and exiting."
-        local remote_installer="$TMP_DIR/remote-install.sh"
-        if ! curl -fsSL -o "$remote_installer" "$REMOTE_MAC_AMD64_INSTALL_URL"; then
-            error_message "Failed to download remote installer from $REMOTE_MAC_AMD64_INSTALL_URL"
-            exit 1
-        fi
-        chmod +x "$remote_installer"
-        # Run the remote installer with the same privileges and arguments
-        bash "$remote_installer" "$@"
-        exit $?
     fi
     
     # Proceed with installation
