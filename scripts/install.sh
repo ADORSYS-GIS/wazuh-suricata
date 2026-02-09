@@ -1263,6 +1263,20 @@ main() {
         success_message "Suricata $SURICATA_VERSION is already installed and verified. Exiting."
         exit 0
     fi
+
+    # Special case: macOS Intel (amd64) - no package available, delegate to v0.1.5 installer
+    if [ "$OS" = "darwin" ] && [ "$(detect_architecture)" = "amd64" ]; then
+        info_message "macOS Intel detected. No amd64 package available - delegating to v0.1.5 installer."
+        local remote_installer="$TMP_DIR/remote-install.sh"
+        if ! curl -fsSL -o "$remote_installer" "$REMOTE_MAC_AMD64_INSTALL_URL"; then
+            error_message "Failed to download remote installer from $REMOTE_MAC_AMD64_INSTALL_URL"
+            exit 1
+        fi
+        chmod +x "$remote_installer"
+        # Run the remote installer with the same privileges and arguments
+        bash "$remote_installer" "$@"
+        exit $?
+    fi
     
     # Proceed with installation
     case "$OS" in
