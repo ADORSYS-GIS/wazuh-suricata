@@ -127,6 +127,23 @@ sed_inplace() {
     fi
 }
 
+# Detect system architecture
+detect_architecture() {
+    local arch
+    arch=$(uname -m)
+    case "$arch" in
+        x86_64)
+            echo "amd64"
+            ;;
+        arm64|aarch64)
+            echo "arm64"
+            ;;
+        *)
+            echo "unknown"
+            ;;
+    esac
+}
+
 # Detect Suricata installations - check for both legacy and modern
 detect_suricata_installation() {
     local has_legacy=0
@@ -494,6 +511,26 @@ main() {
     
     if [ "$OS" = "linux" ]; then
         info_message "Detected Linux distribution: ${DISTRO}"
+    fi
+    
+    # Cleanup any legacy leftover directories from old installers (before delegation)
+    if [ "$OS" = "darwin" ] && [ -d "${HOME}/suricata-install" ]; then
+        info_message "Removing leftover directory from legacy installer: ${HOME}/suricata-install"
+        rm -rf "${HOME}/suricata-install"
+    fi
+    
+    # Special case: macOS Intel (amd64) - delegate to v0.1.5 uninstaller
+    if [ "$OS" = "darwin" ] && [ "$(detect_architecture)" = "amd64" ]; then
+        info_message "macOS Intel detected. Delegating to v0.1.5 uninstaller."
+        local remote_uninstaller="$TMP_DIR/legacy-uninstall.sh"
+        if ! curl -fsSL -o "$remote_uninstaller" "$LEGACY_UNINSTALL_URL"; then
+            error_message "Failed to download legacy uninstaller from $LEGACY_UNINSTALL_URL"
+            exit 1
+        fi
+        chmod +x "$remote_uninstaller"
+        # Run the legacy uninstaller
+        bash "$remote_uninstaller" "$@"
+        exit $?
     fi
     
     # Detect existing Suricata installations
