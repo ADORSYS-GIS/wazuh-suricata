@@ -370,9 +370,9 @@ install_dependencies() {
         print_step 1 "Installing dependencies on macOS"
         if command_exists brew; then
             if [ "$(id -u)" -eq 0 ] && [ -n "$LOGGED_IN_USER" ] && [ "$LOGGED_IN_USER" != "loginwindow" ]; then
-                sudo -u "$LOGGED_IN_USER" brew install jq libpcap lz4 pcre2 jansson libyaml libmagic 2>/dev/null || warn_message "Could not install dependencies via Homebrew"
+                sudo -u "$LOGGED_IN_USER" brew install -i jq libpcap lz4 pcre2 jansson libyaml libmagic 2>/dev/null || warn_message "Could not install dependencies via Homebrew"
             elif [ "$(id -u)" -ne 0 ]; then
-                brew install jq libpcap lz4 pcre2 jansson libyaml libmagic 2>/dev/null || warn_message "Could not install dependencies via Homebrew"
+                brew install -i jq libpcap lz4 pcre2 jansson libyaml libmagic 2>/dev/null || warn_message "Could not install dependencies via Homebrew"
             else
                 warn_message "Cannot install dependencies (jq, libpcap, lz4, libmagic, etc.) via Homebrew as root without a logged in user"
             fi
@@ -1258,9 +1258,11 @@ main() {
 
     pre_installation_check
     
-    # If existing installation was verified, exit early as per idempotency requirements
+    # If existing installation was verified, still download rules but skip binary installation
     if [ "${SKIP_INSTALL:-0}" -eq 1 ]; then
-        success_message "Suricata $SURICATA_VERSION is already installed and verified. Exiting."
+        info_message "Suricata $SURICATA_VERSION is already installed. Refreshing rules..."
+        download_rules
+        success_message "Suricata $SURICATA_VERSION is already installed and rules updated. Exiting."
         exit 0
     fi
 
