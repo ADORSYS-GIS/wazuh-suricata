@@ -1,13 +1,11 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# Set shell options
-if [ -n "$BASH_VERSION" ]; then
-    set -euo pipefail
-else
-    set -eu
-fi
+#=============================================================================
+# Enhanced Suricata Installation Script with Pre-Installation Detection
+# Detects existing Suricata installations and performs automatic cleanup
+#=============================================================================
 
-# Text Formatting
+# Define text formatting
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -15,239 +13,201 @@ BLUE='\033[1;34m'
 BOLD='\033[1m'
 NORMAL='\033[0m'
 
-# Logging Utilities
-log() { echo -e "$(date +"%Y-%m-%d %H:%M:%S") $1 $2"; }
-info_message() { log "${BLUE}${BOLD}[INFO]${NORMAL}" "$*"; }
-warn_message() { log "${YELLOW}${BOLD}[WARNING]${NORMAL}" "$*"; }
-error_message() { log "${RED}${BOLD}[ERROR]${NORMAL}" "$*"; }
-success_message() { log "${GREEN}${BOLD}[SUCCESS]${NORMAL}" "$*"; }
-print_step_header() { echo -e "${BLUE}${BOLD}[STEP]${NORMAL}" "$1: $2"; }
-
-# Error Handler
-error_exit() {
-    error_message "$1"
-    exit 1
+# Function for logging with timestamp
+log() {
+    local LEVEL="$1"
+    shift
+    local MESSAGE="$*"
+    local TIMESTAMP
+    TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
+    echo -e "${TIMESTAMP} ${LEVEL} ${MESSAGE}"
 }
 
-LOGGED_IN_USER=""
-SURICATA_VERSION=${SURICATA_VERSION:-"7.0"}
-SURICATA_GITHUB_TAG="v8.0.0-adorsys.2-rc.2"
-DOWNLOADS_DIR="${HOME}/suricata-install"
-CONFIG_FILE=""
-INTERFACE=""
-LAUNCH_AGENT_FILE="/Library/LaunchDaemons/com.suricata.suricata.plist"
+# Logging helpers
+info_message() {
+    log "${BLUE}${BOLD}[INFO]${NORMAL}" "$*"
+}
+warn_message() {
+    log "${YELLOW}${BOLD}[WARNING]${NORMAL}" "$*"
+}
+error_message() {
+    log "${RED}${BOLD}[ERROR]${NORMAL}" "$*"
+}
+success_message() {
+    log "${GREEN}${BOLD}[SUCCESS]${NORMAL}" "$*"
+}
+print_step() {
+    log "${BLUE}${BOLD}[STEP]${NORMAL}" "$1: $2"
+}
 
-if [ "$(uname -s)" = "Darwin" ]; then
-    LOGGED_IN_USER=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /loginwindow/ {print $3}')
+# Check if we're running in bash; if not, adjust behavior
+if [ -n "$BASH_VERSION" ]; then
+    set -euo pipefail
+else
+    set -eu
 fi
 
-# Command Existence Check
-command_exists() { command -v "$1" >/dev/null 2>&1; }
+# Configuration
+# Default Configuration
+SURICATA_VERSION="8.0.2"
+MODE="ids"
+INTERFACE=""
 
-# Execute with Root Privileges
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --mode)
+            MODE="$2"
+            shift 2
+            ;;
+        --version)
+            SURICATA_VERSION="$2"
+            shift 2
+            ;;
+        *)
+            # Backward compatibility: if first argument is not a flag, treat as version
+            if [[ "$1" != -* ]] && [[ -z "$INTERFACE" ]]; then
+                 SURICATA_VERSION="$1"
+                 shift
+            else
+                 error_message "Unknown argument: $1"
+                 exit 1
+            fi
+            ;;
+    esac
+done
+
+# GitHub Release configuration for packages
+GITHUB_RELEASE_BASE_URL="https://github.com/ADORSYS-GIS/wazuh-plugins/releases/download"
+RELEASE_TAG="suricata-v0.5.2"
+
+# Remote script URLs
+UNINSTALL_MODERN_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/suricata-modular-scripts/scripts/uninstall.sh"
+REMOTE_MAC_AMD64_INSTALL_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/v0.1.5/scripts/install.sh"
+FALLBACK_CONFIG_URL="https://raw.githubusercontent.com/OISF/suricata/suricata-8.0.2/suricata.yaml.in"
+TMP_DIR=$(mktemp -d)
+LOGGED_IN_USER=""
+
+# OS and Distribution Detection
+case "$(uname)" in
+Linux)
+    OS="linux"
+    CONFIG_DIR="/opt/wazuh/suricata/etc/suricata"
+    CONFIG_FILE="$CONFIG_DIR/suricata.yaml"
+    RULES_DIR="/opt/wazuh/suricata/var/lib/suricata/rules"
+    LOG_DIR="/opt/wazuh/suricata/var/log/suricata"
+    OSSEC_CONF_PATH="/var/ossec/etc/ossec.conf"
+    WAZUH_CONTROL_BIN_PATH="/var/ossec/bin/wazuh-control"
+    ;;
+Darwin)
+    OS="darwin"
+    CONFIG_DIR="/opt/wazuh/suricata/etc/suricata"
+    CONFIG_FILE="$CONFIG_DIR/suricata.yaml"
+    RULES_DIR="/opt/wazuh/suricata/var/lib/suricata/rules"
+    LOG_DIR="/opt/wazuh/suricata/var/log/suricata"
+    OSSEC_CONF_PATH="/Library/Ossec/etc/ossec.conf"
+    WAZUH_CONTROL_BIN_PATH="/Library/Ossec/bin/wazuh-control"
+    LOGGED_IN_USER=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /loginwindow/ {print $3}')
+    ;;
+*)
+    error_message "Unsupported operating system: $(uname)"
+    exit 1
+    ;;
+esac
+
+# Detect Linux Distribution (only on Linux)
+if [ "$OS" = "linux" ]; then
+    detect_distro() {
+        if [ -f /etc/os-release ]; then
+            . /etc/os-release
+            echo "$ID"
+        elif [ -f /etc/redhat-release ]; then
+            echo "redhat"
+        elif [ -f /etc/debian_version ]; then
+            echo "debian"
+        else
+            error_message "Unable to detect Linux distribution"
+            exit 1
+        fi
+    }
+    DISTRO=$(detect_distro)
+fi
+
+# Cleanup function
+cleanup() {
+    info_message "Cleaning up temporary files..."
+    rm -rf "$TMP_DIR"
+}
+trap cleanup EXIT
+
+# Check if a command exists
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+# Detect system architecture (unified for Linux and macOS)
+detect_architecture() {
+    local arch
+    arch=$(uname -m)
+    case "$arch" in
+        x86_64|amd64)
+            echo "amd64"
+            ;;
+        aarch64|arm64)
+            echo "arm64"
+            ;;
+        *)
+            error_message "Unsupported architecture: $arch"
+            exit 1
+            ;;
+    esac
+}
+
+# Check if sudo is available or if the script is run as root
 maybe_sudo() {
     if [ "$(id -u)" -ne 0 ]; then
-        command_exists sudo && sudo "$@" || error_exit "This script requires root privileges. Run as root or use sudo."
+        if command_exists sudo; then
+            sudo "$@"
+        else
+            error_message "This script requires root privileges. Please run with sudo or as root."
+            exit 1
+        fi
     else
         "$@"
     fi
 }
 
-sed_alternative() {
-    if command_exists gsed; then
-        maybe_sudo gsed "$@"
+# Cross-platform sed function
+sed_inplace() {
+    if [ "$OS" = "darwin" ]; then
+        maybe_sudo sed -i '' "$@" 2>/dev/null || true
     else
-        maybe_sudo sed "$@"
+        maybe_sudo sed -i "$@" 2>/dev/null || true
     fi
 }
 
-brew_as_user() {
-    # Run brew as the logged in user for Homebrew operations
-    sudo -u "$LOGGED_IN_USER" -i brew "$@"
-}
-
-# Ensure /usr/local/bin exists and is in PATH for macOS
-setup_usr_local_bin_macos() {
-    if [ ! -d "/usr/local/bin" ]; then
-        info_message "Creating /usr/local/bin directory..."
-        maybe_sudo mkdir -p /usr/local/bin
-        maybe_sudo chown root:admin /usr/local/bin
-        maybe_sudo chmod 755 /usr/local/bin
-    fi
+# Create a file with content (helper)
+create_file() {
+    local filepath="$1"
+    local content="$2"
     
-    # Check if /usr/local/bin is in PATH
-    if ! echo "$PATH" | grep -q "/usr/local/bin"; then
-        info_message "Adding /usr/local/bin to PATH..."
-        # Add to current session
-        export PATH="/usr/local/bin:$PATH"
-        
-        # Add to system-wide path file (preferred method for macOS)
-        if [ ! -f "/etc/paths.d/100-usr-local-bin" ]; then
-            echo "/usr/local/bin" | maybe_sudo tee /etc/paths.d/100-usr-local-bin > /dev/null
-            info_message "Added /usr/local/bin to system PATH via /etc/paths.d/"
-        fi
-        
-        success_message "/usr/local/bin setup completed"
-    else
-        info_message "/usr/local/bin already exists and is in PATH"
-    fi
-}
-
-mkdir -p "$DOWNLOADS_DIR"
-
-show_help() {
-    cat <<EOF
-Usage: $0 [OPTIONS]
-
-Options:
-  --help                Show this help message and exit
-  --mode [ids|ips]      Configure Suricata in IDS (default) or IPS mode (Linux only)
-
-Examples:
-  $0 --mode ids
-  $0 --mode ips
+    maybe_sudo bash -c "cat > '$filepath'" <<EOF
+$content
 EOF
 }
 
-MODE="ids"
-while [[ $# -gt 0 ]]; do
-    case "$1" in
-        --help) show_help; exit 0 ;;
-        --mode)
-            if [[ "${2:-}" =~ ^(ids|ips)$ ]]; then MODE="$2"; shift
-            else error_exit "Invalid mode: ${2:-}. Use 'ids' or 'ips'."; fi
-            ;;
-        *) error_exit "Unknown option: $1" ;;
-    esac
-    shift
-done
-
-# OS and Architecture Detection
-case "$(uname)" in
-Linux)
-    OS="linux"
-    CONFIG_DIR="/etc/suricata"
-    CONFIG_FILE="$CONFIG_DIR/suricata.yaml"
-    RULES_DIR="/var/lib/suricata/rules"
-    INTERFACE="wlp0s20f3"
-    ;;
-Darwin)
-    OS="darwin"
-    BIN_FOLDER="/opt/suricata"
-    CONFIG_DIR="/etc/suricata"
-    CONFIG_FILE="/etc/suricata/suricata.yaml"
-    RULES_DIR="/var/lib/suricata/rules"
-    INTERFACE="en0"
-    ;;
-*) error_exit "Unsupported operating system: $(uname)";;
-esac
-RULES_FILE="$RULES_DIR/suricata.rules"
-
-ARCH=$(uname -m)
-case "$ARCH" in
-  x86_64) ARCH="amd64" ;;
-  arm64|aarch64) ARCH="arm64" ;;
-  *) error_exit "Unsupported architecture: $(uname -m)" ;;
-esac
-
-# Validate mode
-if [[ "$MODE" == "ips" && "$OS" != "linux" ]]; then
-    error_exit "IPS mode is only supported on Linux systems."
-fi
-
-YQ_BINARY=${YQ_BINARY:-"yq_${OS}_${ARCH}"}
-
-# Detect Linux Distribution
-if [ "$OS" = "linux" ]; then
-    detect_distro() {
-        if [ -f /etc/os-release ]; then . /etc/os-release; echo "$ID"
-        elif [ -f /etc/redhat-release ]; then echo "redhat"
-        elif [ -f /etc/debian_version ]; then echo "debian"
-        else error_exit "Unable to detect Linux distribution"; fi
-    }
-    DISTRO=$(detect_distro)
-    case "$DISTRO" in
-      ubuntu|debian)
-          PACKAGE_MANAGER="apt"; INSTALL_CMD="install -y"
-          ;;
-      centos|fedora|rhel|rocky|almalinux|ol|oraclelinux)
-          # Check if dnf is available (newer RHEL/CentOS/Rocky/Alma/OL versions)
-          if command_exists dnf; then
-              PACKAGE_MANAGER="dnf"
-          else
-              PACKAGE_MANAGER="yum"
-          fi
-          INSTALL_CMD="install -y"
-          ;;
-      *) error_exit "Unsupported Linux distribution: $DISTRO" ;;
-    esac
-
-    # Helper: derive EL major version for RHEL-like platforms
-    detect_el_major() {
-        local el_major=""
-        if command_exists rpm; then
-            # rpm -E %rhel works on EL family; may return empty/0 elsewhere
-            el_major=$(rpm -E %rhel 2>/dev/null || true)
-        fi
-        if [[ -n "$el_major" && "$el_major" =~ ^[0-9]+$ && "$el_major" -gt 0 ]]; then
-            echo "$el_major"; return 0
-        fi
-        # Fallback: parse common release files
-        for f in /etc/rocky-release /etc/almalinux-release /etc/centos-release /etc/redhat-release /etc/oracle-release; do
-            if [ -f "$f" ]; then
-                el_major=$(grep -oE '([0-9]+)\.' "$f" | head -n1 | tr -d '.')
-                if [[ -n "$el_major" ]]; then echo "$el_major"; return 0; fi
-            fi
-        done
-        # Fallback to /etc/os-release VERSION_ID
-        if [ -f /etc/os-release ]; then
-            . /etc/os-release
-            if [[ -n "${VERSION_ID:-}" ]]; then
-                echo "${VERSION_ID%%.*}"
-                return 0
-            fi
-        fi
-        echo ""
-    }
-
-    # Enforce Suricata 7.x support only on EL9+ for RHEL-like systems
-    case "$DISTRO" in
-      centos|rhel|rocky|almalinux|ol|oraclelinux)
-          EL_MAJOR=$(detect_el_major)
-          if [[ -z "${EL_MAJOR}" ]]; then
-              error_exit "Unable to determine Enterprise Linux major version. Aborting."
-          fi
-          if [[ "$EL_MAJOR" -lt 9 ]]; then
-              error_exit "Suricata 7.x is only supported on EL9 (RHEL 9, Rocky 9, Alma 9, OL9, CentOS Stream 9). Detected EL${EL_MAJOR}. Please upgrade to EL9."
-          fi
-          ;;
-    esac
-    if ! command_exists systemctl; then error_exit "This script requires systemd to manage services."; fi
-fi
-
-# General Utility Functions
-create_file() {
-    local filepath="$1"; local content="$2"
-    maybe_sudo bash -c "cat > \"$filepath\" <<'EOF'
-$content
-EOF"
-    info_message "Created file: $filepath"
-}
-
-remove_file() {
-    local filepath="$1"
-    if [ -f "$filepath" ]; then
-        info_message "Removing file: $filepath"
-        maybe_sudo rm -f "$filepath"
-    fi
-}
-
-# macOS Launchd Plist File
+# Create macOS Launchd plist
 create_launchd_plist_file() {
-    local filepath="$1"; local suricata_bin="$2"
+    local filepath="$1"
+    local suricata_bin="$2"
+    
+    # Ensure binary path is absolute
+    if [[ "$suricata_bin" != /* ]]; then
+        suricata_bin="/usr/local/bin/$suricata_bin"
+    fi
+
     info_message "Creating plist file for Suricata..."
-    create_file "$filepath" "
-<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+    create_file "$filepath" "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
 <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
 <plist version=\"1.0\">
 <dict>
@@ -266,14 +226,483 @@ create_launchd_plist_file() {
     <key>KeepAlive</key>
     <true/>
 </dict>
-</plist>
-"
+</plist>"
+
     info_message "Unloading previous plist file (if any)..."
     maybe_sudo launchctl unload "$filepath" 2>/dev/null || true
 
     info_message "Loading new daemon plist file..."
     maybe_sudo launchctl load -w "$filepath" 2>/dev/null || warn_message "Loading plist failed: $filepath"
     info_message "macOS Launchd plist file created and loaded: $filepath"
+}
+
+#=============================================================================
+# PRE-INSTALLATION CHECKS
+#=============================================================================
+
+# Check if Suricata is already installed with the correct version
+check_installed_version() {
+    local installed_bin="/opt/wazuh/suricata/bin/suricata"
+    
+    if [ ! -x "$installed_bin" ]; then
+        return 1
+    fi
+    
+    info_message "Checking installed Suricata version..."
+    
+    # Get installed version
+    local output
+    output=$("$installed_bin" -V 2>&1 | head -n1)
+    
+    if [[ "$output" != *"$SURICATA_VERSION"* ]]; then
+        info_message "Installed version ($output) does not match target version ($SURICATA_VERSION)"
+        return 1
+    else
+        success_message "Suricata $SURICATA_VERSION is already installed ($output)"
+        return 0
+    fi
+}
+
+# Download and execute uninstall script
+run_uninstall_script() {
+    local uninstall_args="${1:-}"
+    local download_path="$TMP_DIR/uninstall.sh"
+    local local_script_path
+    
+    # Check if we can find the uninstall script locally (relative to install.sh)
+    # This is useful for development or manual runs from the repo
+    local_script_path="$(dirname "$(readlink -f "$0")")/uninstall.sh"
+    
+    if [ -f "$local_script_path" ]; then
+        info_message "Using local uninstall script: $local_script_path"
+        cp "$local_script_path" "$download_path"
+    else
+        info_message "Downloading uninstall script..."
+        if ! curl -fsSL -o "$download_path" "$UNINSTALL_MODERN_URL" 2>/dev/null; then
+            error_message "Failed to download uninstall script from $UNINSTALL_MODERN_URL"
+            return 1
+        fi
+    fi
+    
+    chmod +x "$download_path"
+    
+    info_message "Running uninstall script with args: ${uninstall_args:-(none)}..."
+    if bash "$download_path" $uninstall_args; then
+        success_message "Uninstallation/Cleanup completed successfully"
+        return 0
+    else
+        error_message "Uninstall script failed"
+        return 1
+    fi
+}
+
+# Pre-installation check and automatic cleanup
+pre_installation_check() {
+    info_message "Performing pre-installation checks..."
+    
+    # Check if we should skip installation
+    # Check if we should skip installation
+    if check_installed_version; then
+        # If installed correctly, verify and skip
+        info_message "Target version matches. Verified existing installation."
+        
+        # Set a flag to skip package installation and dependency setup
+        export SKIP_INSTALL=1
+        
+        echo ""
+        success_message "Existing modern installation verified."
+        echo ""
+    else
+        # If not installed or wrong version, run full cleanup
+        info_message "Target version not found. Running full cleanup..."
+        if ! run_uninstall_script; then
+            error_message "Failed to run uninstall script"
+            exit 1
+        fi
+        
+        export SKIP_INSTALL=0
+        
+        echo ""
+        success_message "System cleaned and ready for fresh Suricata installation"
+        echo ""
+    fi
+    
+    # Brief pause to let user see the messages
+    sleep 2
+}
+
+#=============================================================================
+# INSTALLATION FUNCTIONS
+#=============================================================================
+
+# Install dependencies based on distro
+install_dependencies() {
+    info_message "Installing dependencies..."
+    
+    if [ "$OS" = "linux" ]; then
+        case "$DISTRO" in
+            centos|rhel|redhat|rocky|almalinux|fedora)
+                print_step 1 "Installing dependencies on RPM-based system"
+                local pkg_manager=""
+                if command_exists dnf; then
+                    pkg_manager="dnf"
+                elif command_exists yum; then
+                    pkg_manager="yum"
+                else
+                    warn_message "Neither dnf nor yum found, skipping dependency installation"
+                    return 0
+                fi
+                
+                maybe_sudo "$pkg_manager" install -y curl wget jq 2>/dev/null || \
+                warn_message "Could not install some dependencies"
+                ;;
+            ubuntu|debian)
+                print_step 1 "Installing dependencies on DEB-based system"
+                maybe_sudo apt-get update -qq
+                maybe_sudo apt-get install -y curl wget jq
+                ;;
+            *)
+                error_message "Unsupported Linux distribution: $DISTRO"
+                exit 1
+                ;;
+        esac
+    elif [ "$OS" = "darwin" ]; then
+        print_step 1 "Installing dependencies on macOS"
+        if command_exists brew; then
+            if [ "$(id -u)" -eq 0 ] && [ -n "$LOGGED_IN_USER" ] && [ "$LOGGED_IN_USER" != "loginwindow" ]; then
+                sudo -u "$LOGGED_IN_USER" brew install -i jq libpcap lz4 pcre2 jansson libyaml libmagic 2>/dev/null || warn_message "Could not install dependencies via Homebrew"
+            elif [ "$(id -u)" -ne 0 ]; then
+                brew install -i jq libpcap lz4 pcre2 jansson libyaml libmagic 2>/dev/null || warn_message "Could not install dependencies via Homebrew"
+            else
+                warn_message "Cannot install dependencies (jq, libpcap, lz4, libmagic, etc.) via Homebrew as root without a logged in user"
+            fi
+            
+        else
+            warn_message "Homebrew not found. Please install jq manually."
+        fi
+        
+        # Fix for libpcap linkage on Apple Silicon where binary expects specific path
+        if [ "$(uname -m)" = "arm64" ]; then
+            local expected_lib="/opt/homebrew/opt/libpcap/lib/libpcap.A.dylib"
+            if [ ! -f "$expected_lib" ]; then
+                 local actual_lib=""
+                 
+                 # Try to find libpcap in common locations
+                 if command_exists brew; then
+                     actual_lib=$(brew --prefix libpcap 2>/dev/null)/lib/libpcap.dylib
+                 fi
+                 
+                 if [ -z "$actual_lib" ] || [ ! -f "$actual_lib" ]; then
+                     if [ -f "/opt/homebrew/lib/libpcap.dylib" ]; then
+                         actual_lib="/opt/homebrew/lib/libpcap.dylib"
+                     elif [ -f "/opt/homebrew/opt/libpcap/lib/libpcap.dylib" ]; then
+                         actual_lib="/opt/homebrew/opt/libpcap/lib/libpcap.dylib"
+                     elif [ -f "/usr/local/lib/libpcap.dylib" ]; then
+                         actual_lib="/usr/local/lib/libpcap.dylib"
+                     fi
+                 fi
+
+                 if [ -n "$actual_lib" ] && [ -f "$actual_lib" ]; then
+                     info_message "Fixing libpcap linkage... Linking $actual_lib to $expected_lib"
+                     maybe_sudo mkdir -p "$(dirname "$expected_lib")"
+                     maybe_sudo ln -sf "$actual_lib" "$expected_lib"
+                 else
+                     warn_message "Could not locate libpcap.dylib. Suricata binary might fail to run."
+                     warn_message "If errors persist, please install libpcap: brew install libpcap"
+                 fi
+            fi
+        fi
+    fi
+    
+    success_message "Dependencies installation attempted successfully"
+}
+
+# Download file with error checking
+download_file() {
+    local url="$1"
+    local output="$2"
+    local description="$3"
+    
+    info_message "Downloading $description..."
+    local output_dir
+    output_dir=$(dirname "$output")
+    if ! maybe_sudo mkdir -p "$output_dir"; then
+        error_message "Failed to create directory for $description: $output_dir"
+        return 1
+    fi
+    
+    # Use sudo to download the file to system directories
+    if curl -fsSL "$url" | maybe_sudo tee "$output" > /dev/null; then
+        success_message "$description downloaded successfully"
+        return 0
+    else
+        error_message "Failed to download $description from $url"
+        error_message "Please check your network connection and URL validity"
+        return 1
+    fi
+}
+
+# Download Suricata package based on distro and architecture
+download_suricata_package() {
+    local distro="$1"
+    local arch="$2"
+    local url="" output=""
+    
+    case "$distro" in
+        centos|rhel|redhat|rocky|almalinux|fedora)
+            print_step 1 "Downloading Suricata RPM package for $arch"
+            url="${GITHUB_RELEASE_BASE_URL}/${RELEASE_TAG}/suricata-${SURICATA_VERSION}-linux-${arch}.rpm"
+            output="$TMP_DIR/suricata.rpm"
+            ;;
+        ubuntu|debian)
+            print_step 1 "Downloading Suricata DEB package for $arch"
+            url="${GITHUB_RELEASE_BASE_URL}/${RELEASE_TAG}/suricata-${SURICATA_VERSION}-linux-${arch}.deb"
+            output="$TMP_DIR/suricata.deb"
+            ;;
+        *)
+            error_message "Unsupported Linux distribution: $distro"
+            exit 1
+            ;;
+    esac
+    
+    download_file "$url" "$output" "Suricata package" || exit 1
+}
+
+# Download Suricata DMG for macOS based on architecture
+download_suricata_macos_dmg() {
+    local arch="$1"
+    local url="${GITHUB_RELEASE_BASE_URL}/${RELEASE_TAG}/suricata-${SURICATA_VERSION}-macos-${arch}.dmg"
+    
+    print_step 1 "Downloading Suricata DMG for macOS $arch"
+    download_file "$url" "$TMP_DIR/suricata.dmg" "Suricata DMG" || exit 1
+}
+
+# Install Suricata package based on distro
+install_suricata_package() {
+    local distro="$1"
+    info_message "Installing Suricata package for $distro..."
+    
+    case "$distro" in
+        centos|rhel|redhat|rocky|almalinux|fedora)
+            print_step 1 "Installing Suricata RPM package"
+            if command_exists dnf; then
+                maybe_sudo dnf install -y "$TMP_DIR/suricata.rpm"
+            else
+                maybe_sudo yum install -y "$TMP_DIR/suricata.rpm"
+            fi
+            ;;
+        ubuntu|debian)
+            print_step 1 "Installing Suricata DEB package"
+            maybe_sudo apt-get install -y "$TMP_DIR/suricata.deb"
+            ;;
+        *)
+            error_message "Unsupported Linux distribution: $distro"
+            exit 1
+            ;;
+    esac
+    
+    
+    # Remove systemd service if installed (Wazuh manages Suricata execution)
+    if [ -f "/lib/systemd/system/suricata.service" ] || [ -f "/etc/systemd/system/suricata.service" ]; then
+        info_message "Removing Suricata systemd service (managed by Wazuh)"
+        maybe_sudo systemctl disable suricata.service --now 2>/dev/null || true
+        maybe_sudo rm -f /lib/systemd/system/suricata.service /etc/systemd/system/suricata.service
+        maybe_sudo systemctl daemon-reload 2>/dev/null || true
+    fi
+
+    # Remove any old symlinks that may cause issues
+    maybe_sudo rm -f /usr/local/bin/suricata /usr/bin/suricata 2>/dev/null || true
+
+    
+    
+    print_step 3 "Configuring system library path"
+    # Binaries with Linux capabilities (cap_net_admin, cap_net_raw) ignore LD_LIBRARY_PATH
+    # for security. We must add the library path to the system configuration.
+    if [ "$OS" = "linux" ]; then
+        info_message "Adding Suricata libraries to system library path"
+        echo "/opt/wazuh/suricata/lib" | maybe_sudo tee /etc/ld.so.conf.d/suricata.conf > /dev/null
+        maybe_sudo ldconfig
+        success_message "Library path configured successfully"
+    fi
+    
+    print_step 4 "Setting proper permissions"
+    # Set permissions so all users can read and execute
+    maybe_sudo chmod -R o+rx /opt/wazuh/suricata/ 2>/dev/null || warn_message "Could not set permissions on /opt/wazuh/suricata"
+    info_message "Permissions updated for all users"
+    
+    success_message "Suricata package installed successfully"
+
+}
+
+# Try to locate the Suricata binary under the managed prefix
+find_suricata_binary() {
+    local base="/opt/wazuh/suricata"
+    # Search several common locations and a deeper scan as fallback
+    local candidates=(
+        "$base/bin/suricata"
+        "$base/sbin/suricata"
+        "$base/libexec/suricata/suricata"
+        "$base/suricata"
+    )
+    for candidate in "${candidates[@]}"; do
+        if [ -f "$candidate" ] && [ -x "$candidate" ]; then
+            echo "$candidate"; return 0
+        fi
+    done
+    # Deep search up to depth 6 for any file named 'suricata' or starting with 'suricata'
+    local found
+    found=$(find "$base" -maxdepth 6 -type f \( -name 'suricata' -o -name 'suricata*' \) 2>/dev/null | sort | head -n1)
+    if [ -n "$found" ] && [ -x "$found" ]; then
+        echo "$found"; return 0
+    fi
+    return 1
+}
+
+ensure_symlinks() {
+    # Ensure suricata and suricata-update are available on PATH
+    info_message "Ensuring Suricata symlinks exist"
+    maybe_sudo mkdir -p /usr/local/bin
+
+    local bin_path
+    if bin_path=$(find_suricata_binary); then
+        # Ensure it's executable
+        maybe_sudo chmod +x "$bin_path" 2>/dev/null || true
+        
+        # Verify the binary is executable
+        if [ -x "$bin_path" ]; then
+            info_message "Binary is executable: $bin_path"
+        else
+            warn_message "Binary exists but is not executable: $bin_path"
+        fi
+        
+        # Test execution
+        if "$bin_path" --version >/dev/null 2>&1; then
+            info_message "Binary execution test: SUCCESS"
+        else
+            warn_message "Binary execution test: FAILED"
+            # Try to capture error details
+            local error_output
+            error_output=$("$bin_path" --version 2>&1 | head -n3 || echo "No error output")
+            warn_message "Error output: $error_output"
+        fi
+        
+        info_message "Suricata binary resolved at: $bin_path"
+    else
+        warn_message "Could not locate Suricata binary under /opt/wazuh/suricata"
+    fi
+}
+
+
+
+# Create symlinks for global access
+create_symlinks() {
+    print_step 2 "Creating symlinks for global access"
+    
+    # Remove old symlinks
+    maybe_sudo rm -f /usr/local/bin/suricata /usr/bin/suricata 2>/dev/null || true
+    
+    local target_binary="/opt/wazuh/suricata/bin/suricata.real"
+    
+    # Check if we should use the wrapper or real binary
+    # Since we configured ld.so.conf, we can use suricata.real directly
+    if [ ! -f "$target_binary" ]; then
+        target_binary="/opt/wazuh/suricata/bin/suricata"
+    fi
+    
+    # Create /usr/local/bin symlink (standard user PATH)
+    if maybe_sudo ln -sf "$target_binary" /usr/local/bin/suricata; then
+        info_message "Created symlink: /usr/local/bin/suricata -> $target_binary"
+    else
+        warn_message "Failed to create /usr/local/bin/suricata symlink"
+    fi
+    
+    # Create /usr/bin symlink (standard system PATH) - useful for sudo/root
+    if [ -d /usr/bin ] && [ ! -f /usr/bin/suricata ]; then
+        if maybe_sudo ln -sf "$target_binary" /usr/bin/suricata; then
+            info_message "Created symlink: /usr/bin/suricata -> $target_binary"
+        fi
+    fi
+    
+    # Verify installation
+    if command -v suricata >/dev/null 2>&1; then
+        success_message "Suricata is now available in your PATH"
+    else
+        warn_message "Suricata symlinks created but not found in PATH"
+    fi
+}
+
+# Set Linux capabilities to allow non-root usage where possible
+set_linux_capabilities() {
+    if [ "$(uname -s)" != "Linux" ]; then
+        return 0
+    fi
+    if ! command -v setcap >/dev/null 2>&1; then
+        return 0
+    fi
+    local bin_path
+    if bin_path=$(find_suricata_binary); then
+        # Some builds use a wrapper that execs suricata.real; set caps on both if present
+        local real_path="${bin_path}.real"
+        maybe_sudo setcap cap_net_admin,cap_net_raw+eip "$bin_path" 2>/dev/null || true
+        if [ -f "$real_path" ]; then
+            maybe_sudo setcap cap_net_admin,cap_net_raw+eip "$real_path" 2>/dev/null || true
+        fi
+    fi
+}
+
+# Install Suricata from DMG on macOS
+install_suricata_macos_dmg() {
+    local arch="$1"
+    info_message "Installing Suricata from DMG on macOS ($arch)..."
+    
+    local mount_point="/Volumes/Suricata_Installer"
+    
+    print_step 1 "Mounting Suricata DMG"
+    if ! maybe_sudo hdiutil attach "$TMP_DIR/suricata.dmg" -mountpoint "$mount_point" -quiet; then
+        error_message "Failed to mount Suricata DMG"
+        exit 1
+    fi
+    
+    print_step 2 "Installing Suricata binary"
+    maybe_sudo mkdir -p "/opt/wazuh/suricata/bin/"
+    
+    local suricata_binary=""
+    if [ -f "$mount_point/suricata" ]; then
+        suricata_binary="$mount_point/suricata"
+    else
+        suricata_binary=$(find "$mount_point" -name "suricata" -type f -perm +111 2>/dev/null | head -n 1)
+    fi
+    
+    if [ -z "$suricata_binary" ] || [ ! -f "$suricata_binary" ]; then
+        maybe_sudo hdiutil detach "$mount_point" -quiet
+        error_message "Could not find Suricata binary in DMG"
+        exit 1
+    fi
+    
+    maybe_sudo cp "$suricata_binary" "/opt/wazuh/suricata/bin/"
+    
+    # Copy configuration file if present
+    if [ -f "$mount_point/suricata.yaml" ]; then
+        maybe_sudo mkdir -p "/opt/wazuh/suricata/etc/suricata/"
+        maybe_sudo cp "$mount_point/suricata.yaml" "/opt/wazuh/suricata/etc/suricata/"
+    fi
+    
+    maybe_sudo hdiutil detach "$mount_point" -quiet
+    
+    print_step 3 "Setting permissions"
+    # Set executable permissions for all users to ensure it can be run without sudo
+    maybe_sudo chmod 755 "/opt/wazuh/suricata/bin/suricata"
+    maybe_sudo chown root:wheel "/opt/wazuh/suricata/bin/suricata" 2>/dev/null || \
+    maybe_sudo chown root:staff "/opt/wazuh/suricata/bin/suricata" 2>/dev/null || \
+    maybe_sudo chown root:root "/opt/wazuh/suricata/bin/suricata"
+    
+    # Ensure /usr/local/bin exists and create symlink
+    maybe_sudo mkdir -p /usr/local/bin
+    maybe_sudo ln -sf "/opt/wazuh/suricata/bin/suricata" /usr/local/bin/suricata
+    # Also ensure the symlink has proper permissions
+    maybe_sudo chmod 755 /usr/local/bin/suricata
+    
+    success_message "Suricata installed successfully from DMG on macOS"
 }
 
 # Detect Wi-Fi Interface
@@ -287,6 +716,7 @@ detect_wifi_interface() {
             done | head -n1) || INTERFACE=""
         else
             warn_message "networksetup command not found on macOS - setting default interface to en0"
+            INTERFACE="en0"
         fi
     elif [ "$OS" = "linux" ]; then
         if command_exists ip; then
@@ -299,47 +729,44 @@ detect_wifi_interface() {
     else
         INTERFACE=""
     fi
+    
     if [ -z "$INTERFACE" ]; then 
         if [ "$OS" = "darwin" ]; then
             INTERFACE="en0"
         else
             INTERFACE="eth0"
         fi
-        warn_message "No Wi-Fi interface detected. Defaulting to: $INTERFACE"
+        warn_message "No active interface detected. Defaulting to: $INTERFACE"
     fi
     info_message "Detected interface: $INTERFACE"
 }
 
 # Download and Extract Rules
 download_rules() {
-    # Determine the appropriate rules version based on platform and Suricata version
-    local rules_version
-    if [ "$OS" = "darwin" ]; then
-        # macOS uses v8.x binaries, so use 8.0.1 rules
-        rules_version="8.0.1"
-    else
-        # Linux uses version from SURICATA_VERSION variable (defaults to 7.0)
-        rules_version="$SURICATA_VERSION"
-    fi
-    
+    local rules_version="$SURICATA_VERSION"
     local rules_url="https://rules.emergingthreats.net/open/suricata-${rules_version}/emerging-all.rules.tar.gz"
     local temp_dir="/tmp/suricata-rules-$$"
     local rules_archive="$temp_dir/emerging-all.rules.tar.gz"
 
     # Create temporary directory for downloading and extracting rules
     info_message "Creating temporary directory: $temp_dir"
-    mkdir -p "$temp_dir" || error_exit "Failed to create temporary directory: $temp_dir"
+    mkdir -p "$temp_dir" || {
+        error_message "Failed to create temporary directory: $temp_dir"
+        exit 1
+    }
 
     # Download the rules tarball
     info_message "Downloading Suricata ${rules_version} rules from: $rules_url"
     if command_exists curl; then
         curl -L --fail --progress-bar -o "$rules_archive" "$rules_url" || {
             rm -rf "$temp_dir"
-            error_exit "Failed to download rules from $rules_url"
+            error_message "Failed to download rules from $rules_url"
+            exit 1
         }
     else
         rm -rf "$temp_dir"
-        error_exit "curl is required to download rules but is not installed"
+        error_message "curl is required to download rules but is not installed"
+        exit 1
     fi
     success_message "Rules downloaded successfully"
 
@@ -353,55 +780,45 @@ download_rules() {
     info_message "Extracting rules archive"
     tar -xzf "$rules_archive" -C "$temp_dir" || {
         rm -rf "$temp_dir"
-        error_exit "Failed to extract rules archive"
+        error_message "Failed to extract rules archive"
+        exit 1
     }
 
     # Ensure the rules directory exists
     info_message "Creating rules directory: $RULES_DIR"
-    maybe_sudo mkdir -p "$RULES_DIR" || error_exit "Failed to create rules directory: $RULES_DIR"
+    maybe_sudo mkdir -p "$RULES_DIR" || {
+        rm -rf "$temp_dir"
+        error_message "Failed to create rules directory: $RULES_DIR"
+        exit 1
+    }
 
     # Initialize suricata.rules
-    info_message "Initializing $RULES_FILE"
-    maybe_sudo touch "$RULES_FILE" || error_exit "Failed to create $RULES_FILE"
-    maybe_sudo chmod 644 "$RULES_FILE" || error_exit "Failed to set permissions on $RULES_FILE"
+    local rules_file="$RULES_DIR/suricata.rules"
+    info_message "Initializing $rules_file"
+    maybe_sudo touch "$rules_file" || {
+        rm -rf "$temp_dir"
+        error_message "Failed to create $rules_file"
+        exit 1
+    }
+    maybe_sudo chmod 644 "$rules_file" || {
+        rm -rf "$temp_dir"
+        error_message "Failed to set permissions on $rules_file"
+        exit 1
+    }
 
     # Combine all .rules files into suricata.rules
-    info_message "Combining .rules files into $RULES_FILE"
+    info_message "Combining .rules files into $rules_file"
     local rules_files
     rules_files=$(find "$temp_dir" -type f -name "*.rules")
     if [ -n "$rules_files" ]; then
-        info_message "Found rules files: $rules_files"
-        maybe_sudo bash -c "cat $rules_files > \"$RULES_FILE\"" || {
+        maybe_sudo bash -c "cat $rules_files > \"$rules_file\"" || {
             rm -rf "$temp_dir"
-            error_exit "Failed to combine rules into $RULES_FILE"
+            error_message "Failed to combine rules into $rules_file"
+            exit 1
         }
-        success_message "Rules combined into $RULES_FILE successfully"
+        success_message "Rules combined into $rules_file successfully"
     else
-        warn_message "No .rules files found in $temp_dir. $RULES_FILE will contain only the custom rule."
-    fi
-
-    # For IPS mode, create drop.conf
-    if [[ "$MODE" == "ips" ]]; then
-        local DROP_CONF_PATH="$CONFIG_DIR/drop.conf"
-        info_message "Creating drop.conf for IPS mode at $DROP_CONF_PATH..."
-        maybe_sudo bash -c "cat > \"$DROP_CONF_PATH\" <<'EOF'
-# Convert specific SID to drop
-#2019401
-# Convert rules matching a pattern
-#re:trojan
-# Convert all rules in a specific group
-group:emerging-attack_response
-EOF"
-        success_message "drop.conf created successfully."
-    fi
-
-    # Add custom drop rule to RULES_FILE if it exists
-    if maybe_sudo test -f "$RULES_FILE"; then
-        info_message "Adding custom drop rule to $RULES_FILE..."
-        maybe_sudo bash -c "echo 'drop tcp any any -> \$HOME_NET any (msg:\"TCP Scan ?\"; flow:from_client;flags:S; sid:992002087;rev:1;)' >> \"$RULES_FILE\""
-        success_message "Custom drop rule added to $RULES_FILE."
-    else
-        warn_message "$RULES_FILE not found. Skipping custom rule addition."
+        warn_message "No .rules files found in $temp_dir"
     fi
 
     # Clean up temporary directory
@@ -411,402 +828,472 @@ EOF"
 }
 
 # Create and Update Suricata Configuration
-update_config() {
+setup_suricata_config() {
+    info_message "Setting up Suricata configuration..."
+    
     detect_wifi_interface
-
-    sed_alternative -i "s|interface: eth0|interface: $INTERFACE|" "$CONFIG_FILE" || error_exit "Failed to set interface in $CONFIG_FILE"
-    sed_alternative -i "s|community-id: false|community-id: true|" "$CONFIG_FILE" || error_exit "Failed to enable community-id in $CONFIG_FILE"
-
-    if ! grep -q "detect-engine:" "$CONFIG_FILE"; then
-        echo -e "\ndetect-engine:\n  - rule-reload: true" | maybe_sudo tee -a "$CONFIG_FILE" >/dev/null || error_exit "Failed to append detect-engine config"
-    fi
-
-    maybe_sudo yq -i '(.outputs[] | select(has("eve-log"))."eve-log".types) = ["alert"]' "$CONFIG_FILE" || error_exit "Failed to update eve-log types with yq"
     
-    # Disable global stats
-    maybe_sudo yq -i '.stats.enabled = "no"' "$CONFIG_FILE" || error_exit "Failed to disable stats in $CONFIG_FILE"
-
-    if [[ "$MODE" == "ips" && "$OS" == "linux" ]]; then
-        local SURICATA_DEFAULT_FILE="/etc/default/suricata"
-        local UFW_DEFAULT_FILE="/etc/default/ufw"
-        [ -f "$SURICATA_DEFAULT_FILE" ] && sed_alternative -i "s|LISTENMODE=af-packet|LISTENMODE=nfqueue|" "$SURICATA_DEFAULT_FILE" || warn_message "$SURICATA_DEFAULT_FILE not found."
-        [ -f "$UFW_DEFAULT_FILE" ] && sed_alternative -i "s|DEFAULT_INPUT_POLICY=\"DROP\"|DEFAULT_INPUT_POLICY=\"ACCEPT\"|" "$UFW_DEFAULT_FILE" || warn_message "$UFW_DEFAULT_FILE not found."
-        local UFW_BEFORE_RULES="/etc/ufw/before.rules"
-        if [[ -f "$UFW_BEFORE_RULES" ]]; then
-            if ! grep -q "^-I INPUT -j NFQUEUE" "$UFW_BEFORE_RULES"; then
-                sed_alternative -i '/# End required lines/a \
--I INPUT -j NFQUEUE\
--I OUTPUT -j NFQUEUE' "$UFW_BEFORE_RULES"
-                info_message "Added NFQUEUE rules to $UFW_BEFORE_RULES."
-            fi
+    # Create config directory if it doesn't exist
+    maybe_sudo mkdir -p "$CONFIG_DIR"
+    maybe_sudo mkdir -p "$LOG_DIR"
+    
+    # If config file doesn't exist, create a basic one or copy from package
+    if ! maybe_sudo test -f "$CONFIG_FILE"; then
+        # Try to find a default config from the installation
+        local default_config=""
+        if [ -f "/opt/wazuh/suricata/etc/suricata/suricata.yaml" ]; then
+            default_config="/opt/wazuh/suricata/etc/suricata/suricata.yaml"
+        elif [ -f "/usr/share/suricata/suricata.yaml" ]; then
+            default_config="/usr/share/suricata/suricata.yaml"
+        elif [ -f "/Volumes/Suricata_Installer/suricata.yaml" ]; then
+             default_config="/Volumes/Suricata_Installer/suricata.yaml"
+        elif [ -f "/Volumes/Suricata_Installer/etc/suricata/suricata.yaml" ]; then
+             default_config="/Volumes/Suricata_Installer/etc/suricata/suricata.yaml"
+        fi
+        
+        if [ -n "$default_config" ]; then
+            info_message "Copying default configuration from $default_config"
+            maybe_sudo cp "$default_config" "$CONFIG_FILE"
         else
-            warn_message "$UFW_BEFORE_RULES not found. Skipping NFQUEUE rules addition."
+            info_message "No default configuration in package, using fallback configuration."
+            info_message "Downloading configuration from fallback URL..."
+            
+            # Download configuration from fallback URL
+            if curl -fsSL "$FALLBACK_CONFIG_URL" | maybe_sudo tee "$CONFIG_FILE" > /dev/null; then
+                success_message "Configuration downloaded successfully from fallback URL"
+                
+                # Replace autoconf placeholders in the downloaded template
+                info_message "Processing fallback configuration template..."
+                
+                # Define paths based on our installation
+                local install_prefix="/opt/wazuh/suricata"
+                local log_dir="$install_prefix/var/log/suricata"
+                local sysconf_dir="$install_prefix/etc/suricata"
+                local run_dir="$install_prefix/var/run/suricata"
+                
+                # Ensure these directories exist
+                maybe_sudo mkdir -p "$log_dir" "$sysconf_dir" "$run_dir"
+                
+                # Replace placeholders
+                sed_inplace "s|@e_logdir@|$log_dir|g" "$CONFIG_FILE"
+                sed_inplace "s|@e_sysconfdir@|$sysconf_dir/|g" "$CONFIG_FILE"
+                sed_inplace "s|@e_rundir@|$run_dir/|g" "$CONFIG_FILE"
+                sed_inplace "s|@e_defaultruledir@|$RULES_DIR|g" "$CONFIG_FILE"
+                sed_inplace "s|@MAJOR_MINOR@|8.0|g" "$CONFIG_FILE"
+                sed_inplace "s|@e_enable_evelog@|yes|g" "$CONFIG_FILE"
+                sed_inplace "s|@prefix@|$install_prefix|g" "$CONFIG_FILE"
+                sed_inplace "s|@PACKAGE_NAME@|suricata|g" "$CONFIG_FILE"
+                
+                # Comment out optional features that might not be present (pfring, etc.)
+                sed_inplace "s|@pfring_comment@|#|g" "$CONFIG_FILE"
+                sed_inplace "s|@napatech_comment@|#|g" "$CONFIG_FILE"
+                sed_inplace "s|@ndpi_comment@|#|g" "$CONFIG_FILE"
+                sed_inplace "s|@e_magic_file_comment@|#|g" "$CONFIG_FILE"
+                sed_inplace "s|@e_magic_file@|/usr/share/file/magic|g" "$CONFIG_FILE"
+                sed_inplace "s|@e_sghcachedir@|$install_prefix/var/lib/suricata|g" "$CONFIG_FILE"
+                
+            else
+                error_message "Failed to download configuration from $FALLBACK_CONFIG_URL"
+                exit 1
+            fi
         fi
     fi
+    
+    # Update configuration if file exists
+    if maybe_sudo test -f "$CONFIG_FILE"; then
+        info_message "Updating Suricata configuration..."
+        
+        # Update interface
+        sed_inplace "s|interface: eth0|interface: $INTERFACE|" "$CONFIG_FILE"
+        sed_inplace "s|interface: en0|interface: $INTERFACE|" "$CONFIG_FILE"
+        
+        # Enable community-id
+        sed_inplace "s|community-id: false|community-id: true|" "$CONFIG_FILE"
 
-    success_message "Configuration updated successfully."
+        # Ensure default-rule-path and rule-files are set to our managed rules location
+        if grep -q "^\s*default-rule-path:" "$CONFIG_FILE"; then
+            sed_inplace "s|^\s*default-rule-path:.*|default-rule-path: $RULES_DIR|" "$CONFIG_FILE"
+        else
+            maybe_sudo bash -c "echo 'default-rule-path: $RULES_DIR' >> '$CONFIG_FILE'"
+        fi
+        if ! grep -q "^\s*rule-files:" "$CONFIG_FILE"; then
+            maybe_sudo bash -c "printf '\nrule-files:\n  - suricata.rules\n' >> '$CONFIG_FILE'"
+        else
+            # Ensure suricata.rules is listed
+            if ! grep -q "^\s*-\s*suricata\.rules\b" "$CONFIG_FILE"; then
+                maybe_sudo bash -c "awk '1; /rule-files:/ && !x{print \"  - suricata.rules\"; x=1}' '$CONFIG_FILE' > '$CONFIG_FILE.tmp' && mv '$CONFIG_FILE.tmp' '$CONFIG_FILE'"
+            fi
+        fi
+        
+        success_message "Suricata configuration updated successfully"
+    fi
 }
 
-remove_brew_suricata() {
-    if command_exists brew; then
-        local suricata_found=false
-        if brew_as_user list suricata >/dev/null 2>&1; then suricata_found=true; info_message "Found Homebrew-installed Suricata package"; fi
-        if brew_as_user list | grep -E "suricata" >/dev/null 2>&1; then suricata_found=true; info_message "Found Suricata installed from Homebrew tap"; fi
-        if [ "$suricata_found" = true ]; then
-            info_message "Removing Homebrew-installed Suricata..."
-            brew_as_user unpin suricata 2>/dev/null || true
-            brew_as_user uninstall --force --ignore-dependencies suricata 2>/dev/null || true
-            local tap_suricatas
-            tap_suricatas=$(brew_as_user list | grep -E ".*suricata.*" || true)
-            if [ -n "$tap_suricatas" ]; then
-                for pkg in $tap_suricatas; do
-                    info_message "Removing tap package: $pkg"
-                    brew_as_user uninstall --force --ignore-dependencies "$pkg" 2>/dev/null || true
-                done
-            fi
-            local brew_prefix
-            brew_prefix=$(brew_as_user --prefix 2>/dev/null || echo "/usr/local")
-            for dir in "$brew_prefix/etc/suricata" "$brew_prefix/var/lib/suricata" "$brew_prefix/var/log/suricata"; do
-                if [ -d "$dir" ]; then
-                    info_message "Removing Homebrew Suricata directory: $dir"
-                    maybe_sudo rm -rf "$dir"
+# Validate installation
+validate_installation() {
+    info_message "Validating Suricata installation..."
+    local validation_failed=0
+    
+    # Force hash table refresh to clear command cache
+    hash -r 2>/dev/null || true
+    
+    # Try multiple methods to find and validate Suricata
+    local suricata_found=0
+    local actual_version=""
+    local bin_path=""
+    
+    # Method 1: Try direct execution from /usr/local/bin (user PATH)
+    if [ -x /usr/local/bin/suricata ]; then
+        actual_version=$(/usr/local/bin/suricata --version 2>/dev/null | head -n1 || echo "")
+        if [ -n "$actual_version" ]; then
+            suricata_found=1
+            bin_path="/usr/local/bin/suricata"
+        fi
+    fi
+    
+    # Method 2: Try /usr/bin symlink (sudo secure_path)
+    if [ $suricata_found -eq 0 ] && [ -x /usr/bin/suricata ]; then
+        actual_version=$(/usr/bin/suricata --version 2>/dev/null | head -n1 || echo "")
+        if [ -n "$actual_version" ]; then
+            suricata_found=1
+            bin_path="/usr/bin/suricata"
+        fi
+    fi
+    
+    # Method 3: Find and execute directly from installation path
+    if [ $suricata_found -eq 0 ]; then
+        if bin_path=$(find_suricata_binary); then
+            # Verify the found binary is executable
+            if [ -x "$bin_path" ]; then
+                actual_version=$("$bin_path" --version 2>/dev/null | head -n1 || echo "")
+                if [ -n "$actual_version" ]; then
+                    suricata_found=1
                 fi
-            done
-            success_message "Homebrew Suricata cleanup complete"
-        else
-            info_message "No Homebrew Suricata installation found"
-        fi
-    fi
-}
-
-install_suricata_launcher() {
-  # Normalize shebang of the packaged script
-  if [ -f /opt/suricata/bin/suricata-update ]; then
-    info_message "Normalizing suricata-update shebang to /usr/bin/env python3"
-    if [[ "$OS" == "darwin" ]]; then
-      maybe_sudo /usr/bin/sed -i '' '1s|^#!.*|#!/usr/bin/env python3|' /opt/suricata/bin/suricata-update
-    else
-      sed_alternative -i '1s|^#!.*|#!/usr/bin/env python3|' /opt/suricata/bin/suricata-update
-    fi
-  else
-    warn_message "/opt/suricata/bin/suricata-update not found; skipping normalization"
-    return
-  fi
-
-  # Build PYTHONPATH list
-  local python_paths; python_paths=""
-  for d in /opt/suricata/lib/suricata/python /opt/suricata/lib/python* /opt/suricata/lib64/python*; do
-    [ -d "$d" ] && python_paths="${python_paths:+$python_paths:}$d"
-  done
-
-  # Write to a temp file first
-  local tmp_launcher="/tmp/suricata-update.$$"
-  maybe_sudo bash -c "cat > '$tmp_launcher' <<'EOF'
-#!/bin/bash
-set -euo pipefail
-export PYTHONPATH="__PYTHON_PATHS__:\${PYTHONPATH:-}"
-exec /usr/bin/env python3 /opt/suricata/bin/suricata-update "\$@"
-EOF"
-  # Inject python_paths (even if empty)
-  if [[ "$OS" == "darwin" ]]; then
-    maybe_sudo /usr/bin/sed -i '' "s|__PYTHON_PATHS__|$python_paths|" "$tmp_launcher"
-  else
-    sed_alternative -i "s|__PYTHON_PATHS__|$python_paths|" "$tmp_launcher"
-  fi
-
-  # Replace any existing symlink/file atomically
-  maybe_sudo rm -f /usr/local/bin/suricata-update
-  maybe_sudo mv -f "$tmp_launcher" /usr/local/bin/suricata-update
-  maybe_sudo chmod +x /usr/local/bin/suricata-update
-
-  success_message "suricata-update launcher installed at /usr/local/bin/suricata-update"
-}
-
-
-download_and_install_suricata_macos() {
-    local tag="$1"
-    local arch="$2"
-
-    info_message "Installing Suricata ${tag} for macOS ${arch}"
-
-    remove_brew_suricata
-
-    local base_url="https://github.com/ADORSYS-GIS/wazuh-suricata-package/releases/download"
-    local version_without_v
-    version_without_v=$(echo "$tag" | sed 's/^v//')
-    local filename="suricata-${version_without_v}-macos-${arch}.tar.gz"
-    local download_url="${base_url}/${tag}/${filename}"
-    local temp_dir="/tmp/suricata-install-$$"
-
-    info_message "Creating temporary directory: $temp_dir"
-    mkdir -p "$temp_dir" || error_exit "Failed to create temporary directory"
-
-    info_message "Downloading Suricata from: $download_url"
-    if command_exists curl; then
-        curl -L --fail --progress-bar -o "${temp_dir}/${filename}" "$download_url" || { rm -rf "$temp_dir"; error_exit "Failed to download Suricata from $download_url"; }
-    else
-        rm -rf "$temp_dir"; error_exit "curl is required but not installed"
-    fi
-
-    success_message "Download completed successfully"
-
-    info_message "Removing macOS quarantine attribute from downloaded file"
-    xattr -d com.apple.quarantine "${temp_dir}/${filename}" 2>/dev/null || warn_message "Quarantine attribute not present"
-
-    info_message "Extracting Suricata archive"
-    tar -xzf "${temp_dir}/${filename}" -C "${temp_dir}" || { rm -rf "$temp_dir"; error_exit "Failed to extract Suricata archive"; }
-
-    local src_dir="${temp_dir}"
-
-    info_message "Copying configuration files to /etc"
-    if [ -d "${src_dir}/etc" ]; then
-        maybe_sudo rsync -av --progress "${src_dir}/etc/" /etc/ || { rm -rf "$temp_dir"; error_exit "Failed to copy configuration files to /etc"; }
-    else
-        warn_message "No etc directory found in archive"
-    fi
-
-    info_message "Copying Suricata files to /opt"
-    if [ -d "${src_dir}/opt" ]; then
-        maybe_sudo rsync -av --progress "${src_dir}/opt/" /opt/ || { rm -rf "$temp_dir"; error_exit "Failed to copy Suricata files to /opt"; }
-    else
-        rm -rf "$temp_dir"; error_exit "Expected opt directory not found in archive"
-    fi
-
-    info_message "Creating runtime directories under /var"
-    maybe_sudo install -d -m 755 \
-        /var/lib/suricata/cache/sgh \
-        /var/lib/suricata/data \
-        /var/log/suricata/certs \
-        /var/log/suricata/files \
-        /var/run/suricata || warn_message "Some runtime directories may not have been created"
-
-    info_message "Removing macOS quarantine attributes from installed files"
-    maybe_sudo xattr -dr com.apple.quarantine /opt/suricata 2>/dev/null || warn_message "Quarantine removal (opt) not needed"
-    maybe_sudo xattr -dr com.apple.quarantine /etc/suricata 2>/dev/null || warn_message "Quarantine removal (etc) not needed"
-
-    info_message "Setting executable permissions on Suricata binaries"
-    maybe_sudo chmod +x /opt/suricata/bin/* || { rm -rf "$temp_dir"; error_exit "Failed to set executable permissions"; }
-
-    info_message "Linking suricata binary to /usr/local/bin"
-    maybe_sudo ln -sf /opt/suricata/bin/suricata /usr/local/bin/suricata || warn_message "Could not create symlink for suricata"
-
-    # --- FIX: normalize shebang and create portable launcher (no recursion, no hardcoded /opt/homebrew) ---
-    install_suricata_launcher
-
-    info_message "Cleaning up temporary files"
-    rm -rf "$temp_dir"
-
-    success_message "Suricata ${tag} installed successfully"
-}
-
-# Configure systemd service file for CentOS/RHEL
-configure_suricata_systemd_service() {
-    local service_file="/usr/lib/systemd/system/suricata.service"
-    
-    info_message "Configuring systemd service file for Suricata..."
-    create_file "$service_file" "# Sample Suricata systemd unit file.
-[Unit]
-Description=Suricata Intrusion Detection Service
-After=syslog.target network-online.target systemd-tmpfiles-setup.service
-Documentation=man:suricata(1)
-
-[Service]
-# Environment file to pick up \$OPTIONS. On Fedora/EL this would be
-# /etc/sysconfig/suricata, or on Debian/Ubuntu, /etc/default/suricata
-EnvironmentFile=-/etc/sysconfig/suricata
-#EnvironmentFile=-/etc/default/suricata
-ExecStartPre=/bin/rm -f /var/run/suricata.pid
-ExecStart=/sbin/suricata -c /etc/suricata/suricata.yaml --pidfile /var/run/suricata.pid -i $INTERFACE
-ExecReload=/bin/kill -USR2 \$MAINPID
-
-### Security Settings ###
-MemoryDenyWriteExecute=true
-LockPersonality=true
-ProtectControlGroups=true
-ProtectKernelModules=true
-
-[Install]
-WantedBy=multi-user.target"
-
-    # Reload systemd daemon to pick up the new service file
-    maybe_sudo systemctl daemon-reload
-    
-    success_message "Suricata systemd service configured with interface: $INTERFACE"
-}
-
-# --- Installers and flow ---
-
-print_step_header 1 "Installing dependencies and Suricata"
-if [ "$OS" = "linux" ]; then
-    if [ "${DISTRO:-}" = "ubuntu" ] || [ "${DISTRO:-}" = "debian" ]; then
-        if grep -q "oisf/suricata-stable" /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null; then
-            info_message "Removing unsupported Suricata repository..."
-            maybe_sudo add-apt-repository --remove "ppa:oisf/suricata-stable" -y
-            maybe_sudo "$PACKAGE_MANAGER" purge -y suricata || warn_message "Failed to remove Suricata package."
-        fi
-        if ! grep -q "oisf/suricata-$SURICATA_VERSION" /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null; then
-            info_message "Updating package lists and adding Suricata repository..."
-            maybe_sudo "$PACKAGE_MANAGER" update
-            maybe_sudo add-apt-repository "ppa:oisf/suricata-$SURICATA_VERSION" -y
-            maybe_sudo "$PACKAGE_MANAGER" update
-        else
-            info_message "Suricata repository already added, updating package lists..."
-        fi
-
-        if command_exists yq; then info_message "yq is already installed."
-        else
-            info_message "Installing yq..."
-            maybe_sudo curl -SL --progress-bar "https://github.com/mikefarah/yq/releases/latest/download/${YQ_BINARY}" -o /usr/bin/yq
-            maybe_sudo chmod +x /usr/bin/yq
-            info_message "yq installed at: /usr/bin/yq"
-        fi
-
-        info_message "Installing Suricata..."
-        maybe_sudo $PACKAGE_MANAGER $INSTALL_CMD suricata
-        # Use exact path for Linux
-        SURICATA_BIN="/usr/bin/suricata"
-        if [ ! -f "$SURICATA_BIN" ]; then
-            # Fallback to searching in PATH if not in expected location
-            SURICATA_BIN=$(command -v suricata || echo "not found")
-            if [ "$SURICATA_BIN" = "not found" ]; then
-                error_exit "Suricata binary not found after installation"
             fi
         fi
-        success_message "Suricata installed at: $SURICATA_BIN"
-
-        # Note: Python and PyYAML installation skipped - not needed without suricata-update
-
-    elif [ "${DISTRO:-}" = "centos" ] || [ "${DISTRO:-}" = "fedora" ] || [ "${DISTRO:-}" = "rhel" ]; then
-        # CentOS/RHEL/Fedora installation using native packages
-        info_message "${DISTRO} detected - installing Suricata using ${PACKAGE_MANAGER}"
-        
-        # Install EPEL repository if not already available (for CentOS/RHEL)
-        if [ "${DISTRO:-}" = "centos" ] || [ "${DISTRO:-}" = "rhel" ]; then
-            info_message "Enabling EPEL repository..."
-            if ! maybe_sudo "$PACKAGE_MANAGER" list installed epel-release >/dev/null 2>&1; then
-                maybe_sudo $PACKAGE_MANAGER $INSTALL_CMD epel-release || warn_message "Failed to install EPEL repository"
-            else
-                info_message "EPEL repository already installed"
-            fi
-        fi
-        
-        # Install required dependencies
-        info_message "Installing required dependencies..."
-        
-        # Install other common dependencies
-        maybe_sudo $PACKAGE_MANAGER $INSTALL_CMD curl wget || warn_message "Failed to install basic tools"
-        
-        # Install yq
-        if command_exists yq; then 
-            info_message "yq is already installed."
-        else
-            info_message "Installing yq..."
-            maybe_sudo curl -SL --progress-bar "https://github.com/mikefarah/yq/releases/latest/download/${YQ_BINARY}" -o /usr/bin/yq
-            maybe_sudo chmod +x /usr/bin/yq
-            info_message "yq installed at: /usr/bin/yq"
-        fi
-        
-        # Install Suricata using OISF COPR repository
-        info_message "Installing COPR plugin for Suricata repository..."
-        maybe_sudo $PACKAGE_MANAGER $INSTALL_CMD yum-plugin-copr || warn_message "Failed to install COPR plugin"
-        
-        info_message "Enabling OISF Suricata ${SURICATA_VERSION} COPR repository..."
-        maybe_sudo $PACKAGE_MANAGER copr enable @oisf/suricata-${SURICATA_VERSION} -y || error_exit "Failed to enable OISF Suricata COPR repository"
-        
-        info_message "Installing Suricata from OISF COPR repository..."
-        maybe_sudo $PACKAGE_MANAGER $INSTALL_CMD suricata || error_exit "Failed to install Suricata from COPR repository"
-        
-        # Set binary path
-        SURICATA_BIN="/usr/bin/suricata"
-        if [ ! -f "$SURICATA_BIN" ]; then
-            # Fallback to searching in PATH if not in expected location
-            SURICATA_BIN=$(command -v suricata || echo "not found")
-            if [ "$SURICATA_BIN" = "not found" ]; then
-                error_exit "Suricata binary not found after installation"
-            fi
-        fi
-        success_message "Suricata installed at: $SURICATA_BIN"
-        
-        # Configure systemd service file after configuration is updated
-        # Note: This will be called after update_config() sets the interface
     fi
-elif [ "$OS" = "darwin" ]; then
-    # Ensure /usr/local/bin exists and is in PATH
-    setup_usr_local_bin_macos
     
-    if command_exists brew; then
-        info_message "Installing required dependencies for Suricata..."
-        deps=("yq" "jansson" "libmagic" "libnet" "libyaml" "lz4" "pcre2")
-        for dep in "${deps[@]}"; do
-            if ! brew_as_user list "$dep" >/dev/null 2>&1; then
-                info_message "Installing $dep..."
-                brew_as_user install "$dep" || warn_message "Failed to install $dep"
-            else
-                info_message "$dep is already installed."
+    # Report results
+    if [ $suricata_found -eq 1 ] && [ -n "$actual_version" ]; then
+        success_message "Suricata version installed: $actual_version"
+        info_message "Suricata binary location: $bin_path"
+    else
+        # Explicit check for binaries at known locations as a last resort
+        # This handles cases where 'find_suricata_binary' might fail or behave unexpectedly
+        local known_bins=(
+            "/usr/local/bin/suricata"
+            "/usr/bin/suricata"
+            "/opt/wazuh/suricata/bin/suricata"
+        )
+        
+        warn_message "Standard validation failed. Attempting strict fallback validation..."
+        
+        for kbin in "${known_bins[@]}"; do
+            if maybe_sudo test -x "$kbin"; then
+                # Attempt version check, capturing output for debug
+                local ver_output
+                ver_output=$("$kbin" --version 2>&1 | head -n1 || echo "ERROR_EXEC")
+                
+                # If checking failed, try with sudo
+                if [ "$ver_output" = "ERROR_EXEC" ] || [ -z "$ver_output" ]; then
+                     ver_output=$(maybe_sudo "$kbin" --version 2>&1 | head -n1 || echo "ERROR_EXEC_SUDO")
+                fi
+
+                if [ -n "$ver_output" ] && [ "$ver_output" != "ERROR_EXEC" ] && [ "$ver_output" != "ERROR_EXEC_SUDO" ]; then
+                    actual_version="$ver_output"
+                    suricata_found=1
+                    bin_path="$kbin"
+                    success_message "Suricata version found (fallback): $actual_version"
+                    info_message "Suricata binary location: $bin_path"
+                    break
+                else
+                     warn_message "Binary found at $kbin but version check failed. Output: $ver_output"
+                fi
             fi
         done
+    fi
+    
+    if [ $suricata_found -eq 0 ]; then
+        error_message "Suricata command is not available. Please check the installation."
+        # Add debugging information
+        warn_message "Debug: Checking for binary at expected locations:"
+        if maybe_sudo test -f /usr/local/bin/suricata; then
+            warn_message "  - /usr/local/bin/suricata exists"
+        else
+            warn_message "  - /usr/local/bin/suricata NOT found"
+        fi
+        if maybe_sudo test -f /usr/bin/suricata; then
+            warn_message "  - /usr/bin/suricata exists"
+        else
+            warn_message "  - /usr/bin/suricata NOT found"
+        fi
+        if maybe_sudo test -f /opt/wazuh/suricata/bin/suricata; then
+            warn_message "  - /opt/wazuh/suricata/bin/suricata exists"
+        else
+            warn_message "  - /opt/wazuh/suricata/bin/suricata NOT found"
+        fi
+        validation_failed=1
+    fi
+    
+    if ! maybe_sudo test -f "$RULES_DIR/suricata.rules"; then
+        warn_message "Suricata rules file not present at $RULES_DIR/suricata.rules"
+        validation_failed=1
     else
-        if ! command_exists yq; then
-            info_message "Installing yq manually..."
-            maybe_sudo curl -SL --progress-bar "https://github.com/mikefarah/yq/releases/latest/download/${YQ_BINARY}" -o /usr/local/bin/yq
-            maybe_sudo chmod +x /usr/local/bin/yq
-        fi
-        warn_message "Critical dependencies (jansson, libmagic, libnet, libyaml, lz4, pcre2) cannot be installed without Homebrew."
-        warn_message "Suricata may not function properly. Please install Homebrew and re-run this script."
-    fi
-
-    download_and_install_suricata_macos "$SURICATA_GITHUB_TAG" "$ARCH"
-    # Use exact path for macOS prebuilt binary
-    SURICATA_BIN="/usr/local/bin/suricata"
-    if [ ! -L "$SURICATA_BIN" ] && [ ! -f "$SURICATA_BIN" ]; then
-        # If symlink wasn't created, use direct path
-        SURICATA_BIN="/opt/suricata/bin/suricata"
-        if [ ! -f "$SURICATA_BIN" ]; then
-            error_exit "Suricata binary not found after installation"
-        fi
-    fi
-    success_message "Suricata installed at: $SURICATA_BIN"
-fi
-
-print_step_header 2 "Downloading Suricata rules"
-download_rules
-
-print_step_header 3 "Creating and updating Suricata configuration for $MODE mode"
-update_config
-
-if [ "$OS" = "linux" ]; then
-    print_step_header 4 "Restarting service(s) to include new configuration"
-    if [[ "$MODE" == "ips" ]]; then
-        info_message "Restarting ufw service..."
-        maybe_sudo ufw disable || true
-        maybe_sudo ufw enable || true
+        success_message "Suricata rules file exists at $RULES_DIR/suricata.rules"
     fi
     
-    # Configure systemd service file for CentOS/RHEL installations  
-    if [ "${DISTRO:-}" = "centos" ] || [ "${DISTRO:-}" = "fedora" ] || [ "${DISTRO:-}" = "rhel" ]; then
-        configure_suricata_systemd_service
+    if [ $validation_failed -eq 0 ]; then
+        success_message "Suricata installation and configuration validation completed successfully."
+    else
+        error_message "Suricata installation and configuration validation failed."
+        exit 1
+    fi
+}
+
+# Configure IPS mode settings
+configure_ips_mode() {
+    if [ "$MODE" != "ips" ]; then
+        return 0
+    fi
+
+    info_message "Configuring Suricata for IPS mode..."
+
+    # 1. Create drop.conf
+    info_message "Creating $CONFIG_DIR/drop.conf"
+    maybe_sudo bash -c "cat > '$CONFIG_DIR/drop.conf'" <<EOF
+%YAML 1.1
+---
+locals:
+  - interface: $INTERFACE
+    
+rules:
+  # Block emerging-attack_response rules
+  - group:emerging-attack_response
+EOF
+
+    # 2. Configure /etc/default/suricata for NFQUEUE
+    if [ -f "/etc/default/suricata" ]; then
+        info_message "Configuring /etc/default/suricata for NFQUEUE"
+        if grep -q "^LISTENMODE=" "/etc/default/suricata"; then
+            sed_inplace 's/^LISTENMODE=.*/LISTENMODE=nfqueue/' "/etc/default/suricata"
+        else
+            maybe_sudo bash -c "echo 'LISTENMODE=nfqueue' >> /etc/default/suricata"
+        fi
+    fi
+
+    # 3. Configure UFW if present
+    if command_exists ufw && [ -f "/etc/default/ufw" ]; then
+        info_message "Configuring UFW for IPS mode"
+        
+        # Set default input policy to ACCEPT (as per tests/requirements for IPS)
+        sed_inplace 's/^DEFAULT_INPUT_POLICY=.*/DEFAULT_INPUT_POLICY="ACCEPT"/' "/etc/default/ufw"
+        
+        # Add NFQUEUE rules to before.rules
+        local ufw_before="/etc/ufw/before.rules"
+        if [ -f "$ufw_before" ]; then
+            if ! grep -q "NFQUEUE" "$ufw_before"; then
+                info_message "Adding NFQUEUE rules to $ufw_before"
+                # Insert after header comments
+                maybe_sudo sed -i '/# End required lines/a -I INPUT -j NFQUEUE\n-I OUTPUT -j NFQUEUE' "$ufw_before"
+            fi
+        fi
+        
+        # Reload UFW if active
+        if maybe_sudo ufw status | grep -q "Status: active"; then
+            maybe_sudo ufw reload || warn_message "Failed to reload UFW"
+        fi
+    fi
+
+    # 4. Add custom drop test rule
+    local drop_rule='drop tcp any any -> any any (msg:"Test drop rule"; sid:992002087; rev:1;)'
+    if [ -f "$RULES_DIR/suricata.rules" ]; then
+        info_message "Adding test drop rule to suricata.rules"
+        if ! grep -q "sid:992002087" "$RULES_DIR/suricata.rules"; then
+            maybe_sudo bash -c "echo '$drop_rule' >> '$RULES_DIR/suricata.rules'"
+        fi
     fi
     
-    info_message "Restarting Suricata service..."
-    maybe_sudo systemctl restart suricata
-elif [ "$OS" = "darwin" ]; then
-    print_step_header 4 "Setting up Suricata to start at boot"
-    create_launchd_plist_file "$LAUNCH_AGENT_FILE" "$SURICATA_BIN"
-fi
+    success_message "IPS mode configuration completed"
+}
 
-print_step_header 5 "Validating installation"
-if maybe_sudo [ -f "$CONFIG_FILE" ]; then
-    success_message "Suricata configuration file exists: $CONFIG_FILE."
-else
-    error_exit "Suricata configuration file is missing: $CONFIG_FILE."
-fi
-# Validate the SURICATA_BIN path that was set during installation
-if [ -z "${SURICATA_BIN:-}" ]; then
-    error_exit "SURICATA_BIN variable not set during installation"
-elif [ ! -f "$SURICATA_BIN" ] && [ ! -L "$SURICATA_BIN" ]; then
-    error_exit "Suricata executable not found at: $SURICATA_BIN"
-else
-    success_message "Suricata executable validated at: $SURICATA_BIN"
-fi
+# Check disk space
+check_disk_space() {
+    local required_space=204800  # 200MB
+    local available_space
+    available_space=$(df /tmp | awk 'NR==2 {print $4}')
+    
+    if [ "$available_space" -lt "$required_space" ]; then
+        error_message "Insufficient disk space. At least 200MB required in /tmp"
+        error_message "Available: $((available_space / 1024)) MB"
+        exit 1
+    fi
+    
+    info_message "Sufficient disk space available: $((available_space / 1024)) MB"
+}
 
-success_message "Suricata installation and configuration complete!"
+# Main Suricata installation for Linux
+suricata_installation() {
+    info_message "Starting Suricata installation for Linux..."
+    
+    check_disk_space
+    
+    local arch
+    arch=$(detect_architecture)
+    info_message "Detected Linux distribution: $DISTRO"
+    info_message "Detected system architecture: $arch"
+    
+    case "$DISTRO" in
+        centos|rhel|redhat|rocky|almalinux|fedora|ubuntu|debian)
+            info_message "Distribution $DISTRO is supported"
+            ;;
+        *)
+            error_message "Unsupported Linux distribution: $DISTRO"
+            exit 1
+            ;;
+    esac
+    
+    install_dependencies
+    
+    # If SKIP_INSTALL is set, skip download and installation
+    if [ "${SKIP_INSTALL:-0}" -eq 1 ]; then
+        info_message "Suricata is already installed (checked in pre-checks)."
+        info_message "Skipping package download and installation..."
+    else
+        download_suricata_package "$DISTRO" "$arch"
+        install_suricata_package "$DISTRO"
+    fi
+
+    create_symlinks
+    set_linux_capabilities
+    download_rules
+    setup_suricata_config
+    configure_ips_mode
+    validate_installation
+    
+    success_message "Suricata installation completed successfully!"
+    echo ""
+    info_message "========================================="
+    info_message "   How to Use Suricata"
+    info_message "========================================="
+    echo ""
+    info_message "If 'suricata' command is not found in your current shell:"
+    echo ""
+    info_message "  Option 1 - Restart your shell (recommended):"
+    info_message "    exec bash"
+    echo ""
+    info_message "  Option 2 - Use absolute path:"
+    info_message "    /usr/bin/suricata -V"
+    echo ""
+    info_message "  Option 3 - Add to current session:"
+    info_message "    export PATH=/opt/wazuh/suricata/bin:\$PATH"
+    echo ""
+    info_message "To verify installation:"
+    info_message "    suricata -V"
+    echo ""
+    info_message "========================================="
+    echo ""
+
+}
+
+# Main Suricata installation for macOS
+suricata_macos_installation() {
+    info_message "Starting Suricata installation for macOS..."
+    
+    check_disk_space
+    
+    local arch
+    arch=$(detect_architecture)
+    info_message "Detected macOS architecture: $arch"
+    
+    install_dependencies
+    
+    # If SKIP_INSTALL is set, skip download and installation
+    if [ "${SKIP_INSTALL:-0}" -eq 1 ]; then
+        info_message "Suricata is already installed (checked in pre-checks)."
+        info_message "Skipping package download and installation..."
+    else
+        download_suricata_macos_dmg "$arch"
+        install_suricata_macos_dmg "$arch"
+    fi
+
+    download_rules
+    setup_suricata_config
+    
+    # Create and load Launchd daemon for persistence
+    create_launchd_plist_file "/Library/LaunchDaemons/com.suricata.suricata.plist" "/opt/wazuh/suricata/bin/suricata"
+    
+    validate_installation
+    
+    success_message "Suricata installation completed successfully!"
+}
+
+# Main function
+main() {
+    info_message "Starting Suricata installation script v${SURICATA_VERSION}"
+    info_message "Detected OS: ${OS}"
+    
+    # Check if Wazuh agent is installed (do this early for all platforms)
+    if [ "$OS" = "darwin" ]; then
+        if [ ! -d "/Library/Ossec" ]; then
+            error_message "Wazuh agent not installed at /Library/Ossec"
+            error_message "Please install the Wazuh agent before running this script"
+            exit 1
+        fi
+    else
+        if [ ! -d "/var/ossec" ]; then
+            error_message "Wazuh agent not installed at /var/ossec"
+            error_message "Please install the Wazuh agent before running this script"
+            exit 1
+        fi
+    fi
+    
+    # Run pre-installation checks and automatic cleanup
+    info_message "Performing pre-installation checks..."
+    
+    # Cleanup any legacy leftover directories from old installers
+    if [ "$OS" = "darwin" ] && [ -d "${HOME}/suricata-install" ]; then
+        info_message "Removing leftover directory from legacy installer: ${HOME}/suricata-install"
+        rm -rf "${HOME}/suricata-install"
+    fi
+
+    pre_installation_check
+    
+    # If existing installation was verified, still download rules but skip binary installation
+    if [ "${SKIP_INSTALL:-0}" -eq 1 ]; then
+        info_message "Suricata $SURICATA_VERSION is already installed. Refreshing rules..."
+        download_rules
+        success_message "Suricata $SURICATA_VERSION is already installed and rules updated. Exiting."
+        exit 0
+    fi
+
+    # Special case: macOS Intel (amd64) - no package available, delegate to v0.1.5 installer
+    if [ "$OS" = "darwin" ] && [ "$(detect_architecture)" = "amd64" ]; then
+        info_message "macOS Intel detected. No amd64 package available - delegating to v0.1.5 installer."
+        local remote_installer="$TMP_DIR/remote-install.sh"
+        if ! curl -fsSL -o "$remote_installer" "$REMOTE_MAC_AMD64_INSTALL_URL"; then
+            error_message "Failed to download remote installer from $REMOTE_MAC_AMD64_INSTALL_URL"
+            exit 1
+        fi
+        chmod +x "$remote_installer"
+        # Run the remote installer with the same privileges and arguments
+        bash "$remote_installer" "$@"
+        exit $?
+    fi
+    
+    # Proceed with installation
+    case "$OS" in
+        linux)
+            suricata_installation
+            ;;
+        darwin)
+            suricata_macos_installation
+            ;;
+        *)
+            error_message "Unsupported operating system: $OS"
+            exit 1
+            ;;
+    esac
+}
+
+# Execute main function
+main "$@"
