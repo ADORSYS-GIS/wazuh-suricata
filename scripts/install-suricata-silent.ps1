@@ -347,6 +347,37 @@ function Install-Suricata {
     }
 }
 
+# Validate that Suricata has been installed and configured correctly.
+function Validate-Installation {
+    try {
+        InfoMessage "=== Validating Suricata installation ==="
 
-# Execute the main installation function.
+        # Validate the Suricata configuration file
+        if (Test-Path $global:Config.SuricataConfigPath) {
+            SuccessMessage "Suricata configuration file exists: $($global:Config.SuricataConfigPath)"
+        }
+        else {
+            ErrorMessage "Suricata configuration file is missing: $($global:Config.SuricataConfigPath)"
+            exit 1
+        }
+
+        # Validate the Suricata executable
+        if (Test-Path $global:Config.SuricataExePath) {
+            SuccessMessage "Suricata executable validated at: $($global:Config.SuricataExePath)"
+        }
+        else {
+            ErrorMessage "Suricata executable not found at: $($global:Config.SuricataExePath)"
+            exit 1
+        }
+
+        SuccessMessage "Suricata installation and configuration validated successfully!"
+    }
+    catch {
+        ErrorMessage "Installation validation failed: $_"
+        exit 1
+    }
+}
+
+# Execute the main installation and validation functions.
 Install-Suricata
+Validate-Installation
