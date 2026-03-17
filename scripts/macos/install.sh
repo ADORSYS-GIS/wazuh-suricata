@@ -301,10 +301,19 @@ install_dependencies() {
     
     print_step 1 "Installing dependencies on macOS"
     if command_exists brew; then
+        local brew_cmd=(brew install jq yq libpcap lz4 pcre2 jansson libyaml libmagic)
         if [ "$(id -u)" -eq 0 ] && [ -n "$LOGGED_IN_USER" ] && [ "$LOGGED_IN_USER" != "loginwindow" ]; then
-            sudo -u "$LOGGED_IN_USER" brew install -i jq yq libpcap lz4 pcre2 jansson libyaml libmagic 2>/dev/null || warn_message "Could not install dependencies via Homebrew"
+            local brew_out=""
+            brew_out=$(sudo -u "$LOGGED_IN_USER" "${brew_cmd[@]}" 2>&1) || {
+                warn_message "Could not install dependencies via Homebrew"
+                warn_message "Homebrew output: $brew_out"
+            }
         elif [ "$(id -u)" -ne 0 ]; then
-            brew install -i jq yq libpcap lz4 pcre2 jansson libyaml libmagic 2>/dev/null || warn_message "Could not install dependencies via Homebrew"
+            local brew_out=""
+            brew_out=$("${brew_cmd[@]}" 2>&1) || {
+                warn_message "Could not install dependencies via Homebrew"
+                warn_message "Homebrew output: $brew_out"
+            }
         else
             warn_message "Cannot install dependencies (jq, yq, libpcap, lz4, libmagic, etc.) via Homebrew as root without a logged in user"
         fi
