@@ -286,13 +286,13 @@ install_dependencies() {
                 return 0
             fi
             
-            maybe_sudo "$pkg_manager" install -y curl wget jq 2>/dev/null || \
+            maybe_sudo "$pkg_manager" install -y curl wget jq yq 2>/dev/null || \
             warn_message "Could not install some dependencies"
             ;;
         ubuntu|debian)
             print_step 1 "Installing dependencies on DEB-based system"
             maybe_sudo apt-get update -qq
-            maybe_sudo apt-get install -y curl wget jq
+            maybe_sudo apt-get install -y curl wget jq yq
             ;;
         *)
             error_message "Unsupported Linux distribution: $DISTRO"
@@ -750,6 +750,19 @@ setup_suricata_config() {
             if ! grep -q "^\s*-\s*suricata\.rules\b" "$CONFIG_FILE"; then
                 maybe_sudo bash -c "awk '1; /rule-files:/ && !x{print \"  - suricata.rules\"; x=1}' '$CONFIG_FILE' > '$CONFIG_FILE.tmp' && mv '$CONFIG_FILE.tmp' '$CONFIG_FILE'"
             fi
+        fi
+
+        # Ensure eve-log types include 'alert' (tests expect this)
+        if command_exists yq; then
+            if maybe_sudo yq eval '.outputs[] | select(has("eve-log"))' "$CONFIG_FILE" >/dev/null 2>&1; then
+                maybe_sudo yq eval -i '(.outputs[] | select(has("eve-log")) | .["eve-log"].types) |= ((. // []) + ["alert"] | unique)' "$CONFIG_FILE" >/dev/null 2>&1 || \
+                    warn_message "Could not update eve-log types via yq"
+            else
+                maybe_sudo yq eval -i '.outputs += [{"eve-log":{"enabled":"yes","filetype":"regular","filename":"eve.json","types":["alert"]}}]' "$CONFIG_FILE" >/dev/null 2>&1 || \
+                    warn_message "Could not append eve-log output via yq"
+            fi
+        else
+            warn_message "yq not found; could not ensure eve-log includes 'alert' in configuration"
         fi
         
         success_message "Suricata configuration updated successfully"

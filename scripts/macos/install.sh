@@ -302,15 +302,15 @@ install_dependencies() {
     print_step 1 "Installing dependencies on macOS"
     if command_exists brew; then
         if [ "$(id -u)" -eq 0 ] && [ -n "$LOGGED_IN_USER" ] && [ "$LOGGED_IN_USER" != "loginwindow" ]; then
-            sudo -u "$LOGGED_IN_USER" brew install -i jq libpcap lz4 pcre2 jansson libyaml libmagic 2>/dev/null || warn_message "Could not install dependencies via Homebrew"
+            sudo -u "$LOGGED_IN_USER" brew install -i jq yq libpcap lz4 pcre2 jansson libyaml libmagic 2>/dev/null || warn_message "Could not install dependencies via Homebrew"
         elif [ "$(id -u)" -ne 0 ]; then
-            brew install -i jq libpcap lz4 pcre2 jansson libyaml libmagic 2>/dev/null || warn_message "Could not install dependencies via Homebrew"
+            brew install -i jq yq libpcap lz4 pcre2 jansson libyaml libmagic 2>/dev/null || warn_message "Could not install dependencies via Homebrew"
         else
-            warn_message "Cannot install dependencies (jq, libpcap, lz4, libmagic, etc.) via Homebrew as root without a logged in user"
+            warn_message "Cannot install dependencies (jq, yq, libpcap, lz4, libmagic, etc.) via Homebrew as root without a logged in user"
         fi
         
     else
-        warn_message "Homebrew not found. Please install jq manually."
+        warn_message "Homebrew not found. Please install jq/yq manually."
     fi
     
     # Fix for libpcap linkage on Apple Silicon where binary expects specific path
@@ -655,10 +655,46 @@ setup_suricata_config() {
         fi
     fi
     
-    # Update interface in configuration
-    if [ -n "$INTERFACE" ]; then
-        info_message "Updating network interface in configuration: $INTERFACE"
-        sed_inplace "s/eth0/$INTERFACE/g" "$CONFIG_FILE"
+    # Update configuration if file exists
+    if maybe_sudo test -f "$CONFIG_FILE"; then
+        info_message "Updating Suricata configuration..."
+        
+        # Update interface
+        sed_inplace "s|interface: eth0|interface: $INTERFACE|" "$CONFIG_FILE"
+        sed_inplace "s|interface: en0|interface: $INTERFACE|" "$CONFIG_FILE"
+        
+        # Enable community-id
+        sed_inplace "s|community-id: false|community-id: true|" "$CONFIG_FILE"
+
+        # Ensure default-rule-path and rule-files are set to our managed rules location
+        if grep -q "^\s*default-rule-path:" "$CONFIG_FILE"; then
+            sed_inplace "s|^\s*default-rule-path:.*|default-rule-path: $RULES_DIR|" "$CONFIG_FILE"
+        else
+            maybe_sudo bash -c "echo 'default-rule-path: $RULES_DIR' >> '$CONFIG_FILE'"
+        fi
+        if ! grep -q "^\s*rule-files:" "$CONFIG_FILE"; then
+            maybe_sudo bash -c "printf '\nrule-files:\n  - suricata.rules\n' >> '$CONFIG_FILE'"
+        else
+            # Ensure suricata.rules is listed
+            if ! grep -q "^\s*-\s*suricata\.rules\b" "$CONFIG_FILE"; then
+                maybe_sudo bash -c "awk '1; /rule-files:/ && !x{print \"  - suricata.rules\"; x=1}' '$CONFIG_FILE' > '$CONFIG_FILE.tmp' && mv '$CONFIG_FILE.tmp' '$CONFIG_FILE'"
+            fi
+        fi
+
+        # Ensure eve-log types include 'alert' (tests expect this)
+        if command_exists yq; then
+            if maybe_sudo yq eval '.outputs[] | select(has("eve-log"))' "$CONFIG_FILE" >/dev/null 2>&1; then
+                maybe_sudo yq eval -i '(.outputs[] | select(has("eve-log")) | .["eve-log"].types) |= ((. // []) + ["alert"] | unique)' "$CONFIG_FILE" >/dev/null 2>&1 || \
+                    warn_message "Could not update eve-log types via yq"
+            else
+                maybe_sudo yq eval -i '.outputs += [{"eve-log":{"enabled":"yes","filetype":"regular","filename":"eve.json","types":["alert"]}}]' "$CONFIG_FILE" >/dev/null 2>&1 || \
+                    warn_message "Could not append eve-log output via yq"
+            fi
+        else
+            warn_message "yq not found; could not ensure eve-log includes 'alert' in configuration"
+        fi
+        
+        success_message "Suricata configuration updated successfully"
     fi
     
     success_message "Suricata configuration setup completed"
