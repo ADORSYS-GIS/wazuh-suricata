@@ -123,6 +123,62 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
+# Install mikefarah/yq (Go binary) if missing.
+# Needed because many distros don't ship `yq eval` (v4) in their package repos.
+install_yq() {
+    if command_exists yq; then
+        return 0
+    fi
+
+    info_message "yq not found. Installing yq..."
+
+    local arch
+    arch="$(detect_architecture)"
+
+    local yq_url=""
+    case "$arch" in
+        amd64)
+            yq_url="https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64"
+            ;;
+        arm64)
+            yq_url="https://github.com/mikefarah/yq/releases/latest/download/yq_linux_arm64"
+            ;;
+        *)
+            warn_message "Unsupported architecture for yq install: $arch"
+            return 1
+            ;;
+    esac
+
+    local dest="/usr/local/bin/yq"
+    if command_exists curl; then
+        if curl -fsSL "$yq_url" | maybe_sudo tee "$dest" >/dev/null; then
+            maybe_sudo chmod 755 "$dest" || true
+        else
+            warn_message "Failed to download yq from $yq_url"
+            return 1
+        fi
+    elif command_exists wget; then
+        if maybe_sudo wget -qO "$dest" "$yq_url"; then
+            maybe_sudo chmod 755 "$dest" || true
+        else
+            warn_message "Failed to download yq from $yq_url"
+            return 1
+        fi
+    else
+        warn_message "Neither curl nor wget available to install yq"
+        return 1
+    fi
+
+    # Verify installation
+    if maybe_sudo "$dest" --version >/dev/null 2>&1; then
+        success_message "yq installed successfully at $dest"
+        return 0
+    fi
+
+    warn_message "yq installation completed but verification failed"
+    return 1
+}
+
 # Detect system architecture (unified for Linux and macOS)
 detect_architecture() {
     local arch
@@ -286,19 +342,22 @@ install_dependencies() {
                 return 0
             fi
             
-            maybe_sudo "$pkg_manager" install -y curl wget jq yq 2>/dev/null || \
+            maybe_sudo "$pkg_manager" install -y curl wget jq 2>/dev/null || \
             warn_message "Could not install some dependencies"
             ;;
         ubuntu|debian)
             print_step 1 "Installing dependencies on DEB-based system"
             maybe_sudo apt-get update -qq
-            maybe_sudo apt-get install -y curl wget jq yq
+            maybe_sudo apt-get install -y curl wget jq
             ;;
         *)
             error_message "Unsupported Linux distribution: $DISTRO"
             exit 1
             ;;
     esac
+
+    # Ensure we have a working `yq eval` (mikefarah/yq v4) for config normalization + tests
+    install_yq || warn_message "yq could not be installed automatically"
     
     success_message "Dependencies installation attempted successfully"
 }
@@ -753,12 +812,19 @@ setup_suricata_config() {
         fi
 
         # Ensure eve-log types include 'alert' (tests expect this)
+        local yq_bin=""
         if command_exists yq; then
-            if maybe_sudo yq eval '.outputs[] | select(has("eve-log"))' "$CONFIG_FILE" >/dev/null 2>&1; then
-                maybe_sudo yq eval -i '(.outputs[] | select(has("eve-log")) | .["eve-log"].types) |= ((. // []) + ["alert"] | unique)' "$CONFIG_FILE" >/dev/null 2>&1 || \
+            yq_bin="$(command -v yq)"
+        elif [ -x "/usr/local/bin/yq" ]; then
+            yq_bin="/usr/local/bin/yq"
+        fi
+
+        if [ -n "$yq_bin" ] && [ -x "$yq_bin" ]; then
+            if maybe_sudo "$yq_bin" eval '.outputs[] | select(has("eve-log"))' "$CONFIG_FILE" >/dev/null 2>&1; then
+                maybe_sudo "$yq_bin" eval -i '(.outputs[] | select(has("eve-log")) | .["eve-log"].types) |= ((. // []) + ["alert"] | unique)' "$CONFIG_FILE" >/dev/null 2>&1 || \
                     warn_message "Could not update eve-log types via yq"
             else
-                maybe_sudo yq eval -i '.outputs += [{"eve-log":{"enabled":"yes","filetype":"regular","filename":"eve.json","types":["alert"]}}]' "$CONFIG_FILE" >/dev/null 2>&1 || \
+                maybe_sudo "$yq_bin" eval -i '.outputs += [{"eve-log":{"enabled":"yes","filetype":"regular","filename":"eve.json","types":["alert"]}}]' "$CONFIG_FILE" >/dev/null 2>&1 || \
                     warn_message "Could not append eve-log output via yq"
             fi
         else
