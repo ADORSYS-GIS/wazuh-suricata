@@ -655,10 +655,12 @@ setup_suricata_config() {
                 sed_inplace "s|@pfring_comment@|#|g" "$CONFIG_FILE"
                 sed_inplace "s|@napatech_comment@|#|g" "$CONFIG_FILE"
                 sed_inplace "s|@ndpi_comment@|#|g" "$CONFIG_FILE"
+                sed_inplace "s|@e_magic_file_comment@|#|g" "$CONFIG_FILE"
+                sed_inplace "s|@e_magic_file@|/usr/share/file/magic|g" "$CONFIG_FILE"
+                sed_inplace "s|@e_sghcachedir@|$install_prefix/var/lib/suricata|g" "$CONFIG_FILE"
                 
-                success_message "Configuration template processed successfully"
             else
-                error_message "Failed to download fallback configuration"
+                error_message "Failed to download configuration from $FALLBACK_CONFIG_URL"
                 exit 1
             fi
         fi
@@ -691,12 +693,19 @@ setup_suricata_config() {
         fi
 
         # Ensure eve-log types include 'alert' (tests expect this)
+        local yq_bin=""
         if command_exists yq; then
-            if maybe_sudo yq eval '.outputs[] | select(has("eve-log"))' "$CONFIG_FILE" >/dev/null 2>&1; then
-                maybe_sudo yq eval -i '(.outputs[] | select(has("eve-log")) | .["eve-log"].types) |= ((. // []) + ["alert"] | unique)' "$CONFIG_FILE" >/dev/null 2>&1 || \
+            yq_bin="$(command -v yq)"
+        elif [ -x "/usr/local/bin/yq" ]; then
+            yq_bin="/usr/local/bin/yq"
+        fi
+
+        if [ -n "$yq_bin" ] && [ -x "$yq_bin" ]; then
+            if maybe_sudo "$yq_bin" eval '.outputs[] | select(has("eve-log"))' "$CONFIG_FILE" >/dev/null 2>&1; then
+                maybe_sudo "$yq_bin" eval -i '(.outputs[] | select(has("eve-log")) | .["eve-log"].types) |= ((. // []) + ["alert"] | unique)' "$CONFIG_FILE" >/dev/null 2>&1 || \
                     warn_message "Could not update eve-log types via yq"
             else
-                maybe_sudo yq eval -i '.outputs += [{"eve-log":{"enabled":"yes","filetype":"regular","filename":"eve.json","types":["alert"]}}]' "$CONFIG_FILE" >/dev/null 2>&1 || \
+                maybe_sudo "$yq_bin" eval -i '.outputs += [{"eve-log":{"enabled":"yes","filetype":"regular","filename":"eve.json","types":["alert"]}}]' "$CONFIG_FILE" >/dev/null 2>&1 || \
                     warn_message "Could not append eve-log output via yq"
             fi
         else
@@ -705,8 +714,6 @@ setup_suricata_config() {
         
         success_message "Suricata configuration updated successfully"
     fi
-    
-    success_message "Suricata configuration setup completed"
 }
 
 # Create macOS LaunchDaemon for automatic startup
