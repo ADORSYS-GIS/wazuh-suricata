@@ -46,46 +46,28 @@ else
 fi
 
 # OS Detection
-case "$(uname)" in
-Linux)
-    OS="linux"
-    CONFIG_DIR="/etc/suricata"
-    LOG_DIR="/var/log/suricata"
-    RULES_DIR="/var/lib/suricata"
-    OSSEC_CONF_PATH="/var/ossec/etc/ossec.conf"
-    WAZUH_CONTROL_BIN_PATH="/var/ossec/bin/wazuh-control"
-    ;;
-Darwin)
-    OS="darwin"
-    CONFIG_DIR="/etc/suricata"
-    LOG_DIR="/var/log/suricata"
-    RULES_DIR="/var/lib/suricata"
-    OSSEC_CONF_PATH="/Library/Ossec/etc/ossec.conf"
-    WAZUH_CONTROL_BIN_PATH="/Library/Ossec/bin/wazuh-control"
-    ;;
-*)
-    error_message "Unsupported operating system: $(uname)"
-    exit 1
-    ;;
-esac
+OS="linux"
+CONFIG_DIR="/etc/suricata"
+LOG_DIR="/var/log/suricata"
+RULES_DIR="/var/lib/suricata"
+OSSEC_CONF_PATH="/var/ossec/etc/ossec.conf"
+WAZUH_CONTROL_BIN_PATH="/var/ossec/bin/wazuh-control"
 
 # Detect Linux Distribution
-if [ "$OS" = "linux" ]; then
-    detect_distro() {
-        if [ -f /etc/os-release ]; then
-            . /etc/os-release
-            echo "$ID"
-        elif [ -f /etc/redhat-release ]; then
-            echo "redhat"
-        elif [ -f /etc/debian_version ]; then
-            echo "debian"
-        else
-            error_message "Unable to detect Linux distribution"
-            exit 1
-        fi
-    }
-    DISTRO=$(detect_distro)
-fi
+detect_distro() {
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        echo "$ID"
+    elif [ -f /etc/redhat-release ]; then
+        echo "redhat"
+    elif [ -f /etc/debian_version ]; then
+        echo "debian"
+    else
+        error_message "Unable to detect Linux distribution"
+        exit 1
+    fi
+}
+DISTRO=$(detect_distro)
 
 # Remote script URLs and temporary directory
 LEGACY_UNINSTALL_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/refs/tags/v0.1.5/scripts/uninstall.sh"
@@ -118,13 +100,9 @@ maybe_sudo() {
     fi
 }
 
-# Cross-platform sed function
+# Linux sed function
 sed_inplace() {
-    if [ "$OS" = "darwin" ]; then
-        maybe_sudo sed -i '' "$@" 2>/dev/null || true
-    else
-        maybe_sudo sed -i "$@" 2>/dev/null || true
-    fi
+    maybe_sudo sed -i "$@" 2>/dev/null || true
 }
 
 # Detect system architecture
@@ -166,20 +144,18 @@ detect_suricata_installation() {
     fi
     
     # Check if Suricata is installed via package manager (modern)
-    if [ "$OS" = "linux" ]; then
-        case "$DISTRO" in
-            centos|rhel|redhat|rocky|almalinux|fedora)
-                if command_exists rpm && rpm -q suricata >/dev/null 2>&1; then
-                    has_modern=1
-                fi
-                ;;
-            ubuntu|debian)
-                if command_exists dpkg && dpkg -s suricata >/dev/null 2>&1; then
-                    has_modern=1
-                fi
-                ;;
-        esac
-    fi
+    case "$DISTRO" in
+        centos|rhel|redhat|rocky|almalinux|fedora)
+            if command_exists rpm && rpm -q suricata >/dev/null 2>&1; then
+                has_modern=1
+            fi
+            ;;
+        ubuntu|debian)
+            if command_exists dpkg && dpkg -s suricata >/dev/null 2>&1; then
+                has_modern=1
+            fi
+            ;;
+    esac
     
     # Return result as "legacy,modern,softlink" format
     echo "${has_legacy},${has_modern},${has_softlink}"
@@ -242,26 +218,14 @@ restart_wazuh_agent() {
 stop_suricata_services() {
     info_message "Stopping Suricata services..."
     
-    if [ "$OS" = "linux" ]; then
-        if command_exists systemctl; then
-            if maybe_sudo systemctl is-active --quiet suricata 2>/dev/null; then
-                info_message "Stopping Suricata systemd service..."
-                maybe_sudo systemctl stop suricata 2>/dev/null || warn_message "Failed to stop Suricata service"
-                maybe_sudo systemctl disable suricata 2>/dev/null || warn_message "Failed to disable Suricata service"
-                success_message "Suricata service stopped and disabled"
-            else
-                info_message "Suricata service is not running"
-            fi
-        fi
-    elif [ "$OS" = "darwin" ]; then
-        local plist_file="/Library/LaunchDaemons/com.suricata.suricata.plist"
-        if [ -f "$plist_file" ]; then
-            info_message "Unloading Suricata LaunchDaemon..."
-            maybe_sudo launchctl unload "$plist_file" 2>/dev/null || warn_message "Failed to unload Suricata LaunchDaemon"
-            maybe_sudo rm -f "$plist_file"
-            success_message "Suricata LaunchDaemon removed"
+    if command_exists systemctl; then
+        if maybe_sudo systemctl is-active --quiet suricata 2>/dev/null; then
+            info_message "Stopping Suricata systemd service..."
+            maybe_sudo systemctl stop suricata 2>/dev/null || warn_message "Failed to stop Suricata service"
+            maybe_sudo systemctl disable suricata 2>/dev/null || warn_message "Failed to disable Suricata service"
+            success_message "Suricata service stopped and disabled"
         else
-            info_message "No Suricata LaunchDaemon found"
+            info_message "Suricata service is not running"
         fi
     fi
 }
@@ -271,57 +235,43 @@ remove_suricata_packages() {
     info_message "Removing Suricata packages..."
     local removed=0
     
-    if [ "$OS" = "linux" ]; then
-        case "$DISTRO" in
-            centos|rhel|redhat|rocky|almalinux|fedora)
-                # Check if Suricata is installed via RPM
-                if command_exists rpm && rpm -q suricata >/dev/null 2>&1; then
-                    info_message "Detected RPM-installed Suricata package"
-                    if command_exists dnf; then
-                        if maybe_sudo dnf remove -y suricata; then
-                            success_message "Removed Suricata via dnf"
-                            removed=1
-                        fi
-                    elif command_exists yum; then
-                        if maybe_sudo yum remove -y suricata; then
-                            success_message "Removed Suricata via yum"
-                            removed=1
-                        fi
-                    fi
-                else
-                    info_message "No RPM-installed Suricata package found"
-                fi
-                ;;
-            ubuntu|debian)
-                # Check if Suricata is installed via DEB
-                if command_exists dpkg && dpkg -s suricata >/dev/null 2>&1; then
-                    info_message "Detected DEB-installed Suricata package"
-                    if maybe_sudo apt-get remove -y suricata; then
-                        maybe_sudo apt-get autoremove -y
-                        success_message "Removed Suricata via apt"
+    case "$DISTRO" in
+        centos|rhel|redhat|rocky|almalinux|fedora)
+            # Check if Suricata is installed via RPM
+            if command_exists rpm && rpm -q suricata >/dev/null 2>&1; then
+                info_message "Detected RPM-installed Suricata package"
+                if command_exists dnf; then
+                    if maybe_sudo dnf remove -y suricata; then
+                        success_message "Removed Suricata via dnf"
                         removed=1
                     fi
-                else
-                    info_message "No DEB-installed Suricata package found"
+                elif command_exists yum; then
+                    if maybe_sudo yum remove -y suricata; then
+                        success_message "Removed Suricata via yum"
+                        removed=1
+                    fi
                 fi
-                ;;
-            *)
-                warn_message "Unsupported Linux distribution for package removal: $DISTRO"
-                ;;
-        esac
-    elif [ "$OS" = "darwin" ]; then
-        # Check for Homebrew installation
-        if command_exists brew && brew list suricata >/dev/null 2>&1; then
-            info_message "Detected Homebrew-installed Suricata"
-            brew unpin suricata 2>/dev/null || true
-            if brew uninstall --force suricata; then
-                success_message "Removed Suricata via Homebrew"
-                removed=1
+            else
+                info_message "No RPM-installed Suricata package found"
             fi
-        else
-            info_message "No Homebrew-installed Suricata found"
-        fi
-    fi
+            ;;
+        ubuntu|debian)
+            # Check if Suricata is installed via DEB
+            if command_exists dpkg && dpkg -s suricata >/dev/null 2>&1; then
+                info_message "Detected DEB-installed Suricata package"
+                if maybe_sudo apt-get remove -y suricata; then
+                    maybe_sudo apt-get autoremove -y
+                    success_message "Removed Suricata via apt"
+                    removed=1
+                fi
+            else
+                info_message "No DEB-installed Suricata package found"
+            fi
+            ;;
+        *)
+            warn_message "Unsupported Linux distribution for package removal: $DISTRO"
+            ;;
+    esac
     
     return 0
 }
@@ -360,7 +310,7 @@ remove_custom_suricata_installation() {
     done
     
     # Remove library configuration
-    if [ "$OS" = "linux" ] && [ -f "/etc/ld.so.conf.d/suricata.conf" ]; then
+    if [ -f "/etc/ld.so.conf.d/suricata.conf" ]; then
         info_message "Removing library configuration: /etc/ld.so.conf.d/suricata.conf"
         if maybe_sudo rm -f "/etc/ld.so.conf.d/suricata.conf"; then
             maybe_sudo ldconfig
@@ -421,33 +371,31 @@ remove_suricata_directories() {
     fi
 }
 
-# Remove systemd service files (Linux only)
+# Remove systemd service files
 remove_systemd_service_files() {
-    if [ "$OS" = "linux" ]; then
-        info_message "Removing systemd service files..."
-        local removed_count=0
-        
-        local service_files=(
-            "/etc/systemd/system/suricata.service"
-            "/usr/lib/systemd/system/suricata.service"
-            "/lib/systemd/system/suricata.service"
-        )
-        
-        for service_file in "${service_files[@]}"; do
-            if [ -f "$service_file" ]; then
-                info_message "Removing service file: $service_file"
-                if maybe_sudo rm -f "$service_file"; then
-                    removed_count=$((removed_count + 1))
-                fi
+    info_message "Removing systemd service files..."
+    local removed_count=0
+    
+    local service_files=(
+        "/etc/systemd/system/suricata.service"
+        "/usr/lib/systemd/system/suricata.service"
+        "/lib/systemd/system/suricata.service"
+    )
+    
+    for service_file in "${service_files[@]}"; do
+        if [ -f "$service_file" ]; then
+            info_message "Removing service file: $service_file"
+            if maybe_sudo rm -f "$service_file"; then
+                removed_count=$((removed_count + 1))
             fi
-        done
-        
-        if [ $removed_count -gt 0 ]; then
-            maybe_sudo systemctl daemon-reload 2>/dev/null || true
-            success_message "Removed systemd service files"
-        else
-            info_message "No systemd service files found"
         fi
+    done
+    
+    if [ $removed_count -gt 0 ]; then
+        maybe_sudo systemctl daemon-reload 2>/dev/null || true
+        success_message "Removed systemd service files"
+    else
+        info_message "No systemd service files found"
     fi
 }
 
@@ -509,29 +457,8 @@ main() {
     info_message "Starting Suricata uninstallation..."
     info_message "Detected OS: ${OS}"
     
-    if [ "$OS" = "linux" ]; then
-        info_message "Detected Linux distribution: ${DISTRO}"
-    fi
+    info_message "Detected Linux distribution: ${DISTRO}"
     
-    # Cleanup any legacy leftover directories from old installers (before delegation)
-    if [ "$OS" = "darwin" ] && [ -d "${HOME}/suricata-install" ]; then
-        info_message "Removing leftover directory from legacy installer: ${HOME}/suricata-install"
-        rm -rf "${HOME}/suricata-install"
-    fi
-    
-    # Special case: macOS Intel (amd64) - delegate to v0.1.5 uninstaller
-    if [ "$OS" = "darwin" ] && [ "$(detect_architecture)" = "amd64" ]; then
-        info_message "macOS Intel detected. Delegating to v0.1.5 uninstaller."
-        local remote_uninstaller="$TMP_DIR/legacy-uninstall.sh"
-        if ! curl -fsSL -o "$remote_uninstaller" "$LEGACY_UNINSTALL_URL"; then
-            error_message "Failed to download legacy uninstaller from $LEGACY_UNINSTALL_URL"
-            exit 1
-        fi
-        chmod +x "$remote_uninstaller"
-        # Run the legacy uninstaller
-        bash "$remote_uninstaller" "$@"
-        exit $?
-    fi
     
     # Detect existing Suricata installations
     local detection_result
@@ -604,17 +531,12 @@ main() {
     #Remove configuration and data directories
     remove_suricata_directories
     
-    # Remove systemd service files (Linux only)
+    # Remove systemd service files
     remove_systemd_service_files
     
     # Validate removal
     validate_removal
     
-    # macOS specific: Cleanup legacy leftover directory in home
-    if [ "$OS" = "darwin" ] && [ -d "${HOME}/suricata-install" ]; then
-        info_message "Removing leftover directory from legacy installer: ${HOME}/suricata-install"
-        rm -rf "${HOME}/suricata-install"
-    fi
     
     echo ""
     success_message "Suricata uninstallation process completed!"

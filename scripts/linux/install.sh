@@ -83,55 +83,33 @@ RELEASE_TAG="suricata-v0.5.2"
 
 # Remote script URLs
 UNINSTALL_MODERN_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/suricata-modular-scripts/scripts/uninstall.sh"
-REMOTE_MAC_AMD64_INSTALL_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/v0.1.5/scripts/install.sh"
 FALLBACK_CONFIG_URL="https://raw.githubusercontent.com/OISF/suricata/suricata-8.0.2/suricata.yaml.in"
 TMP_DIR=$(mktemp -d)
-LOGGED_IN_USER=""
 
 # OS and Distribution Detection
-case "$(uname)" in
-Linux)
-    OS="linux"
-    CONFIG_DIR="/opt/wazuh/suricata/etc/suricata"
-    CONFIG_FILE="$CONFIG_DIR/suricata.yaml"
-    RULES_DIR="/opt/wazuh/suricata/var/lib/suricata/rules"
-    LOG_DIR="/opt/wazuh/suricata/var/log/suricata"
-    OSSEC_CONF_PATH="/var/ossec/etc/ossec.conf"
-    WAZUH_CONTROL_BIN_PATH="/var/ossec/bin/wazuh-control"
-    ;;
-Darwin)
-    OS="darwin"
-    CONFIG_DIR="/opt/wazuh/suricata/etc/suricata"
-    CONFIG_FILE="$CONFIG_DIR/suricata.yaml"
-    RULES_DIR="/opt/wazuh/suricata/var/lib/suricata/rules"
-    LOG_DIR="/opt/wazuh/suricata/var/log/suricata"
-    OSSEC_CONF_PATH="/Library/Ossec/etc/ossec.conf"
-    WAZUH_CONTROL_BIN_PATH="/Library/Ossec/bin/wazuh-control"
-    LOGGED_IN_USER=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /loginwindow/ {print $3}')
-    ;;
-*)
-    error_message "Unsupported operating system: $(uname)"
-    exit 1
-    ;;
-esac
+OS="linux"
+CONFIG_DIR="/opt/wazuh/suricata/etc/suricata"
+CONFIG_FILE="$CONFIG_DIR/suricata.yaml"
+RULES_DIR="/opt/wazuh/suricata/var/lib/suricata/rules"
+LOG_DIR="/opt/wazuh/suricata/var/log/suricata"
+OSSEC_CONF_PATH="/var/ossec/etc/ossec.conf"
+WAZUH_CONTROL_BIN_PATH="/var/ossec/bin/wazuh-control"
 
-# Detect Linux Distribution (only on Linux)
-if [ "$OS" = "linux" ]; then
-    detect_distro() {
-        if [ -f /etc/os-release ]; then
-            . /etc/os-release
-            echo "$ID"
-        elif [ -f /etc/redhat-release ]; then
-            echo "redhat"
-        elif [ -f /etc/debian_version ]; then
-            echo "debian"
-        else
-            error_message "Unable to detect Linux distribution"
-            exit 1
-        fi
-    }
-    DISTRO=$(detect_distro)
-fi
+# Detect Linux Distribution
+detect_distro() {
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        echo "$ID"
+    elif [ -f /etc/redhat-release ]; then
+        echo "redhat"
+    elif [ -f /etc/debian_version ]; then
+        echo "debian"
+    else
+        error_message "Unable to detect Linux distribution"
+        exit 1
+    fi
+}
+DISTRO=$(detect_distro)
 
 # Cleanup function
 cleanup() {
@@ -177,13 +155,9 @@ maybe_sudo() {
     fi
 }
 
-# Cross-platform sed function
+# Linux sed function
 sed_inplace() {
-    if [ "$OS" = "darwin" ]; then
-        maybe_sudo sed -i '' "$@" 2>/dev/null || true
-    else
-        maybe_sudo sed -i "$@" 2>/dev/null || true
-    fi
+    maybe_sudo sed -i "$@" 2>/dev/null || true
 }
 
 # Create a file with content (helper)
@@ -196,45 +170,6 @@ $content
 EOF
 }
 
-# Create macOS Launchd plist
-create_launchd_plist_file() {
-    local filepath="$1"
-    local suricata_bin="$2"
-    
-    # Ensure binary path is absolute
-    if [[ "$suricata_bin" != /* ]]; then
-        suricata_bin="/usr/local/bin/$suricata_bin"
-    fi
-
-    info_message "Creating plist file for Suricata..."
-    create_file "$filepath" "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
-<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
-<plist version=\"1.0\">
-<dict>
-    <key>Label</key>
-    <string>com.suricata.suricata</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>$suricata_bin</string>
-        <string>-c</string>
-        <string>$CONFIG_FILE</string>
-        <string>-i</string>
-        <string>$INTERFACE</string>
-    </array>
-    <key>RunAtLoad</key>
-    <true/>
-    <key>KeepAlive</key>
-    <true/>
-</dict>
-</plist>"
-
-    info_message "Unloading previous plist file (if any)..."
-    maybe_sudo launchctl unload "$filepath" 2>/dev/null || true
-
-    info_message "Loading new daemon plist file..."
-    maybe_sudo launchctl load -w "$filepath" 2>/dev/null || warn_message "Loading plist failed: $filepath"
-    info_message "macOS Launchd plist file created and loaded: $filepath"
-}
 
 #=============================================================================
 # PRE-INSTALLATION CHECKS
@@ -301,7 +236,6 @@ pre_installation_check() {
     info_message "Performing pre-installation checks..."
     
     # Check if we should skip installation
-    # Check if we should skip installation
     if check_installed_version; then
         # If installed correctly, verify and skip
         info_message "Target version matches. Verified existing installation."
@@ -339,80 +273,32 @@ pre_installation_check() {
 install_dependencies() {
     info_message "Installing dependencies..."
     
-    if [ "$OS" = "linux" ]; then
-        case "$DISTRO" in
-            centos|rhel|redhat|rocky|almalinux|fedora)
-                print_step 1 "Installing dependencies on RPM-based system"
-                local pkg_manager=""
-                if command_exists dnf; then
-                    pkg_manager="dnf"
-                elif command_exists yum; then
-                    pkg_manager="yum"
-                else
-                    warn_message "Neither dnf nor yum found, skipping dependency installation"
-                    return 0
-                fi
-                
-                maybe_sudo "$pkg_manager" install -y curl wget jq 2>/dev/null || \
-                warn_message "Could not install some dependencies"
-                ;;
-            ubuntu|debian)
-                print_step 1 "Installing dependencies on DEB-based system"
-                maybe_sudo apt-get update -qq
-                maybe_sudo apt-get install -y curl wget jq
-                ;;
-            *)
-                error_message "Unsupported Linux distribution: $DISTRO"
-                exit 1
-                ;;
-        esac
-    elif [ "$OS" = "darwin" ]; then
-        print_step 1 "Installing dependencies on macOS"
-        if command_exists brew; then
-            if [ "$(id -u)" -eq 0 ] && [ -n "$LOGGED_IN_USER" ] && [ "$LOGGED_IN_USER" != "loginwindow" ]; then
-                sudo -u "$LOGGED_IN_USER" brew install -i jq libpcap lz4 pcre2 jansson libyaml libmagic 2>/dev/null || warn_message "Could not install dependencies via Homebrew"
-            elif [ "$(id -u)" -ne 0 ]; then
-                brew install -i jq libpcap lz4 pcre2 jansson libyaml libmagic 2>/dev/null || warn_message "Could not install dependencies via Homebrew"
+    case "$DISTRO" in
+        centos|rhel|redhat|rocky|almalinux|fedora)
+            print_step 1 "Installing dependencies on RPM-based system"
+            local pkg_manager=""
+            if command_exists dnf; then
+                pkg_manager="dnf"
+            elif command_exists yum; then
+                pkg_manager="yum"
             else
-                warn_message "Cannot install dependencies (jq, libpcap, lz4, libmagic, etc.) via Homebrew as root without a logged in user"
+                warn_message "Neither dnf nor yum found, skipping dependency installation"
+                return 0
             fi
             
-        else
-            warn_message "Homebrew not found. Please install jq manually."
-        fi
-        
-        # Fix for libpcap linkage on Apple Silicon where binary expects specific path
-        if [ "$(uname -m)" = "arm64" ]; then
-            local expected_lib="/opt/homebrew/opt/libpcap/lib/libpcap.A.dylib"
-            if [ ! -f "$expected_lib" ]; then
-                 local actual_lib=""
-                 
-                 # Try to find libpcap in common locations
-                 if command_exists brew; then
-                     actual_lib=$(brew --prefix libpcap 2>/dev/null)/lib/libpcap.dylib
-                 fi
-                 
-                 if [ -z "$actual_lib" ] || [ ! -f "$actual_lib" ]; then
-                     if [ -f "/opt/homebrew/lib/libpcap.dylib" ]; then
-                         actual_lib="/opt/homebrew/lib/libpcap.dylib"
-                     elif [ -f "/opt/homebrew/opt/libpcap/lib/libpcap.dylib" ]; then
-                         actual_lib="/opt/homebrew/opt/libpcap/lib/libpcap.dylib"
-                     elif [ -f "/usr/local/lib/libpcap.dylib" ]; then
-                         actual_lib="/usr/local/lib/libpcap.dylib"
-                     fi
-                 fi
-
-                 if [ -n "$actual_lib" ] && [ -f "$actual_lib" ]; then
-                     info_message "Fixing libpcap linkage... Linking $actual_lib to $expected_lib"
-                     maybe_sudo mkdir -p "$(dirname "$expected_lib")"
-                     maybe_sudo ln -sf "$actual_lib" "$expected_lib"
-                 else
-                     warn_message "Could not locate libpcap.dylib. Suricata binary might fail to run."
-                     warn_message "If errors persist, please install libpcap: brew install libpcap"
-                 fi
-            fi
-        fi
-    fi
+            maybe_sudo "$pkg_manager" install -y curl wget jq 2>/dev/null || \
+            warn_message "Could not install some dependencies"
+            ;;
+        ubuntu|debian)
+            print_step 1 "Installing dependencies on DEB-based system"
+            maybe_sudo apt-get update -qq
+            maybe_sudo apt-get install -y curl wget jq
+            ;;
+        *)
+            error_message "Unsupported Linux distribution: $DISTRO"
+            exit 1
+            ;;
+    esac
     
     success_message "Dependencies installation attempted successfully"
 }
@@ -468,14 +354,6 @@ download_suricata_package() {
     download_file "$url" "$output" "Suricata package" || exit 1
 }
 
-# Download Suricata DMG for macOS based on architecture
-download_suricata_macos_dmg() {
-    local arch="$1"
-    local url="${GITHUB_RELEASE_BASE_URL}/${RELEASE_TAG}/suricata-${SURICATA_VERSION}-macos-${arch}.dmg"
-    
-    print_step 1 "Downloading Suricata DMG for macOS $arch"
-    download_file "$url" "$TMP_DIR/suricata.dmg" "Suricata DMG" || exit 1
-}
 
 # Install Suricata package based on distro
 install_suricata_package() {
@@ -650,92 +528,19 @@ set_linux_capabilities() {
     fi
 }
 
-# Install Suricata from DMG on macOS
-install_suricata_macos_dmg() {
-    local arch="$1"
-    info_message "Installing Suricata from DMG on macOS ($arch)..."
-    
-    local mount_point="/Volumes/Suricata_Installer"
-    
-    print_step 1 "Mounting Suricata DMG"
-    if ! maybe_sudo hdiutil attach "$TMP_DIR/suricata.dmg" -mountpoint "$mount_point" -quiet; then
-        error_message "Failed to mount Suricata DMG"
-        exit 1
-    fi
-    
-    print_step 2 "Installing Suricata binary"
-    maybe_sudo mkdir -p "/opt/wazuh/suricata/bin/"
-    
-    local suricata_binary=""
-    if [ -f "$mount_point/suricata" ]; then
-        suricata_binary="$mount_point/suricata"
-    else
-        suricata_binary=$(find "$mount_point" -name "suricata" -type f -perm +111 2>/dev/null | head -n 1)
-    fi
-    
-    if [ -z "$suricata_binary" ] || [ ! -f "$suricata_binary" ]; then
-        maybe_sudo hdiutil detach "$mount_point" -quiet
-        error_message "Could not find Suricata binary in DMG"
-        exit 1
-    fi
-    
-    maybe_sudo cp "$suricata_binary" "/opt/wazuh/suricata/bin/"
-    
-    # Copy configuration file if present
-    if [ -f "$mount_point/suricata.yaml" ]; then
-        maybe_sudo mkdir -p "/opt/wazuh/suricata/etc/suricata/"
-        maybe_sudo cp "$mount_point/suricata.yaml" "/opt/wazuh/suricata/etc/suricata/"
-    fi
-    
-    maybe_sudo hdiutil detach "$mount_point" -quiet
-    
-    print_step 3 "Setting permissions"
-    # Set executable permissions for all users to ensure it can be run without sudo
-    maybe_sudo chmod 755 "/opt/wazuh/suricata/bin/suricata"
-    maybe_sudo chown root:wheel "/opt/wazuh/suricata/bin/suricata" 2>/dev/null || \
-    maybe_sudo chown root:staff "/opt/wazuh/suricata/bin/suricata" 2>/dev/null || \
-    maybe_sudo chown root:root "/opt/wazuh/suricata/bin/suricata"
-    
-    # Ensure /usr/local/bin exists and create symlink
-    maybe_sudo mkdir -p /usr/local/bin
-    maybe_sudo ln -sf "/opt/wazuh/suricata/bin/suricata" /usr/local/bin/suricata
-    # Also ensure the symlink has proper permissions
-    maybe_sudo chmod 755 /usr/local/bin/suricata
-    
-    success_message "Suricata installed successfully from DMG on macOS"
-}
 
-# Detect Wi-Fi Interface
+# Detect Network Interface
 detect_wifi_interface() {
-    if [ "$OS" = "darwin" ]; then
-        if command_exists networksetup; then
-            INTERFACE=$(networksetup -listallhardwareports | awk '/Device/ {print $2}' | while read dev; do
-                if ifconfig "$dev" 2>/dev/null | grep -q "status: active"; then
-                    echo "$dev"
-                fi
-            done | head -n1) || INTERFACE=""
-        else
-            warn_message "networksetup command not found on macOS - setting default interface to en0"
-            INTERFACE="en0"
-        fi
-    elif [ "$OS" = "linux" ]; then
-        if command_exists ip; then
-            INTERFACE=$(ip -o link show | awk -F': ' '/state UP/ {print $2}' | head -n1) || INTERFACE=""
-        elif command_exists ifconfig; then
-            INTERFACE=$(ifconfig | awk -F': ' '{print $1}' | grep -E '^(en|eth|wl)' | head -n1) || INTERFACE=""
-        else
-            INTERFACE=""
-        fi
+    if command_exists ip; then
+        INTERFACE=$(ip -o link show | awk -F': ' '/state UP/ {print $2}' | head -n1) || INTERFACE=""
+    elif command_exists ifconfig; then
+        INTERFACE=$(ifconfig | awk -F': ' '{print $1}' | grep -E '^(en|eth|wl)' | head -n1) || INTERFACE=""
     else
         INTERFACE=""
     fi
     
-    if [ -z "$INTERFACE" ]; then 
-        if [ "$OS" = "darwin" ]; then
-            INTERFACE="en0"
-        else
-            INTERFACE="eth0"
-        fi
+    if [ -z "$INTERFACE" ]; then
+        INTERFACE="eth0"
         warn_message "No active interface detected. Defaulting to: $INTERFACE"
     fi
     info_message "Detected interface: $INTERFACE"
@@ -770,11 +575,6 @@ download_rules() {
     fi
     success_message "Rules downloaded successfully"
 
-    # On macOS, remove quarantine attributes from the downloaded file
-    if [ "$OS" = "darwin" ]; then
-        info_message "Removing macOS quarantine attribute from downloaded file"
-        xattr -d com.apple.quarantine "$rules_archive" 2>/dev/null || warn_message "Quarantine attribute not present"
-    fi
 
     # Extract the rules archive
     info_message "Extracting rules archive"
@@ -845,10 +645,6 @@ setup_suricata_config() {
             default_config="/opt/wazuh/suricata/etc/suricata/suricata.yaml"
         elif [ -f "/usr/share/suricata/suricata.yaml" ]; then
             default_config="/usr/share/suricata/suricata.yaml"
-        elif [ -f "/Volumes/Suricata_Installer/suricata.yaml" ]; then
-             default_config="/Volumes/Suricata_Installer/suricata.yaml"
-        elif [ -f "/Volumes/Suricata_Installer/etc/suricata/suricata.yaml" ]; then
-             default_config="/Volumes/Suricata_Installer/etc/suricata/suricata.yaml"
         fi
         
         if [ -n "$default_config" ]; then
@@ -1195,66 +991,20 @@ suricata_installation() {
 
 }
 
-# Main Suricata installation for macOS
-suricata_macos_installation() {
-    info_message "Starting Suricata installation for macOS..."
-    
-    check_disk_space
-    
-    local arch
-    arch=$(detect_architecture)
-    info_message "Detected macOS architecture: $arch"
-    
-    install_dependencies
-    
-    # If SKIP_INSTALL is set, skip download and installation
-    if [ "${SKIP_INSTALL:-0}" -eq 1 ]; then
-        info_message "Suricata is already installed (checked in pre-checks)."
-        info_message "Skipping package download and installation..."
-    else
-        download_suricata_macos_dmg "$arch"
-        install_suricata_macos_dmg "$arch"
-    fi
-
-    download_rules
-    setup_suricata_config
-    
-    # Create and load Launchd daemon for persistence
-    create_launchd_plist_file "/Library/LaunchDaemons/com.suricata.suricata.plist" "/opt/wazuh/suricata/bin/suricata"
-    
-    validate_installation
-    
-    success_message "Suricata installation completed successfully!"
-}
-
 # Main function
 main() {
     info_message "Starting Suricata installation script v${SURICATA_VERSION}"
     info_message "Detected OS: ${OS}"
     
     # Check if Wazuh agent is installed (do this early for all platforms)
-    if [ "$OS" = "darwin" ]; then
-        if [ ! -d "/Library/Ossec" ]; then
-            error_message "Wazuh agent not installed at /Library/Ossec"
-            error_message "Please install the Wazuh agent before running this script"
-            exit 1
-        fi
-    else
-        if [ ! -d "/var/ossec" ]; then
-            error_message "Wazuh agent not installed at /var/ossec"
-            error_message "Please install the Wazuh agent before running this script"
-            exit 1
-        fi
+    if [ ! -d "/var/ossec" ]; then
+        error_message "Wazuh agent not installed at /var/ossec"
+        error_message "Please install the Wazuh agent before running this script"
+        exit 1
     fi
     
     # Run pre-installation checks and automatic cleanup
     info_message "Performing pre-installation checks..."
-    
-    # Cleanup any legacy leftover directories from old installers
-    if [ "$OS" = "darwin" ] && [ -d "${HOME}/suricata-install" ]; then
-        info_message "Removing leftover directory from legacy installer: ${HOME}/suricata-install"
-        rm -rf "${HOME}/suricata-install"
-    fi
 
     pre_installation_check
     
@@ -1265,28 +1015,11 @@ main() {
         success_message "Suricata $SURICATA_VERSION is already installed and rules updated. Exiting."
         exit 0
     fi
-
-    # Special case: macOS Intel (amd64) - no package available, delegate to v0.1.5 installer
-    if [ "$OS" = "darwin" ] && [ "$(detect_architecture)" = "amd64" ]; then
-        info_message "macOS Intel detected. No amd64 package available - delegating to v0.1.5 installer."
-        local remote_installer="$TMP_DIR/remote-install.sh"
-        if ! curl -fsSL -o "$remote_installer" "$REMOTE_MAC_AMD64_INSTALL_URL"; then
-            error_message "Failed to download remote installer from $REMOTE_MAC_AMD64_INSTALL_URL"
-            exit 1
-        fi
-        chmod +x "$remote_installer"
-        # Run the remote installer with the same privileges and arguments
-        bash "$remote_installer" "$@"
-        exit $?
-    fi
     
     # Proceed with installation
     case "$OS" in
         linux)
             suricata_installation
-            ;;
-        darwin)
-            suricata_macos_installation
             ;;
         *)
             error_message "Unsupported operating system: $OS"

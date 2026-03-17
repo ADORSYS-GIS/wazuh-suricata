@@ -18,15 +18,30 @@ The `wazuh-suricata` project integrates the Wazuh agent with Suricata, a high-pe
 ```
 README.md
 scripts/
+    linux/
+        install.sh
+        uninstall.sh
+    macos/
+        install.sh
+        uninstall.sh
+    install-npcap-automated.ps1
+    install-suricata-silent.ps1
+    install.ps1
     install.sh
+    uninstall-automated.ps1
+    uninstall.ps1
     uninstall.sh
 tests/
     test-install.bats
 ```
 
 - **README.md**: Documentation for the project.
-- **scripts/install.sh**: Bash script to install and configure Suricata.
-- **scripts/uninstall.sh**: Bash script to uninstall Suricata and revert configurations.
+- **scripts/linux/install.sh**: Bash script to install and configure Suricata on Linux.
+- **scripts/linux/uninstall.sh**: Bash script to uninstall Suricata on Linux.
+- **scripts/macos/install.sh**: Bash script to install and configure Suricata on macOS.
+- **scripts/macos/uninstall.sh**: Bash script to uninstall Suricata on macOS.
+- **scripts/install.sh**: Legacy unified installation script (deprecated).
+- **scripts/uninstall.sh**: Legacy unified uninstallation script (deprecated).
 - **tests/test-install.bats**: Bats tests to validate the installation and configuration of Suricata.
 
 ## Prerequisites
@@ -41,19 +56,38 @@ tests/
 
 ### Linux
 
-1. Run the installation script directly from the repository:
+1. Run the Linux-specific installation script directly from the repository:
    ```bash
-   curl -SL --progress-bar https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/main/scripts/setup-agent.sh | bash
+   curl -SL --progress-bar https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/main/scripts/linux/install.sh | bash
    ```
 
-   
+   Or download and run locally:
+   ```bash
+   wget https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/main/scripts/linux/install.sh
+   chmod +x install.sh
+   sudo ./install.sh
+   ```
 
 ### macOS
 
-1. Run the installation script directly from the repository:
+1. Run the macOS-specific installation script directly from the repository:
    ```bash
-   curl -SL --progress-bar https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/main/scripts/install.sh | bash
+   curl -SL --progress-bar https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/main/scripts/macos/install.sh | bash
    ```
+
+   Or download and run locally:
+   ```bash
+   wget https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/main/scripts/macos/install.sh
+   chmod +x install.sh
+   sudo ./install.sh
+   ```
+
+### Legacy Installation (Deprecated)
+
+The legacy unified installation script is still available but deprecated:
+```bash
+curl -SL --progress-bar https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/main/scripts/install.sh | bash
+```
 
 ## Configuration
 
@@ -90,13 +124,44 @@ The project includes Bats tests to validate the installation and configuration o
 
 ## Uninstallation
 
-To uninstall Suricata and revert all configurations, run the following script:
+### Linux
 
+To uninstall Suricata on Linux and revert all configurations, run the Linux-specific uninstall script:
+
+```bash
+curl -SL --progress-bar https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/main/scripts/linux/uninstall.sh | sudo bash
+```
+
+Or download and run locally:
+```bash
+wget https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/main/scripts/linux/uninstall.sh
+chmod +x uninstall.sh
+sudo ./uninstall.sh
+```
+
+### macOS
+
+To uninstall Suricata on macOS and revert all configurations, run the macOS-specific uninstall script:
+
+```bash
+curl -SL --progress-bar https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/main/scripts/macos/uninstall.sh | sudo bash
+```
+
+Or download and run locally:
+```bash
+wget https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/main/scripts/macos/uninstall.sh
+chmod +x uninstall.sh
+sudo ./uninstall.sh
+```
+
+### Legacy Uninstallation (Deprecated)
+
+The legacy unified uninstallation script is still available but deprecated:
 ```bash
 sudo ./scripts/uninstall.sh
 ```
 
-This will:
+The uninstallation will:
 - Remove Suricata and its dependencies.
 - Revert IPS mode-specific configurations (e.g., UFW rules, `LISTENMODE`).
 - Delete Suricata configuration, log, and rules directories.

@@ -36,10 +36,20 @@ jobs:
         curl -sfL https://raw.githubusercontent.com/adorsys-gis/wazuh-agent/main/scripts/install.sh | sudo WAZUH_MANAGER=127.0.0.1 bash
 
     - name: Make script executable
-      run: chmod +x ./scripts/install.sh
+      run: |
+        if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
+          chmod +x ./scripts/linux/install.sh
+        elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
+          chmod +x ./scripts/macos/install.sh
+        fi
 
     - name: Install Suricata
-      run: sudo ./scripts/install.sh
+      run: |
+        if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
+          sudo ./scripts/linux/install.sh
+        elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
+          sudo ./scripts/macos/install.sh
+        fi
 
     - name: Run Bats tests
       run: sudo bats tests/
@@ -62,10 +72,10 @@ jobs:
         curl -sfL https://raw.githubusercontent.com/adorsys-gis/wazuh-agent/main/scripts/install.sh | sudo WAZUH_MANAGER=127.0.0.1 bash
 
     - name: Make script executable
-      run: chmod +x ./scripts/install.sh
+      run: chmod +x ./scripts/linux/install.sh
 
     - name: Install Suricata in IPS mode
-      run: sudo ./scripts/install.sh --mode ips
+      run: sudo ./scripts/linux/install.sh --mode ips
 
     - name: Run Bats tests for IPS mode
       run: sudo MODE=ips bats tests/
