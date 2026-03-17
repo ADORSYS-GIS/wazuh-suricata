@@ -47,9 +47,9 @@ fi
 
 # OS Detection
 OS="linux"
-CONFIG_DIR="/etc/suricata"
-LOG_DIR="/var/log/suricata"
-RULES_DIR="/var/lib/suricata"
+CONFIG_DIR="/opt/wazuh/suricata/etc/suricata"
+LOG_DIR="/opt/wazuh/suricata/var/log/suricata"
+RULES_DIR="/opt/wazuh/suricata/var/lib/suricata"
 OSSEC_CONF_PATH="/var/ossec/etc/ossec.conf"
 WAZUH_CONTROL_BIN_PATH="/var/ossec/bin/wazuh-control"
 

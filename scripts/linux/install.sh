@@ -86,6 +86,13 @@ UNINSTALL_MODERN_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-surica
 FALLBACK_CONFIG_URL="https://raw.githubusercontent.com/OISF/suricata/suricata-8.0.2/suricata.yaml.in"
 TMP_DIR=$(mktemp -d)
 
+# Cleanup function (register early so TMP_DIR is always removed)
+cleanup() {
+    info_message "Cleaning up temporary files..."
+    rm -rf "$TMP_DIR"
+}
+trap cleanup EXIT
+
 # OS and Distribution Detection
 OS="linux"
 CONFIG_DIR="/opt/wazuh/suricata/etc/suricata"
@@ -110,13 +117,6 @@ detect_distro() {
     fi
 }
 DISTRO=$(detect_distro)
-
-# Cleanup function
-cleanup() {
-    info_message "Cleaning up temporary files..."
-    rm -rf "$TMP_DIR"
-}
-trap cleanup EXIT
 
 # Check if a command exists
 command_exists() {

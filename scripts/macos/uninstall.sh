@@ -47,9 +47,10 @@ fi
 
 # OS Detection for macOS
 OS="darwin"
-CONFIG_DIR="/etc/suricata"
-LOG_DIR="/var/log/suricata"
-RULES_DIR="/var/lib/suricata"
+# Keep paths aligned with scripts/macos/install.sh (custom installation layout)
+CONFIG_DIR="/opt/wazuh/suricata/etc/suricata"
+LOG_DIR="/opt/wazuh/suricata/var/log/suricata"
+RULES_DIR="/opt/wazuh/suricata/var/lib/suricata"
 OSSEC_CONF_PATH="/Library/Ossec/etc/ossec.conf"
 WAZUH_CONTROL_BIN_PATH="/Library/Ossec/bin/wazuh-control"
 

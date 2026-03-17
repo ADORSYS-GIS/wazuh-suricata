@@ -685,12 +685,21 @@ main() {
     info_message "Starting Suricata installation for macOS..."
     info_message "Target version: $SURICATA_VERSION"
     
+    # Check if Wazuh agent is installed (required dependency)
+    if [ ! -d "/Library/Ossec" ]; then
+        error_message "Wazuh agent not installed at /Library/Ossec"
+        error_message "Please install the Wazuh agent before running this script"
+        exit 1
+    fi
+
     # Pre-installation checks and cleanup
     pre_installation_check
     
     # Skip installation if already installed correctly
     if [ "${SKIP_INSTALL:-0}" -eq 1 ]; then
-        info_message "Skipping installation - correct version already installed"
+        info_message "Suricata $SURICATA_VERSION is already installed. Refreshing rules..."
+        download_rules
+        success_message "Suricata $SURICATA_VERSION is already installed and rules updated. Exiting."
         exit 0
     fi
     

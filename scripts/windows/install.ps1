@@ -255,6 +255,7 @@ function Install-Suricata {
 function Validate-Installation {
     try {
         InfoMessage "=== Validating Suricata installation ==="
+        $validationFailed = $false
 
         # Validate the Suricata configuration file
         if (Test-Path $global:Config.SuricataConfigPath) {
@@ -262,19 +263,68 @@ function Validate-Installation {
         }
         else {
             ErrorMessage "Suricata configuration file is missing: $($global:Config.SuricataConfigPath)"
-            exit 1
+            $validationFailed = $true
         }
 
-        # Validate the Suricata executable
+        # Validate the Suricata executable exists and can run
         if (Test-Path $global:Config.SuricataExePath) {
-            SuccessMessage "Suricata executable validated at: $($global:Config.SuricataExePath)"
+            $versionOutput = $null
+            try {
+                $versionOutput = & $global:Config.SuricataExePath --version 2>$null | Select-Object -First 1
+                if (-not $versionOutput) {
+                    $versionOutput = & $global:Config.SuricataExePath -V 2>$null | Select-Object -First 1
+                }
+            } catch {
+                $versionOutput = $null
+            }
+
+            if ($versionOutput) {
+                SuccessMessage "Suricata version installed: $versionOutput"
+                SuccessMessage "Suricata executable validated at: $($global:Config.SuricataExePath)"
+            } else {
+                ErrorMessage "Suricata executable exists but version check failed: $($global:Config.SuricataExePath)"
+                $validationFailed = $true
+            }
         }
         else {
             ErrorMessage "Suricata executable not found at: $($global:Config.SuricataExePath)"
-            exit 1
+            $validationFailed = $true
         }
 
-        SuccessMessage "Installation and configuration validated successfully!"
+        # Validate rules presence (at least one .rules file)
+        if (Test-Path $global:Config.RulesDir) {
+            $rulesFiles = Get-ChildItem -Path $global:Config.RulesDir -Filter "*.rules" -File -ErrorAction SilentlyContinue
+            if ($rulesFiles -and $rulesFiles.Count -gt 0) {
+                SuccessMessage "Suricata rules present in: $($global:Config.RulesDir)"
+            } else {
+                WarnMessage "Rules directory exists but no .rules files found: $($global:Config.RulesDir)"
+                $validationFailed = $true
+            }
+        } else {
+            ErrorMessage "Suricata rules directory is missing: $($global:Config.RulesDir)"
+            $validationFailed = $true
+        }
+
+        # Validate scheduled task exists
+        try {
+            $task = Get-ScheduledTask -TaskName $global:Config.TaskName -ErrorAction SilentlyContinue
+            if ($task) {
+                SuccessMessage "Scheduled task exists: $($global:Config.TaskName)"
+            } else {
+                WarnMessage "Scheduled task not found: $($global:Config.TaskName)"
+                $validationFailed = $true
+            }
+        } catch {
+            WarnMessage "Could not validate scheduled task: $_"
+            $validationFailed = $true
+        }
+
+        if (-not $validationFailed) {
+            SuccessMessage "Suricata installation and configuration validation completed successfully."
+        } else {
+            ErrorMessage "Suricata installation and configuration validation failed."
+            exit 1
+        }
     }
     catch {
         ErrorMessage "Installation validation failed: $_"
