@@ -380,12 +380,43 @@ install_suricata_package() {
     esac
     
     
-    # Remove systemd service if installed (Wazuh manages Suricata execution)
-    if [ -f "/lib/systemd/system/suricata.service" ] || [ -f "/etc/systemd/system/suricata.service" ]; then
-        info_message "Removing Suricata systemd service (managed by Wazuh)"
+    # Remove service integration if installed (Wazuh manages Suricata execution)
+    # Note: On some distros/systemd versions, `systemctl list-unit-files suricata.service`
+    # can show a "generated" unit if `/etc/init.d/suricata` exists (SysV generator).
+    local unit_candidates=(
+        "/etc/systemd/system/suricata.service"
+        "/lib/systemd/system/suricata.service"
+        "/usr/lib/systemd/system/suricata.service"
+    )
+    local removed_any_unit=0
+    for unit_file in "${unit_candidates[@]}"; do
+        if [ -f "$unit_file" ]; then
+            removed_any_unit=1
+        fi
+    done
+
+    if [ "$removed_any_unit" -eq 1 ] || [ -f "/etc/init.d/suricata" ]; then
+        info_message "Removing Suricata service integration (managed by Wazuh)"
         maybe_sudo systemctl disable suricata.service --now 2>/dev/null || true
-        maybe_sudo rm -f /lib/systemd/system/suricata.service /etc/systemd/system/suricata.service
+        maybe_sudo systemctl stop suricata.service 2>/dev/null || true
+
+        # Remove unit files if present
+        for unit_file in "${unit_candidates[@]}"; do
+            maybe_sudo rm -f "$unit_file" 2>/dev/null || true
+        done
+
+        # Remove SysV init script if present (prevents systemd "generated" unit)
+        if [ -f "/etc/init.d/suricata" ]; then
+            if command_exists update-rc.d; then
+                maybe_sudo update-rc.d -f suricata remove >/dev/null 2>&1 || true
+            elif command_exists chkconfig; then
+                maybe_sudo chkconfig --del suricata >/dev/null 2>&1 || true
+            fi
+            maybe_sudo rm -f "/etc/init.d/suricata" 2>/dev/null || true
+        fi
+
         maybe_sudo systemctl daemon-reload 2>/dev/null || true
+        maybe_sudo systemctl reset-failed 2>/dev/null || true
     fi
 
     # Remove any old symlinks that may cause issues
