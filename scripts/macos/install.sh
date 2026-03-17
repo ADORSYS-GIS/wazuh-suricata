@@ -147,6 +147,33 @@ sed_inplace() {
     maybe_sudo sed -i '' "$@" 2>/dev/null || true
 }
 
+# Replace a literal string in a file (portable).
+# Used to replace @placeholders@ in the fallback Suricata template reliably.
+replace_literal_in_file() {
+    local file="$1"
+    local from="$2"
+    local to="$3"
+
+    if command_exists perl; then
+        maybe_sudo perl -0777 -i -pe 'BEGIN{$from=$ARGV[1]; $to=$ARGV[2];} s/\Q$from\E/$to/g' "$file" "$from" "$to" >/dev/null 2>&1
+        return $?
+    fi
+
+    # Fallback to sed (best-effort)
+    sed_inplace "s|$from|$to|g" "$file"
+}
+
+replace_required_in_file() {
+    local file="$1"
+    local from="$2"
+    local to="$3"
+
+    if ! replace_literal_in_file "$file" "$from" "$to"; then
+        error_message "Failed to replace placeholder $from in $file"
+        exit 1
+    fi
+}
+
 # Create a file with content (helper)
 create_file() {
     local filepath="$1"
@@ -641,23 +668,37 @@ setup_suricata_config() {
                 # Ensure these directories exist
                 maybe_sudo mkdir -p "$log_dir" "$sysconf_dir" "$run_dir"
                 
-                # Replace placeholders
-                sed_inplace "s|@e_logdir@|$log_dir|g" "$CONFIG_FILE"
-                sed_inplace "s|@e_sysconfdir@|$sysconf_dir/|g" "$CONFIG_FILE"
-                sed_inplace "s|@e_rundir@|$run_dir/|g" "$CONFIG_FILE"
-                sed_inplace "s|@e_defaultruledir@|$RULES_DIR|g" "$CONFIG_FILE"
-                sed_inplace "s|@MAJOR_MINOR@|8.0|g" "$CONFIG_FILE"
-                sed_inplace "s|@e_enable_evelog@|yes|g" "$CONFIG_FILE"
-                sed_inplace "s|@prefix@|$install_prefix|g" "$CONFIG_FILE"
-                sed_inplace "s|@PACKAGE_NAME@|suricata|g" "$CONFIG_FILE"
+                # Replace placeholders (literal replacements; fail fast on errors)
+                replace_required_in_file "$CONFIG_FILE" "@e_logdir@" "$log_dir"
+                replace_required_in_file "$CONFIG_FILE" "@e_sysconfdir@" "$sysconf_dir/"
+                replace_required_in_file "$CONFIG_FILE" "@e_rundir@" "$run_dir/"
+                replace_required_in_file "$CONFIG_FILE" "@e_defaultruledir@" "$RULES_DIR"
+                replace_required_in_file "$CONFIG_FILE" "@MAJOR_MINOR@" "8.0"
+                replace_required_in_file "$CONFIG_FILE" "@e_enable_evelog@" "yes"
+                replace_required_in_file "$CONFIG_FILE" "@prefix@" "$install_prefix"
+                replace_required_in_file "$CONFIG_FILE" "@PACKAGE_NAME@" "suricata"
                 
                 # Comment out optional features that might not be present (pfring, etc.)
-                sed_inplace "s|@pfring_comment@|#|g" "$CONFIG_FILE"
-                sed_inplace "s|@napatech_comment@|#|g" "$CONFIG_FILE"
-                sed_inplace "s|@ndpi_comment@|#|g" "$CONFIG_FILE"
-                sed_inplace "s|@e_magic_file_comment@|#|g" "$CONFIG_FILE"
-                sed_inplace "s|@e_magic_file@|/usr/share/file/magic|g" "$CONFIG_FILE"
-                sed_inplace "s|@e_sghcachedir@|$install_prefix/var/lib/suricata|g" "$CONFIG_FILE"
+                replace_literal_in_file "$CONFIG_FILE" "@pfring_comment@" "#" || true
+                replace_literal_in_file "$CONFIG_FILE" "@napatech_comment@" "#" || true
+                replace_literal_in_file "$CONFIG_FILE" "@ndpi_comment@" "#" || true
+                replace_literal_in_file "$CONFIG_FILE" "@e_magic_file_comment@" "#" || true
+                replace_literal_in_file "$CONFIG_FILE" "@e_magic_file@" "/usr/share/file/magic" || true
+                replace_literal_in_file "$CONFIG_FILE" "@e_sghcachedir@" "$install_prefix/var/lib/suricata" || true
+
+                # Fail fast if critical placeholders remain, as they break YAML parsing
+                local required_placeholders=(
+                    "@e_logdir@"
+                    "@MAJOR_MINOR@"
+                    "@e_sysconfdir@"
+                    "@e_rundir@"
+                )
+                for ph in "${required_placeholders[@]}"; do
+                    if maybe_sudo grep -Fq "$ph" "$CONFIG_FILE"; then
+                        error_message "Fallback configuration template still contains unreplaced placeholder: $ph"
+                        exit 1
+                    fi
+                done
                 
             else
                 error_message "Failed to download configuration from $FALLBACK_CONFIG_URL"
@@ -674,8 +715,12 @@ setup_suricata_config() {
         sed_inplace "s|interface: eth0|interface: $INTERFACE|" "$CONFIG_FILE"
         sed_inplace "s|interface: en0|interface: $INTERFACE|" "$CONFIG_FILE"
         
-        # Enable community-id
-        sed_inplace "s|community-id: false|community-id: true|" "$CONFIG_FILE"
+        # Enable community-id (robust replacement; preserve indentation)
+        if command_exists perl; then
+            maybe_sudo perl -i -pe 's/^(\s*community-id:\s*)false\s*$/\1true/m' "$CONFIG_FILE" >/dev/null 2>&1 || true
+        else
+            sed_inplace "s|community-id: false|community-id: true|" "$CONFIG_FILE"
+        fi
 
         # Ensure default-rule-path and rule-files are set to our managed rules location
         if grep -q "^\s*default-rule-path:" "$CONFIG_FILE"; then
