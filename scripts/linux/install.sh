@@ -258,21 +258,11 @@ check_installed_version() {
 run_uninstall_script() {
     local uninstall_args="${1:-}"
     local download_path="$TMP_DIR/uninstall.sh"
-    local local_script_path
     
-    # Check if we can find the uninstall script locally (relative to install.sh)
-    # This is useful for development or manual runs from the repo
-    local_script_path="$(dirname "$(readlink -f "$0")")/uninstall.sh"
-    
-    if [ -f "$local_script_path" ]; then
-        info_message "Using local uninstall script: $local_script_path"
-        cp "$local_script_path" "$download_path"
-    else
-        info_message "Downloading uninstall script..."
-        if ! curl -fsSL -o "$download_path" "$UNINSTALL_MODERN_URL" 2>/dev/null; then
-            error_message "Failed to download uninstall script from $UNINSTALL_MODERN_URL"
-            return 1
-        fi
+    info_message "Downloading uninstall script from $UNINSTALL_MODERN_URL..."
+    if ! curl -fsSL -o "$download_path" "$UNINSTALL_MODERN_URL" 2>/dev/null; then
+        error_message "Failed to download uninstall script from $UNINSTALL_MODERN_URL"
+        return 1
     fi
     
     chmod +x "$download_path"
