@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.2.0-rc2 - 2026-03-30
+
+[affc78e](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/affc78e8deacb01a09af98edfe9b8b9dd9b3d391)...[dc6d8c0](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/dc6d8c0ee8d311c845eb62d7ef9f04a1d7418a04)
+
+### Features
+
+- Automate checksum generation in release workflow ([`dc6d8c0`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/dc6d8c0ee8d311c845eb62d7ef9f04a1d7418a04))
+
+### Miscellaneous Tasks
+
+- Update CHANGELOG.md ([`ff008e8`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ff008e87e29b8f7e73e2622c531c6b2d532c2bfe))
+
 ## 0.2.0-rc1 - 2026-02-27
 
 [218a2f4](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/218a2f4d3656f5d0c7e51f03fa490af4c3d17e00)...[affc78e](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/affc78e8deacb01a09af98edfe9b8b9dd9b3d391)
