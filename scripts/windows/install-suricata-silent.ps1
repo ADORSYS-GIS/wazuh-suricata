@@ -6,17 +6,20 @@
 #Requires -RunAsAdministrator
 
 
+# Default version configuration
+$SURICATA_VERSION = if ($env:SURICATA_VERSION) { $env:SURICATA_VERSION } else { "7.0.10-1" }
+$RULES_VERSION = if ($env:RULES_VERSION) { $env:RULES_VERSION } else { "7.0.3" }
+
 # Global configuration
 $global:Config = @{
     TempDir            = "C:\Temp"
-    SuricataInstallerUrl  = "https://www.openinfosecfoundation.org/download/windows/Suricata-7.0.10-1-64bit.msi"
+    SuricataInstallerUrl  = "https://www.openinfosecfoundation.org/download/windows/Suricata-$SURICATA_VERSION-64bit.msi"
     SuricataInstallerPath = "C:\Temp\Suricata_Installer.msi"
     SuricataDir       = "C:\Program Files\Suricata"
     SuricataExePath       = "C:\Program Files\Suricata\suricata.exe"
     NpcapPath          = "C:\Program Files\Npcap"
     RulesDir           = "C:\Program Files\Suricata\rules"
     SuricataConfigPath    = "C:\Program Files\Suricata\suricata.yaml"
-    LocalRulesUrl      = "https://rules.emergingthreats.net/open/suricata-7.0.3/emerging.rules"
     SuricataLogDir        = "C:\Program Files\Suricata\log"
     TaskName           = "SuricataStartup"
 }
@@ -213,7 +216,7 @@ function Update-EnvironmentVariables {
 
 # Update local.rules file.
 function Update-RulesFile {
-    $zipUrl = "https://rules.emergingthreats.net/open/suricata-7.0.3/emerging.rules.zip"
+    $zipUrl = "https://rules.emergingthreats.net/open/suricata-$RULES_VERSION/emerging.rules.zip"
     $zipPath = Join-Path -Path $global:Config.TempDir -ChildPath "emerging.rules.zip"
     $extractPath = $global:Config.SuricataDir
 

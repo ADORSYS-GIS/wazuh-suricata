@@ -49,7 +49,7 @@ fi
 
 # Configuration
 # Default Configuration
-SURICATA_VERSION="8.0.2"
+SURICATA_VERSION=${SURICATA_VERSION:-"8.0.2"}
 MODE="ids"
 INTERFACE=""
 
