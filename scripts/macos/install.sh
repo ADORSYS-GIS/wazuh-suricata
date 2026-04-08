@@ -110,7 +110,42 @@ WAZUH_CONTROL_BIN_PATH="/Library/Ossec/bin/wazuh-control"
 # Get logged in user for Homebrew operations
 LOGGED_IN_USER=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /loginwindow/ {print $3}')
 
-# Cleanup function
+# macOS sed function
+sed_inplace() {
+    maybe_sudo sed -i '' "$@" 2>/dev/null || true
+}
+
+# Replace a literal string in a file (portable).
+# Used to replace @placeholders@ in the fallback Suricata template reliably.
+replace_literal_in_file() {
+    local file="$1"
+    local from="$2"
+    local to="$3"
+
+    if command_exists perl; then
+        maybe_sudo perl -0777 -i -pe 'BEGIN{$from=$ARGV[1]; $to=$ARGV[2];} s/\Q$from\E/$to/g' "$file" "$from" "$to" >/dev/null 2>&1
+        return $?
+    fi
+
+    # Fallback to sed (best-effort)
+    sed_inplace "s|$from|$to|g" "$file"
+}
+
+# Replace a literal string in a file (portable).
+# Used to replace @placeholders@ in the fallback Suricata template reliably.
+replace_literal_in_file() {
+    local file="$1"
+    local from="$2"
+    local to="$3"
+
+    if command_exists perl; then
+        maybe_sudo perl -0777 -i -pe 'BEGIN{$from=$ARGV[1]; $to=$ARGV[2];} s/\Q$from\E/$to/g' "$file" "$from" "$to" >/dev/null 2>&1
+        return $?
+    fi
+
+    # Fallback to sed (best-effort)
+    sed_inplace "s|$from|$to|g" "$file"
+}
 
 replace_required_in_file() {
     local file="$1"
