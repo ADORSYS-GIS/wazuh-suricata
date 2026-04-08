@@ -91,7 +91,7 @@ function Install-SuricataSoftware {
         }
         else {
             InfoMessage "Downloading Suricata installer..."
-            Download-File -Url $global:Config.SuricataInstallerUrl -Destination $installerPath
+            Download-File -Url $global:Config.SuricataInstallerUrl -Destination $installerPath -Description "Suricata Installer"
             InfoMessage "Installing Suricata silently..."
             $process = Start-Process msiexec.exe -ArgumentList $arguments -Wait -PassThru
             if ($process.ExitCode -eq 0) {
@@ -123,11 +123,12 @@ function Install-NpcapSoftware {
             & $npcapScriptPath
             if (Test-Path $global:Config.NpcapPath) {
                 SuccessMessage "Npcap installed successfully via automated script"
+                return  # Added return to avoid falling through to manual fallback
             } else {
-                ErrorMessage "Npcap installation failed - directory not found"
+                ErrorExit "Npcap installation failed - directory not found. Suricata cannot function without Npcap."
             }
         } catch {
-            ErrorMessage "Failed to run automated Npcap installation: $_"
+            ErrorExit "Failed to run automated Npcap installation: $_"
         }
     } else {
         InfoMessage "Local script not found, downloading optimized Npcap installation script..."
@@ -143,29 +144,25 @@ function Install-NpcapSoftware {
             
             if (Test-Path $global:Config.NpcapPath) {
                 SuccessMessage "Npcap installed successfully via automated script"
+                return  # Added return to avoid falling through to manual fallback
             } else {
-                ErrorMessage "Npcap installation failed - directory not found"
-            }
-            
-            # Cleanup
-            if (Test-Path $tempNpcapScript) {
-                Remove-Item $tempNpcapScript -Force
+                ErrorExit "Npcap installation failed - directory not found. Suricata cannot function without Npcap."
             }
         } catch {
-            ErrorMessage "Failed to download or run automated Npcap installation: $_"
+            ErrorExit "Failed to download or run automated Npcap installation: $_"
+        }
             
             # Fallback to original method with warning
             WarnMessage "Falling back to manual installation method..."
             InfoMessage "Installing Npcap manually - GUI interaction may be required..."
             
             $npcapInstallerPath = Join-Path -Path $global:Config.TempDir -ChildPath "npcap-1.79.exe"
-            Download-File -Url "https://npcap.com/dist/npcap-1.79.exe" -Destination $npcapInstallerPath
+            Download-File -Url "https://npcap.com/dist/npcap-1.79.exe" -Destination $npcapInstallerPath -Description "Npcap Installer"
             
             if (Test-Path $npcapInstallerPath) {
                 Start-Process -FilePath $npcapInstallerPath -Wait
                 WarnMessage "Please complete the Npcap installation manually if a GUI appeared"
             }
-        }
     }
 }
 
@@ -187,7 +184,7 @@ function Update-RulesFile {
 
 
     try {
-        Download-File -Url $zipUrl -Destination $zipPath
+        Download-File -Url $zipUrl -Destination $zipPath -Description "Emerging Threats Rules"
         if (Test-Path $zipPath) {
             Ensure-Directory -Path $extractPath
             Expand-Archive -Path $zipPath -DestinationPath $extractPath -Force
@@ -347,6 +344,7 @@ function Validate-Installation {
                 SuccessMessage "Suricata executable validated at: $($global:Config.SuricataExePath)"
             } else {
                 ErrorMessage "Suricata executable exists but version check failed: $($global:Config.SuricataExePath)"
+                ErrorMessage "This usually indicates that Npcap is not correctly installed or drivers are not running."
                 $validationFailed = $true
             }
         }
@@ -358,7 +356,7 @@ function Validate-Installation {
         # Validate rules presence (at least one .rules file)
         if (Test-Path $global:Config.RulesDir) {
             $rulesFiles = Get-ChildItem -Path $global:Config.RulesDir -Filter "*.rules" -File -ErrorAction SilentlyContinue
-            if ($rulesFiles -and $rulesFiles.Count -gt 0) {
+            if ($rulesFiles -and @($rulesFiles).Count -gt 0) {
                 SuccessMessage "Suricata rules present in: $($global:Config.RulesDir)"
             } else {
                 WarnMessage "Rules directory exists but no .rules files found: $($global:Config.RulesDir)"

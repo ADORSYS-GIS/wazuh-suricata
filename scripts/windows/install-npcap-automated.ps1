@@ -89,7 +89,7 @@ function Download-NpcapInstaller {
     
     InfoMessage "Downloading Npcap installer from $($global:NpcapConfig.InstallerUrl)..."
     try {
-        Download-File -Url $global:NpcapConfig.InstallerUrl -Destination $installerPath
+        Download-File -Url $global:NpcapConfig.InstallerUrl -Destination $installerPath -Description "Npcap Installer"
         
         if (Test-Path $installerPath) {
             SuccessMessage "Npcap installer downloaded successfully"
@@ -115,7 +115,7 @@ function Test-NpcapInstalled {
     
     # Check 2: Registry entry (proper Windows installation)
     $hasRegistry = $null -ne (Get-ItemProperty "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*" -ErrorAction SilentlyContinue | 
-                             Where-Object { $_.DisplayName -like "*npcap*" })
+                             Where-Object { $_.PSObject.Properties.Name -contains "DisplayName" -and $_.DisplayName -like "*npcap*" })
     
     # Check 3: Driver/service (exact names only: npcap or legacy npf) ---
     $drivers = Get-CimInstance Win32_SystemDriver `
@@ -247,7 +247,7 @@ function Wait-ForInstallerCompletion {
             $_.MainWindowTitle -like "*Npcap*"
         }
         
-        if ($installerProcesses.Count -eq 0) {
+        if (@($installerProcesses).Count -eq 0) {
             SuccessMessage "Npcap installer processes have completed"
             return $true
         }
@@ -355,7 +355,7 @@ function Install-NpcapAutomated {
             SuccessMessage "Npcap installation completed and verified successfully!"
             
             # Additional driver status info
-            $drivers = Get-WmiObject Win32_SystemDriver -Filter "Name LIKE 'npf%' OR Name LIKE 'npcap%'" -ErrorAction SilentlyContinue
+            $drivers = Get-CimInstance Win32_SystemDriver -Filter "Name LIKE 'npf%' OR Name LIKE 'npcap%'" -ErrorAction SilentlyContinue
             if ($drivers) {
                 SuccessMessage "Npcap drivers are loaded and running!"
                 $drivers | ForEach-Object { 
@@ -424,7 +424,7 @@ function Main {
             exit 1
         }
     } catch {
-        ErrorMessage "Script execution failed: $($($_.Exception.Message))"
+        ErrorMessage "Script execution failed: $($_.Exception.Message)"
         exit 1
     }
 }
