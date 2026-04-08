@@ -11,6 +11,10 @@ on:
     branches:
       - main
       - develop
+
+env:
+  WAZUH_SURICATA_REPO_REF: refactor/split-linux-macos-scripts
+
 jobs:
   test-ids:
     runs-on: ${{ matrix.os }}
@@ -46,9 +50,9 @@ jobs:
     - name: Install Suricata
       run: |
         if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
-          sudo ./scripts/linux/install.sh
+          sudo env WAZUH_SURICATA_REPO_REF=${{ env.WAZUH_SURICATA_REPO_REF }} ./scripts/linux/install.sh
         elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
-          sudo ./scripts/macos/install.sh
+          sudo env WAZUH_SURICATA_REPO_REF=${{ env.WAZUH_SURICATA_REPO_REF }} ./scripts/macos/install.sh
         fi
 
     - name: Run Bats tests
@@ -75,10 +79,10 @@ jobs:
       run: chmod +x ./scripts/linux/install.sh
 
     - name: Install Suricata in IPS mode
-      run: sudo ./scripts/linux/install.sh --mode ips
+      run: sudo env WAZUH_SURICATA_REPO_REF=${{ env.WAZUH_SURICATA_REPO_REF }} ./scripts/linux/install.sh --mode ips
 
     - name: Run Bats tests for IPS mode
-      run: sudo MODE=ips bats tests/
+      run: sudo env WAZUH_SURICATA_REPO_REF=${{ env.WAZUH_SURICATA_REPO_REF }} MODE=ips bats tests/
 
   release:
     name: Release

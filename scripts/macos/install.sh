@@ -22,6 +22,8 @@ fi
 SURICATA_VERSION=${SURICATA_VERSION:-"8.0.2"}
 MODE="ids"
 INTERFACE=""
+WAZUH_SURICATA_REPO_REF=${WAZUH_SURICATA_REPO_REF:-"v0.2.0-rc2"}
+WAZUH_SURICATA_REPO_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/${WAZUH_SURICATA_REPO_REF}"
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do

@@ -10,7 +10,11 @@
 $WAZUH_SURICATA_REPO_REF = if ($env:WAZUH_SURICATA_REPO_REF) { $env:WAZUH_SURICATA_REPO_REF } else { "v0.2.0-rc2" }
 $WAZUH_SURICATA_REPO_URL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/$WAZUH_SURICATA_REPO_REF"
 
-$TEMP_DIR = Join-Path $env:TEMP "wazuh-suricata"
+$TEMP_DIR = Join-Path $env:TEMP "wazuh-suricata-install"
+if (-not (Test-Path $TEMP_DIR)) {
+    New-Item -Path $TEMP_DIR -ItemType Directory | Out-Null
+}
+
 try {
     $ChecksumsURL = "$WAZUH_SURICATA_REPO_URL/checksums.sha256"
     $UtilsURL = "$WAZUH_SURICATA_REPO_URL/scripts/shared/utils.ps1"

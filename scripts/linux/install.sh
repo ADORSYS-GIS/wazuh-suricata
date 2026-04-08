@@ -113,7 +113,7 @@ WAZUH_CONTROL_BIN_PATH=${WAZUH_CONTROL_BIN_PATH:-"/var/ossec/bin/wazuh-control"}
 DISTRO=$(detect_distro)
 # Linux sed_inplace function
 sed_inplace() {
-    maybe_sudo sed_inplace -i "$@" 2>/dev/null || true
+    maybe_sudo sed -i "$@" 2>/dev/null || true
 }
 
 #=============================================================================
