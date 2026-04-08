@@ -6,44 +6,22 @@
 # Handles installations in /opt/wazuh/suricata
 #=============================================================================
 
-# Define text formatting
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[1;34m'
-BOLD='\033[1m'
-NORMAL='\033[0m'
-
-# Function for logging with timestamp
-log() {
-    local LEVEL="$1"
-    shift
-    local MESSAGE="$*"
-    local TIMESTAMP
-    TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
-    echo -e "${TIMESTAMP} ${LEVEL} ${MESSAGE}"
-}
-
-# Logging helpers
-info_message() {
-    log "${BLUE}${BOLD}[INFO]${NORMAL}" "$*"
-}
-warn_message() {
-    log "${YELLOW}${BOLD}[WARNING]${NORMAL}" "$*"
-}
-error_message() {
-    log "${RED}${BOLD}[ERROR]${NORMAL}" "$*"
-}
-success_message() {
-    log "${GREEN}${BOLD}[SUCCESS]${NORMAL}" "$*"
-}
-
-# Check if we're running in bash; if not, adjust behavior
-if [ -n "$BASH_VERSION" ]; then
+# Set shell options based on shell type
+if [[ -n "${BASH_VERSION:-}" ]]; then
     set -euo pipefail
 else
     set -eu
 fi
+
+# OS guard
+if [[ "$(uname -s)" != "Linux" ]]; then
+    printf "%s\n" "[ERROR] This uninstallation script is intended for Linux systems." >&2
+    exit 1
+fi
+
+# Variables
+WAZUH_SURICATA_REPO_REF=${WAZUH_SURICATA_REPO_REF:-"v0.2.0-rc2"}
+WAZUH_SURICATA_REPO_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/${WAZUH_SURICATA_REPO_REF}"
 
 # OS Detection
 OS="linux"
@@ -53,73 +31,55 @@ RULES_DIR="/opt/wazuh/suricata/var/lib/suricata"
 OSSEC_CONF_PATH="/var/ossec/etc/ossec.conf"
 WAZUH_CONTROL_BIN_PATH="/var/ossec/bin/wazuh-control"
 
-# Detect Linux Distribution
-detect_distro() {
-    if [ -f /etc/os-release ]; then
-        . /etc/os-release
-        echo "$ID"
-    elif [ -f /etc/redhat-release ]; then
-        echo "redhat"
-    elif [ -f /etc/debian_version ]; then
-        echo "debian"
-    else
-        error_message "Unable to detect Linux distribution"
-        exit 1
-    fi
-}
-DISTRO=$(detect_distro)
-
-# Remote script URLs and temporary directory
-LEGACY_UNINSTALL_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/refs/tags/v0.1.5/scripts/uninstall.sh"
 TMP_DIR=$(mktemp -d)
 
-# Cleanup function for temporary directory
-cleanup() {
-    if [ -n "$TMP_DIR" ] && [ -d "$TMP_DIR" ]; then
-        rm -rf "$TMP_DIR"
+# Source shared utilities
+if ! curl -fsSL "${WAZUH_SURICATA_REPO_URL}/scripts/shared/utils.sh" -o "$TMP_DIR/utils.sh"; then
+    echo "Failed to download utils.sh"
+    exit 1
+fi
+
+# Function to calculate SHA256 (bootstrap)
+calculate_sha256_bootstrap() {
+    local file="$1"
+    if command -v sha256sum >/dev/null 2>&1; then
+        sha256sum "$file" | awk '{print $1}'
+    else
+        shasum -a 256 "$file" | awk '{print $1}'
     fi
 }
+
+# Download checksums and verify utils.sh
+if ! curl -fsSL "${WAZUH_SURICATA_REPO_URL}/checksums.sha256" -o "$TMP_DIR/checksums.sha256"; then
+    echo "Failed to download checksums.sha256"
+    exit 1
+fi
+
+EXPECTED_HASH=$(grep "scripts/shared/utils.sh" "$TMP_DIR/checksums.sha256" | awk '{print $1}')
+ACTUAL_HASH=$(calculate_sha256_bootstrap "$TMP_DIR/utils.sh")
+
+if [[ -z "$EXPECTED_HASH" ]] || [[ "$EXPECTED_HASH" != "$ACTUAL_HASH" ]]; then
+    echo "Error: Checksum verification failed for utils.sh" >&2
+    exit 1
+fi
+
+# shellcheck disable=SC1091
+. "$TMP_DIR/utils.sh"
+
+# Register cleanup to run on exit
 trap cleanup EXIT
 
-# Check if a command exists
-command_exists() {
-    command -v "$1" >/dev/null 2>&1
-}
+# Set up global checksums file
+export CHECKSUMS_FILE="$TMP_DIR/checksums.sha256"
 
-# Check if sudo is available or if the script is run as root
-maybe_sudo() {
-    if [ "$(id -u)" -ne 0 ]; then
-        if command_exists sudo; then
-            sudo "$@"
-        else
-            error_message "This script requires root privileges. Please run with sudo or as root."
-            exit 1
-        fi
-    else
-        "$@"
-    fi
-}
+# Detect distribution and architecture are now handled by utils.sh
+DISTRO=$(detect_distro)
 
+# Remote script URLs
+LEGACY_UNINSTALL_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/refs/tags/v0.1.5/scripts/uninstall.sh"
 # Linux sed function
 sed_inplace() {
     maybe_sudo sed -i "$@" 2>/dev/null || true
-}
-
-# Detect system architecture
-detect_architecture() {
-    local arch
-    arch=$(uname -m)
-    case "$arch" in
-        x86_64)
-            echo "amd64"
-            ;;
-        arm64|aarch64)
-            echo "arm64"
-            ;;
-        *)
-            echo "unknown"
-            ;;
-    esac
 }
 
 # Detect Suricata installations - check for both legacy and modern
@@ -167,7 +127,7 @@ run_legacy_cleanup_script() {
     
     info_message "Downloading legacy uninstall script..."
     
-    if ! curl -fsSL -o "$cleanup_script" "$LEGACY_UNINSTALL_URL" 2>/dev/null; then
+    if ! download_file "$LEGACY_UNINSTALL_URL" "$cleanup_script" "legacy uninstall script"; then
         warn_message "Failed to download legacy uninstall script from $LEGACY_UNINSTALL_URL"
         warn_message "Attempting manual legacy cleanup..."
         
@@ -193,7 +153,7 @@ run_legacy_cleanup_script() {
         return 0
     fi
     
-    chmod +x "$cleanup_script"
+    maybe_sudo chmod +x "$cleanup_script"
     
     info_message "Running legacy uninstall script..."
     if bash "$cleanup_script" --silent 2>/dev/null || bash "$cleanup_script" 2>/dev/null; then

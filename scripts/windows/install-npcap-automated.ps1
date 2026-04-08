@@ -7,45 +7,56 @@
 
 Add-Type -AssemblyName System.Windows.Forms
 
+# Repository configuration
+$WAZUH_SURICATA_REPO_REF = if ($env:WAZUH_SURICATA_REPO_REF) { $env:WAZUH_SURICATA_REPO_REF } else { "v0.2.0-rc2" }
+$WAZUH_SURICATA_REPO_URL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/$WAZUH_SURICATA_REPO_REF"
+
+$TEMP_DIR = Join-Path $env:TEMP "wazuh-suricata"
+try {
+    $ChecksumsURL = "$WAZUH_SURICATA_REPO_URL/checksums.sha256"
+    $UtilsURL = "$WAZUH_SURICATA_REPO_URL/scripts/shared/utils.ps1"
+    
+    $global:ChecksumsPath = Join-Path $TEMP_DIR "checksums.sha256"
+    $UtilsPath = Join-Path $TEMP_DIR "utils.ps1"
+
+    Invoke-WebRequest -Uri $ChecksumsURL -OutFile $ChecksumsPath -ErrorAction Stop
+    Invoke-WebRequest -Uri $UtilsURL -OutFile $UtilsPath -ErrorAction Stop
+
+    # Verification function (bootstrap)
+    function Get-FileChecksum-Bootstrap {
+        param([string]$FilePath)
+        return (Get-FileHash -Path $FilePath -Algorithm SHA256).Hash.ToLower()
+    }
+
+    $ExpectedHash = (Select-String -Path $ChecksumsPath -Pattern "scripts/shared/utils.ps1").Line.Split(" ")[0]
+    $ActualHash = Get-FileChecksum-Bootstrap -FilePath $UtilsPath
+
+    if ([string]::IsNullOrWhiteSpace($ExpectedHash) -or ($ActualHash -ne $ExpectedHash.ToLower())) {
+        Write-Error "Checksum verification failed for utils.ps1"
+        Write-Error "Expected: $ExpectedHash"
+        Write-Error "Got:      $ActualHash"
+        exit 1
+    }
+
+    . $UtilsPath
+}
+catch {
+    Write-Error "Failed to initialize utilities: $($_.Exception.Message)"
+    exit 1
+}
+
+# Set global checksums path for Download-And-VerifyFile
+$global:ChecksumsPath = $global:ChecksumsPath
+
 # Global configuration
 $global:NpcapConfig = @{
-    TempDir = "C:\Temp"
+    TempDir = $TEMP_DIR
     InstallerUrl = "https://npcap.com/dist/npcap-1.79.exe"
-    InstallerPath = "C:\Temp\npcap-1.79.exe"
+    InstallerPath = Join-Path $TEMP_DIR "npcap-1.79.exe"
     InstallPath = "C:\Program Files\Npcap"
     MaxWaitTime = 45  # Maximum wait time in seconds (reduced from 120)
 }
 
-# Logging functions with colors
-function Log {
-    param (
-        [string]$Level,
-        [string]$Message,
-        [string]$Color = "White"
-    )
-    $Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    Write-Host "$Timestamp $Level $Message" -ForegroundColor $Color
-}
-
-function InfoMessage {
-    param ([string]$Message)
-    Log "[INFO]" $Message "White"
-}
-
-function WarnMessage {
-    param ([string]$Message)
-    Log "[WARNING]" $Message "Yellow"
-}
-
-function ErrorMessage {
-    param ([string]$Message)
-    Log "[ERROR]" $Message "Red"
-}
-
-function SuccessMessage {
-    param ([string]$Message)
-    Log "[SUCCESS]" $Message "Green"
-}
 
 # Helper function to send keyboard input with delay
 function Send-KeysToWindow {
@@ -63,14 +74,6 @@ function Send-KeysToWindow {
     }
 }
 
-# Ensure temp directory exists
-function Ensure-TempDirectory {
-    if (-not (Test-Path $global:NpcapConfig.TempDir)) {
-        New-Item -ItemType Directory -Path $global:NpcapConfig.TempDir -Force | Out-Null
-        InfoMessage "Created temp directory: $($global:NpcapConfig.TempDir)"
-    }
-}
-
 # Download Npcap installer
 function Download-NpcapInstaller {
     $installerPath = $global:NpcapConfig.InstallerPath
@@ -82,7 +85,7 @@ function Download-NpcapInstaller {
     
     InfoMessage "Downloading Npcap installer from $($global:NpcapConfig.InstallerUrl)..."
     try {
-        Invoke-WebRequest -Uri $global:NpcapConfig.InstallerUrl -OutFile $installerPath -UseBasicParsing -ErrorAction Stop
+        Download-File -Url $global:NpcapConfig.InstallerUrl -Destination $installerPath
         
         if (Test-Path $installerPath) {
             SuccessMessage "Npcap installer downloaded successfully"
@@ -283,9 +286,6 @@ function Install-NpcapAutomated {
     
     # Clean partial installations
     Remove-PartialNpcapInstallation
-    
-    # Ensure temp directory exists
-    Ensure-TempDirectory
     
     # Download installer
     $installerPath = Download-NpcapInstaller
