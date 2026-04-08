@@ -426,12 +426,6 @@ main() {
     # Validate removal
     validate_removal
     
-    # macOS specific: Cleanup legacy leftover directory in home
-    if [ -d "${HOME}/suricata-install" ]; then
-        info_message "Removing leftover directory from legacy installer: ${HOME}/suricata-install"
-        rm -rf "${HOME}/suricata-install"
-    fi
-    
     echo ""
     success_message "Suricata uninstallation process completed!"
 }

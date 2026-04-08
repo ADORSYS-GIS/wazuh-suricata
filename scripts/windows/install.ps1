@@ -77,7 +77,7 @@ function Install-SuricataSoftware {
         }
         else {
             InfoMessage "Downloading Suricata installer..."
-            Download-File -Url $global:Config.SuricataInstallerUrl -OutputPath $installerPath
+            Download-File -Url $global:Config.SuricataInstallerUrl -Destination $installerPath -Description "Suricata Installer"
             InfoMessage "Installing Suricata..."
             Start-Process msiexec.exe -ArgumentList $arguments -Wait
         }
@@ -97,7 +97,7 @@ function Install-NpcapSoftware {
         }
         else {
             InfoMessage "Downloading Npcap installer..."
-            Download-File -Url $global:Config.NpcapInstallerUrl -OutputPath $global:Config.NpcapInstallerPath
+            Download-File -Url $global:Config.NpcapInstallerUrl -Destination $global:Config.NpcapInstallerPath -Description "Npcap Installer"
             InfoMessage "Installing Npcap..."
             Start-Process -FilePath $global:Config.NpcapInstallerPath -Wait
             InfoMessage "Please follow the on-screen instructions to complete the Npcap installation."
@@ -120,7 +120,7 @@ function Update-RulesFile {
     $extractPath = $global:Config.SuricataDir
 
     try {
-        Download-File -Url $zipUrl -OutputPath $zipPath
+        Download-File -Url $zipUrl -Destination $zipPath -Description "Emerging Threats Rules"
         if (Test-Path $zipPath) {
             Ensure-Directory -Path $extractPath
             Expand-Archive -Path $zipPath -DestinationPath $extractPath -Force
