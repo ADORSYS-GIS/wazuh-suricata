@@ -1,4 +1,4 @@
-name: Bats Tests
+name: Suricata CI
 
 on:
   push:
@@ -7,15 +7,61 @@ on:
       - develop
     tags:
       - 'v*'
+    paths:
+      - 'scripts/**'
+      - 'tests/**'
+      - '.github/**'
   pull_request:
     branches:
       - main
       - develop
+    paths:
+      - 'scripts/**'
+      - 'tests/**'
+      - '.github/**'
 
 env:
   WAZUH_SURICATA_REPO_REF: refactor/split-linux-macos-scripts
 
 jobs:
+  update-changelog-and-checksums:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          fetch-depth: "0"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ github.head_ref || github.ref_name }}
+
+      - name: Configure git user
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+      - name: Generate script checksums
+        run: |
+          find scripts rules \( -path "scripts/tests" -o -path "scripts/tests/*" \) -prune -o -type f -exec sha256sum {} + > checksums.sha256
+          cat checksums.sha256
+          
+      - name: Generate full CHANGELOG.md
+        uses: orhun/git-cliff-action@c93ef52f3d0ddcdcc9bd5447d98d458a11cd4f72
+        with:
+          config: cliff.toml
+          args: --output CHANGELOG.md
+          
+      - name: Commit and push changes
+        run: |
+          if [[ -n $(git status --porcelain) ]]; then
+            git add CHANGELOG.md checksums.sha256
+            git commit -m "docs: update CHANGELOG.md and checksums [skip ci]"
+            git push origin ${{ github.head_ref || github.ref_name }}
+          else
+            echo "No changes to commit"
+          fi
+
   test-ids:
     runs-on: ${{ matrix.os }}
     strategy:
@@ -118,6 +164,15 @@ jobs:
           config: cliff.toml
           args: --output CHANGELOG.md
 
+      - name: Determine prerelease
+        id: prerelease
+        run: |
+          if [[ "${GITHUB_REF#refs/tags/}" == *"rc"* ]]; then
+            echo "PRERELEASE=true" >> $GITHUB_OUTPUT
+          else
+            echo "PRERELEASE=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Create Release
         uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b
         env:
@@ -127,19 +182,4 @@ jobs:
           name: Release ${{ steps.get_version.outputs.VERSION }}
           body: ${{ steps.git_cliff.outputs.content }}
           draft: false
-          prerelease: false
-
-      - name: Create Pull Request to update CHANGELOG.md
-        uses: peter-evans/create-pull-request@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "chore: update CHANGELOG.md"
-          title: "Update Changelog"
-          body: |
-            This PR updates the CHANGELOG.md to include all releases.
-            - Generated using git-cliff
-            - Triggered by: ${{ github.event_name }}
-          branch: update-changelog-${{ github.run_id }}
-          base: main
-          delete-branch: true
-          labels: documentation, automated-pr
+          prerelease: ${{ steps.prerelease.outputs.PRERELEASE }}
