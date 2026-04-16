@@ -111,7 +111,7 @@ detect_suricata_installation() {
             fi
             ;;
         ubuntu|debian)
-            if command_exists dpkg && dpkg -s suricata >/dev/null 2>&1; then
+            if command_exists dpkg && dpkg-query -W -f='${Status}' suricata 2>/dev/null | grep -q "ok installed"; then
                 has_modern=1
             fi
             ;;
@@ -217,7 +217,7 @@ remove_suricata_packages() {
             ;;
         ubuntu|debian)
             # Check if Suricata is installed via DEB
-            if command_exists dpkg && dpkg -s suricata >/dev/null 2>&1; then
+            if command_exists dpkg && dpkg-query -W -f='${Status}' suricata 2>/dev/null | grep -q "ok installed"; then
                 info_message "Detected DEB-installed Suricata package"
                 if maybe_sudo apt-get remove -y suricata; then
                     maybe_sudo apt-get autoremove -y

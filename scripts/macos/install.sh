@@ -652,6 +652,9 @@ setup_suricata_config() {
             sed_inplace "s|community-id: false|community-id: true|" "$CONFIG_FILE"
         fi
 
+        # Update stream memcap (target the stream block specifically)
+        sed_inplace "/^stream:/,/memcap:/ s|memcap: 64 MiB|memcap: 512 MiB|" "$CONFIG_FILE"
+
         # Ensure default-rule-path and rule-files are set to our managed rules location
         if grep -q "^\s*default-rule-path:" "$CONFIG_FILE"; then
             sed_inplace "s|^\s*default-rule-path:.*|default-rule-path: $RULES_DIR|" "$CONFIG_FILE"
