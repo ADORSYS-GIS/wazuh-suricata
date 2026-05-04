@@ -1,19 +1,45 @@
-# uninstall.ps1 - Uninstall Suricata, Npcap, rules, and scheduled task
 
-# Logging helpers (reuse from install.ps1)
-function Log {
-    param (
-        [string]$Level,
-        [string]$Message,
-        [string]$Color = "White"
-    )
-    $Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    Write-Host "$Timestamp $Level $Message" -ForegroundColor $Color
+# Repository configuration
+$WAZUH_SURICATA_REPO_REF = if ($env:WAZUH_SURICATA_REPO_REF) { $env:WAZUH_SURICATA_REPO_REF } else { "v0.2.0-rc2" }
+$WAZUH_SURICATA_REPO_URL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/$WAZUH_SURICATA_REPO_REF"
+
+$TEMP_DIR = Join-Path $env:TEMP "wazuh-suricata-install"
+if (-not (Test-Path $TEMP_DIR)) {
+    New-Item -Path $TEMP_DIR -ItemType Directory | Out-Null
 }
-function InfoMessage { param([string]$Message) Log "[INFO]" $Message "White" }
-function WarnMessage { param([string]$Message) Log "[WARNING]" $Message "Yellow" }
-function ErrorMessage { param([string]$Message) Log "[ERROR]" $Message "Red" }
-function SuccessMessage { param([string]$Message) Log "[SUCCESS]" $Message "Green" }
+
+try {
+    $ChecksumsURL = "$WAZUH_SURICATA_REPO_URL/checksums.sha256"
+    $UtilsURL = "$WAZUH_SURICATA_REPO_URL/scripts/shared/utils.ps1"
+    
+    $global:ChecksumsPath = Join-Path $TEMP_DIR "checksums.sha256"
+    $UtilsPath = Join-Path $TEMP_DIR "utils.ps1"
+
+    Invoke-WebRequest -Uri $ChecksumsURL -OutFile $ChecksumsPath -ErrorAction Stop
+    Invoke-WebRequest -Uri $UtilsURL -OutFile $UtilsPath -ErrorAction Stop
+
+    # Verification function (bootstrap)
+    function Get-FileChecksum-Bootstrap {
+        param([string]$FilePath)
+        return (Get-FileHash -Path $FilePath -Algorithm SHA256).Hash.ToLower()
+    }
+
+    $ExpectedHash = (Select-String -Path $ChecksumsPath -Pattern "scripts/shared/utils.ps1").Line.Split(" ")[0]
+    $ActualHash = Get-FileChecksum-Bootstrap -FilePath $UtilsPath
+
+    if ([string]::IsNullOrWhiteSpace($ExpectedHash) -or ($ActualHash -ne $ExpectedHash.ToLower())) {
+        Write-Error "Checksum verification failed for utils.ps1"
+        Write-Error "Expected: $ExpectedHash"
+        Write-Error "Got:      $ActualHash"
+        exit 1
+    }
+
+    . $UtilsPath
+}
+catch {
+    Write-Error "Failed to initialize utilities: $($_.Exception.Message)"
+    exit 1
+}
 
 # Global config (reuse from install.ps1)
 $global:Config = @{
@@ -25,27 +51,6 @@ $global:Config = @{
     SuricataConfigPath  = "C:\Program Files\Suricata\suricata.yaml"
     SuricataLogDir      = "C:\Program Files\Suricata\log"
     TaskName            = "SuricataStartup"
-}
-
-function Remove-SystemPath {
-    param (
-        [string]$PathToRemove
-    )
-    try {
-        $currentPath = [System.Environment]::GetEnvironmentVariable("Path", [System.EnvironmentVariableTarget]::Machine)
-        $pathArray = $currentPath -split ';'
-        if ($pathArray -contains $PathToRemove) {
-            InfoMessage "The path '$PathToRemove' exists in the system Path. Proceeding to remove it."
-            $updatedPathArray = $pathArray | Where-Object { $_ -ne $PathToRemove }
-            $updatedPath = ($updatedPathArray -join ';').TrimEnd(';')
-            [System.Environment]::SetEnvironmentVariable("Path", $updatedPath, [System.EnvironmentVariableTarget]::Machine)
-            InfoMessage "Successfully removed '$PathToRemove' from the system Path."
-        } else {
-            WarnMessage "The path '$PathToRemove' does not exist in the system Path. No changes were made."
-        }
-    } catch {
-        ErrorMessage "Failed to update system Path: $_"
-    }
 }
 
 function Remove-SuricataScheduledTask {

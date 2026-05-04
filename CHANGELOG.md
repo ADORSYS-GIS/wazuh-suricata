@@ -2,6 +2,67 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+[554ad11](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/554ad11018b99ed73e93a1089f7e997dbe6bf6ff)...[ab1421d](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ab1421d85ff50640467c380cb78d77a6ee72bd09)
+
+### Documentation
+
+- Update CHANGELOG.md and checksums [skip ci] ([`773821b`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/773821b69e4fc20a800d7f455ccc94db0cff2a62))
+- Update CHANGELOG.md and checksums [skip ci] ([`8a25a28`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/8a25a28e18f9fa787f9e78ec7caa4245914acfc5))
+
+### Features
+
+- Increase stream memcap to 512 MiB and improve Debian package detection logic ([`577c30f`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/577c30fcda00154684de9b1a220aa4a03d924e84))
+
+### Miscellaneous Tasks
+
+- Remove GitHub action step generating full CHANGELOG.md ([`b9d666d`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/b9d666d818919c4764f4590ae93e7db102f91604))
+
+## 0.2.0-rc3 - 2026-04-14
+
+[dc6d8c0](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/dc6d8c0ee8d311c845eb62d7ef9f04a1d7418a04)...[554ad11](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/554ad11018b99ed73e93a1089f7e997dbe6bf6ff)
+
+### Features
+
+- Add checksum to release assets ([`e16b893`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/e16b89389477f7241647b25ae97b06016b1f32af))
+
+## 0.2.0-rc2 - 2026-03-30
+
+[affc78e](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/affc78e8deacb01a09af98edfe9b8b9dd9b3d391)...[dc6d8c0](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/dc6d8c0ee8d311c845eb62d7ef9f04a1d7418a04)
+
+### Bug Fixes
+
+- Remove local uninstall script check in linux and macos install scripts ([`19b9ecb`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/19b9ecb4ffc542fb16f138aedab879d993438d58))
+- Correct checksum generation and update job dependencies ([`61e4298`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/61e42984c993206debdfc41ad7a7b181d3d04222))
+
+### Features
+
+- Introduce modular installation and uninstallation scripts for Linux and macOS, enhancing Suricata setup with OS-specific handling and improved documentation in README.md. ([`db8fec3`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/db8fec32542223aaedb4aa53d0e618671dbe26f0))
+- Add 'yq' dependency to installation scripts for Linux and macOS, and ensure Suricata configuration includes 'alert' in eve-log types ([`b8bba03`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/b8bba038034a86559ff2530a710c3d3de14177bd))
+- Implement automatic installation of 'yq' in Linux install script, ensuring availability for configuration management and enhancing dependency handling ([`3f923fc`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/3f923fc7179cc8f2a1238bee7e2120b5963bee7d))
+- Improve macOS installation script to capture and display Homebrew output during dependency installation, enhancing error handling and user feedback ([`2272e17`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/2272e1740ae0fd6a070680cb92437433db923159))
+- Enhance Suricata configuration setup in macOS install script by adding support for e_magic_file and improving yq command handling for eve-log types ([`b41b773`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/b41b773b5008f1ee9b8007ccc3e361d116262bd9))
+- Introduce robust placeholder replacement functions in macOS install script to enhance Suricata configuration reliability and error handling ([`1c61891`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/1c6189146011bf16b436bb255fb7be17155c3d5a))
+- Add checksum ([`9acbf75`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/9acbf75cd2f241fb9c968b47021876270fc442ab))
+- Make SURICATA_VERSION and RULES_VERSION configurable in installation scripts ([`faf9556`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/faf9556264dc3bd684c7003d1b16a10dd7f0ff5e))
+- Automate checksum generation in release workflow ([`dc6d8c0`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/dc6d8c0ee8d311c845eb62d7ef9f04a1d7418a04))
+
+### Miscellaneous Tasks
+
+- Update script checksums and add portable string replacement utility ([`5cb2954`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/5cb29548c93324b57727a08bc554db8457853803))
+- Update installer scripts and fix parameter names ([`6613736`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/661373674759c8b01f490b68fd14b9bf7817a6e3))
+- Enhance Suricata CI pipeline with changelog and checksum updates ([`8fdb97b`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/8fdb97b170fc99d30b5339d74a01b0f976da3066))
+- Update CHANGELOG.md ([`ff008e8`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ff008e87e29b8f7e73e2622c531c6b2d532c2bfe))
+
+### Refactor
+
+- Consolidate cleanup function in Linux install script and align config paths in uninstall scripts for Linux and macOS ([`30c6f15`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/30c6f1565b43b0e2c7623877a09e48e634172908))
+- Enhance Suricata service integration removal in Linux install script to handle multiple unit file locations and SysV init scripts ([`73915f8`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/73915f826661177e82c3c2988f41369f62e37346))
+- Centralize shared logic into new utility scripts and implement checksum verification for all installations ([`9900d8e`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/9900d8e250d550f12dca8433211cd6c867ba7827))
+- Standardize installation temporary directories, propagate repo references in CI, and fix Linux sed command ([`394356e`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/394356ec4087a9a66700828091e2080eb2d43132))
+- Improve installer logging, update registry checks, replace WMI with CIM, and add gitignore file ([`c79d677`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/c79d6779b3476cdfa885c85a8fc8698a5fa115de))
+
 ## 0.2.0-rc1 - 2026-02-27
 
 [218a2f4](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/218a2f4d3656f5d0c7e51f03fa490af4c3d17e00)...[affc78e](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/affc78e8deacb01a09af98edfe9b8b9dd9b3d391)

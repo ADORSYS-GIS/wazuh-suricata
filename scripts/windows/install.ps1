@@ -1,89 +1,66 @@
+# Repository configuration
+$WAZUH_SURICATA_REPO_REF = if ($env:WAZUH_SURICATA_REPO_REF) { $env:WAZUH_SURICATA_REPO_REF } else { "v0.2.0-rc2" }
+$WAZUH_SURICATA_REPO_URL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/$WAZUH_SURICATA_REPO_REF"
+
+$TEMP_DIR = Join-Path $env:TEMP "wazuh-suricata-install"
+if (-not (Test-Path $TEMP_DIR)) {
+    New-Item -Path $TEMP_DIR -ItemType Directory | Out-Null
+}
+
+try {
+    $ChecksumsURL = "$WAZUH_SURICATA_REPO_URL/checksums.sha256"
+    $UtilsURL = "$WAZUH_SURICATA_REPO_URL/scripts/shared/utils.ps1"
+    
+    $global:ChecksumsPath = Join-Path $TEMP_DIR "checksums.sha256"
+    $UtilsPath = Join-Path $TEMP_DIR "utils.ps1"
+
+    Invoke-WebRequest -Uri $ChecksumsURL -OutFile $ChecksumsPath -ErrorAction Stop
+    Invoke-WebRequest -Uri $UtilsURL -OutFile $UtilsPath -ErrorAction Stop
+
+    # Verification function (bootstrap)
+    function Get-FileChecksum-Bootstrap {
+        param([string]$FilePath)
+        return (Get-FileHash -Path $FilePath -Algorithm SHA256).Hash.ToLower()
+    }
+
+    $ExpectedHash = (Select-String -Path $ChecksumsPath -Pattern "scripts/shared/utils.ps1").Line.Split(" ")[0]
+    $ActualHash = Get-FileChecksum-Bootstrap -FilePath $UtilsPath
+
+    if ([string]::IsNullOrWhiteSpace($ExpectedHash) -or ($ActualHash -ne $ExpectedHash.ToLower())) {
+        Write-Error "Checksum verification failed for utils.ps1"
+        Write-Error "Expected: $ExpectedHash"
+        Write-Error "Got:      $ActualHash"
+        exit 1
+    }
+
+    . $UtilsPath
+}
+catch {
+    Write-Error "Failed to initialize utilities: $($_.Exception.Message)"
+    exit 1
+}
+
+# Default version configuration
+$SURICATA_VERSION = if ($env:SURICATA_VERSION) { $env:SURICATA_VERSION } else { "7.0.10-1" }
+$RULES_VERSION = if ($env:RULES_VERSION) { $env:RULES_VERSION } else { "7.0.3" }
+
 # Global configuration
 $global:Config = @{
-    TempDir            = "C:\Temp"
-    SuricataInstallerUrl  = "https://www.openinfosecfoundation.org/download/windows/Suricata-7.0.10-1-64bit.msi"
-    SuricataInstallerPath = "C:\Temp\Suricata_Installer.msi"
-    NpcapInstallerUrl  = "https://npcap.com/dist/npcap-1.79.exe"
-    NpcapInstallerPath = "C:\Temp\Npcap_Installer.exe"
-    SuricataDir       = "C:\Program Files\Suricata"
-    SuricataExePath       = "C:\Program Files\Suricata\suricata.exe"
-    NpcapPath          = "C:\Program Files\Npcap"
-    RulesDir           = "C:\Program Files\Suricata\rules"
-    SuricataConfigPath    = "C:\Program Files\Suricata\suricata.yaml"
-    LocalRulesUrl      = "https://rules.emergingthreats.net/open/suricata-7.0.3/emerging.rules"
-    SuricataLogDir        = "C:\Program Files\Suricata\log"
-    TaskName           = "SuricataStartup"
+    TempDir                 = $TEMP_DIR
+    SuricataInstallerUrl    = "https://www.openinfosecfoundation.org/download/windows/Suricata-$SURICATA_VERSION-64bit.msi"
+    SuricataInstallerPath   = Join-Path $TEMP_DIR "Suricata_Installer.msi"
+    NpcapInstallerUrl       = "https://npcap.com/dist/npcap-1.79.exe"
+    NpcapInstallerPath      = Join-Path $TEMP_DIR "Npcap_Installer.exe"
+    SuricataDir             = "C:\Program Files\Suricata"
+    SuricataExePath         = "C:\Program Files\Suricata\suricata.exe"
+    NpcapPath               = "C:\Program Files\Npcap"
+    RulesDir                = "C:\Program Files\Suricata\rules"
+    SuricataConfigPath      = "C:\Program Files\Suricata\suricata.yaml"
+    SuricataLogDir          = "C:\Program Files\Suricata\log"
+    TaskName                = "SuricataStartup"
 }
 
-# Function to handle logging
-
-function Log {
-    param (
-        [string]$Level,
-        [string]$Message,
-        [string]$Color = "White"  # Default color
-    )
-    $Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    Write-Host "$Timestamp $Level $Message" -ForegroundColor $Color
-}
-
-# Logging helpers with colors
-function InfoMessage {
-    param ([string]$Message)
-    Log "[INFO]" $Message "White"
-}
-
-function WarnMessage {
-    param ([string]$Message)
-    Log "[WARNING]" $Message "Yellow"
-}
-
-function ErrorMessage {
-    param ([string]$Message)
-    Log "[ERROR]" $Message "Red"
-}
-
-function SuccessMessage {
-    param ([string]$Message)
-    Log "[SUCCESS]" $Message "Green"
-}
-
-function PrintStep {
-    param (
-        [int]$StepNumber,
-        [string]$Message
-    )
-    Log "[STEP]" "Step ${StepNumber}: $Message" "White"
-}
-
-# Helper: Create a directory if it doesn't exist.
-function Ensure-Directory {
-    param (
-        [Parameter(Mandatory)]
-        [string]$Path
-    )
-    if (-Not (Test-Path -Path $Path)) {
-        New-Item -ItemType Directory -Path $Path -Force | Out-Null
-        InfoMessage "Created directory: $Path"
-    }
-}
-
-# Helper: Download a file from a URL.
-function Download-File {
-    param (
-        [Parameter(Mandatory)]
-        [string]$Url,
-        [Parameter(Mandatory)]
-        [string]$OutputPath
-    )
-    try {
-        Invoke-WebRequest -Uri $Url -OutFile $OutputPath -Headers @{"User-Agent"="Mozilla/5.0"} -ErrorAction Stop
-        InfoMessage "Downloaded file from $Url to $OutputPath"
-    }
-    catch {
-        ErrorMessage "Failed to download file from $Url. $_"
-    }
-}
+# Logging and helper functions are now handled by utils.ps1
 
 # Install Suricata (only run once)
 function Install-SuricataSoftware {
@@ -100,7 +77,7 @@ function Install-SuricataSoftware {
         }
         else {
             InfoMessage "Downloading Suricata installer..."
-            Download-File -Url $global:Config.SuricataInstallerUrl -OutputPath $installerPath
+            Download-File -Url $global:Config.SuricataInstallerUrl -Destination $installerPath -Description "Suricata Installer"
             InfoMessage "Installing Suricata..."
             Start-Process msiexec.exe -ArgumentList $arguments -Wait
         }
@@ -120,7 +97,7 @@ function Install-NpcapSoftware {
         }
         else {
             InfoMessage "Downloading Npcap installer..."
-            Download-File -Url $global:Config.NpcapInstallerUrl -OutputPath $global:Config.NpcapInstallerPath
+            Download-File -Url $global:Config.NpcapInstallerUrl -Destination $global:Config.NpcapInstallerPath -Description "Npcap Installer"
             InfoMessage "Installing Npcap..."
             Start-Process -FilePath $global:Config.NpcapInstallerPath -Wait
             InfoMessage "Please follow the on-screen instructions to complete the Npcap installation."
@@ -138,12 +115,12 @@ function Update-EnvironmentVariables {
 
 # Update local.rules file.
 function Update-RulesFile {
-    $zipUrl = "https://rules.emergingthreats.net/open/suricata-7.0.3/emerging.rules.zip"
+    $zipUrl = "https://rules.emergingthreats.net/open/suricata-$RULES_VERSION/emerging.rules.zip"
     $zipPath = Join-Path -Path $global:Config.TempDir -ChildPath "emerging.rules.zip"
     $extractPath = $global:Config.SuricataDir
 
     try {
-        Download-File -Url $zipUrl -OutputPath $zipPath
+        Download-File -Url $zipUrl -Destination $zipPath -Description "Emerging Threats Rules"
         if (Test-Path $zipPath) {
             Ensure-Directory -Path $extractPath
             Expand-Archive -Path $zipPath -DestinationPath $extractPath -Force
@@ -255,6 +232,7 @@ function Install-Suricata {
 function Validate-Installation {
     try {
         InfoMessage "=== Validating Suricata installation ==="
+        $validationFailed = $false
 
         # Validate the Suricata configuration file
         if (Test-Path $global:Config.SuricataConfigPath) {
@@ -262,19 +240,68 @@ function Validate-Installation {
         }
         else {
             ErrorMessage "Suricata configuration file is missing: $($global:Config.SuricataConfigPath)"
-            exit 1
+            $validationFailed = $true
         }
 
-        # Validate the Suricata executable
+        # Validate the Suricata executable exists and can run
         if (Test-Path $global:Config.SuricataExePath) {
-            SuccessMessage "Suricata executable validated at: $($global:Config.SuricataExePath)"
+            $versionOutput = $null
+            try {
+                $versionOutput = & $global:Config.SuricataExePath --version 2>$null | Select-Object -First 1
+                if (-not $versionOutput) {
+                    $versionOutput = & $global:Config.SuricataExePath -V 2>$null | Select-Object -First 1
+                }
+            } catch {
+                $versionOutput = $null
+            }
+
+            if ($versionOutput) {
+                SuccessMessage "Suricata version installed: $versionOutput"
+                SuccessMessage "Suricata executable validated at: $($global:Config.SuricataExePath)"
+            } else {
+                ErrorMessage "Suricata executable exists but version check failed: $($global:Config.SuricataExePath)"
+                $validationFailed = $true
+            }
         }
         else {
             ErrorMessage "Suricata executable not found at: $($global:Config.SuricataExePath)"
-            exit 1
+            $validationFailed = $true
         }
 
-        SuccessMessage "Installation and configuration validated successfully!"
+        # Validate rules presence (at least one .rules file)
+        if (Test-Path $global:Config.RulesDir) {
+            $rulesFiles = Get-ChildItem -Path $global:Config.RulesDir -Filter "*.rules" -File -ErrorAction SilentlyContinue
+            if ($rulesFiles -and $rulesFiles.Count -gt 0) {
+                SuccessMessage "Suricata rules present in: $($global:Config.RulesDir)"
+            } else {
+                WarnMessage "Rules directory exists but no .rules files found: $($global:Config.RulesDir)"
+                $validationFailed = $true
+            }
+        } else {
+            ErrorMessage "Suricata rules directory is missing: $($global:Config.RulesDir)"
+            $validationFailed = $true
+        }
+
+        # Validate scheduled task exists
+        try {
+            $task = Get-ScheduledTask -TaskName $global:Config.TaskName -ErrorAction SilentlyContinue
+            if ($task) {
+                SuccessMessage "Scheduled task exists: $($global:Config.TaskName)"
+            } else {
+                WarnMessage "Scheduled task not found: $($global:Config.TaskName)"
+                $validationFailed = $true
+            }
+        } catch {
+            WarnMessage "Could not validate scheduled task: $_"
+            $validationFailed = $true
+        }
+
+        if (-not $validationFailed) {
+            SuccessMessage "Suricata installation and configuration validation completed successfully."
+        } else {
+            ErrorMessage "Suricata installation and configuration validation failed."
+            exit 1
+        }
     }
     catch {
         ErrorMessage "Installation validation failed: $_"
