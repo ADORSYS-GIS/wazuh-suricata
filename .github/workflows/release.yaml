@@ -152,7 +152,7 @@ jobs:
 
       - name: Generate script checksums
         run: |
-          find scripts -type f -exec sha256sum {} + >> checksums.sha256
+          find scripts -type f -exec sha256sum {} + > checksums.sha256
           cat checksums.sha256
 
       - name: Generate release notes (latest only)
