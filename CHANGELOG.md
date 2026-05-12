@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file.
 
 [41db349](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/41db349349cdf985cc357572abea938213ec0253)...[c605827](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/c60582739f207bc67d5bdccb2a295a0d3e3fad94)
 
-### Bug Fixes
+### Miscellaneous Tasks
 
 - Update WAZUH_SURICATA_REPO_REF to v0.2.0-rc.4 in installation and uninstallation scripts ([`c605827`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/c60582739f207bc67d5bdccb2a295a0d3e3fad94))
 
