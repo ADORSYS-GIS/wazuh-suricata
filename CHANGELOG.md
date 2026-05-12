@@ -4,15 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[41db349](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/41db349349cdf985cc357572abea938213ec0253)...[c605827](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/c60582739f207bc67d5bdccb2a295a0d3e3fad94)
+[c605827](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/c60582739f207bc67d5bdccb2a295a0d3e3fad94)...[3bd1827](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/3bd182783cdff36d0898bdd681c5a726afbc17b0)
 
-### Miscellaneous Tasks
+### Documentation
+
+- Update CHANGELOG.md and checksums [skip ci] ([`7797f3b`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/7797f3b391e6a2fe9a18beffb8a063d941a76c6d))
+- Update CHANGELOG.md and checksums [skip ci] ([`37f9a6d`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/37f9a6d56d4e41e09ef7a50707e468a59407070c))
+
+## 0.2.0-rc.4 - 2026-05-12
+
+[554ad11](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/554ad11018b99ed73e93a1089f7e997dbe6bf6ff)...[c605827](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/c60582739f207bc67d5bdccb2a295a0d3e3fad94)
+
+### Bug Fixes
 
 - Update WAZUH_SURICATA_REPO_REF to v0.2.0-rc.4 in installation and uninstallation scripts ([`c605827`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/c60582739f207bc67d5bdccb2a295a0d3e3fad94))
-
-## 0.2.0-rc.4 - 2026-04-16
-
-[554ad11](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/554ad11018b99ed73e93a1089f7e997dbe6bf6ff)...[41db349](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/41db349349cdf985cc357572abea938213ec0253)
 
 ### Documentation
 
