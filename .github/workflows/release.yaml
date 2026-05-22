@@ -20,6 +20,9 @@ on:
       - 'tests/**'
       - '.github/**'
 
+env:
+  WAZUH_SURICATA_REPO_REF: main
+
 jobs:
   update-changelog-and-checksums:
     runs-on: ubuntu-latest
