@@ -22,7 +22,7 @@ fi
 SURICATA_VERSION=${SURICATA_VERSION:-"8.0.2"}
 MODE="ids"
 INTERFACE=""
-WAZUH_SURICATA_REPO_REF=${WAZUH_SURICATA_REPO_REF:-"v0.2.0-rc.4"}
+WAZUH_SURICATA_REPO_REF=${WAZUH_SURICATA_REPO_REF:-"v0.2.0-rc.5"}
 WAZUH_SURICATA_REPO_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/${WAZUH_SURICATA_REPO_REF}"
 
 # Parse arguments
@@ -51,7 +51,7 @@ done
 
 # GitHub Release configuration for packages
 GITHUB_RELEASE_BASE_URL="https://github.com/ADORSYS-GIS/wazuh-plugins/releases/download"
-RELEASE_TAG="suricata-v0.5.2"
+RELEASE_TAG="suricata-v0.5.3"
 
 # Remote script URLs
 UNINSTALL_MODERN_URL="${WAZUH_SURICATA_REPO_URL}/scripts/linux/uninstall.sh"
