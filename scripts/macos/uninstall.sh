@@ -20,7 +20,7 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
 fi
 
 # Variables
-WAZUH_SURICATA_REPO_REF=${WAZUH_SURICATA_REPO_REF:-"v0.2.0-rc.5"}
+WAZUH_SURICATA_REPO_REF=${WAZUH_SURICATA_REPO_REF:-"v0.2.1"}
 WAZUH_SURICATA_REPO_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-suricata/${WAZUH_SURICATA_REPO_REF}"
 
 # OS Detection for macOS
