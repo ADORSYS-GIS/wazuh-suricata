@@ -4,15 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[c58e8dc](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/c58e8dce2f9624c6eb21f56e72d8c8c7fe3ec3ec)...[1d9704d](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/1d9704d3ce5030be289c0c1250f07ea1ee5cd38f)
+[c58e8dc](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/c58e8dce2f9624c6eb21f56e72d8c8c7fe3ec3ec)...[314971c](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/314971cd233ba528ac9b548041416a3f4237c6a8)
 
 ### Documentation
 
 - Update CHANGELOG.md and checksums [skip ci] ([`e58bac8`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/e58bac8dc73414c488f6a5cb7603d1cb4fe082ab))
+- Update CHANGELOG.md and checksums [skip ci] ([`a822549`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/a822549c2c2e2ed4176f86d47b91e974e5ba893c))
 
 ### Features
 
 - Refactor install script to support Python-based suricata-update and automated configuration ([`1d9704d`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/1d9704d3ce5030be289c0c1250f07ea1ee5cd38f))
+
+### Miscellaneous Tasks
+
+- Update default Suricata version to 8.0.4-1 in Windows install script ([`d217464`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/d2174645425e44dc49289c8706e00408fc97dffe))
 
 ## 0.2.0-rc.5 - 2026-05-22
 
