@@ -39,7 +39,7 @@ catch {
 }
 
 # Default version configuration
-$SURICATA_VERSION = if ($env:SURICATA_VERSION) { $env:SURICATA_VERSION } else { "7.0.10-1" }
+$SURICATA_VERSION = if ($env:SURICATA_VERSION) { $env:SURICATA_VERSION } else { "8.0.4-1" }
 
 # Global configuration
 $global:Config = @{
