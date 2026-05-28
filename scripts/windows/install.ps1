@@ -39,12 +39,12 @@ catch {
 }
 
 # Default version configuration
-$SURICATA_VERSION = if ($env:SURICATA_VERSION) { $env:SURICATA_VERSION } else { "8.0.4-1" }
+$SURICATA_VERSION = if ($env:SURICATA_VERSION) { $env:SURICATA_VERSION } else { "8.0.4" }
 
 # Global configuration
 $global:Config = @{
     TempDir                 = $TEMP_DIR
-    SuricataInstallerUrl    = "https://www.openinfosecfoundation.org/download/windows/Suricata-$SURICATA_VERSION-64bit.msi"
+    SuricataInstallerUrl    = "https://www.openinfosecfoundation.org/download/windows/Suricata-$SURICATA_VERSION-1-64bit.msi"
     SuricataInstallerPath   = Join-Path $TEMP_DIR "Suricata_Installer.msi"
     NpcapInstallerUrl       = "https://npcap.com/dist/npcap-1.79.exe"
     NpcapInstallerPath      = Join-Path $TEMP_DIR "Npcap_Installer.exe"
@@ -61,7 +61,7 @@ $global:Config = @{
 function Run-SuricataUpdate {
     InfoMessage "Running manual Suricata rules update..."
 
-    $rulesUrl = "https://rules.emergingthreats.net/open/suricata-8.0.4/emerging.rules.tar.gz"
+    $rulesUrl = "https://rules.emergingthreats.net/open/suricata-$SURICATA_VERSION/emerging.rules.tar.gz"
     $tempFile = Join-Path $global:Config.TempDir "emerging.rules.tar.gz"
     $rulesDir = $global:Config.RulesDir
 
