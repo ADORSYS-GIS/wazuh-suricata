@@ -189,3 +189,4 @@ jobs:
           body: ${{ steps.git_cliff.outputs.content }}
           draft: false
           prerelease: ${{ steps.prerelease.outputs.PRERELEASE }}
+
