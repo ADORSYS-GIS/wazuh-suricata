@@ -4,11 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[6c10073](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/6c100735be5098814e3274e7080a1e8671f9b85f)...[e476291](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/e476291fbdd210f8ca6540aa2d96c1a9e78b010b)
+[6c10073](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/6c100735be5098814e3274e7080a1e8671f9b85f)...[bfdc6ad](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/bfdc6adb0100380488a5ee1d4e6749d41b4ec720)
 
 ### Bug Fixes
 
 - Stop and disable suricata-wazuh.service during uninstallation to prevent user deletion errors ([`e476291`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/e476291fbdd210f8ca6540aa2d96c1a9e78b010b))
+
+### Documentation
+
+- Update CHANGELOG.md and checksums [skip ci] ([`a2d7a19`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/a2d7a19002d36f50962f78165376c2f4a6e2e92e))
+- Update CHANGELOG.md and checksums [skip ci] ([`0a40666`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/0a40666ceb5b8d2b9355a1ff8e3c85523d89a708))
+
+### Miscellaneous Tasks
+
+- Update WAZUH_SURICATA_REPO_REF to v0.2.1 across all installation and uninstallation scripts ([`2ac85ec`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/2ac85ec6db855b4d015fe977a50219dc8ecd9a8f))
 
 ## 0.2.1 - 2026-05-28
 
