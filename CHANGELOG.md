@@ -4,17 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[6c10073](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/6c100735be5098814e3274e7080a1e8671f9b85f)...[5e2a4f4](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/5e2a4f459926b7caded27b1549426dd36c63c326)
+[6c10073](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/6c100735be5098814e3274e7080a1e8671f9b85f)...[56f12d5](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/56f12d542d2731fa87e8049ae4d6b8863a4c9166)
 
 ### Bug Fixes
 
 - Stop and disable suricata-wazuh.service during uninstallation to prevent user deletion errors ([`e476291`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/e476291fbdd210f8ca6540aa2d96c1a9e78b010b))
+- Update Wazuh agent installation script path in release workflow ([`56f12d5`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/56f12d542d2731fa87e8049ae4d6b8863a4c9166))
 
 ### Documentation
 
 - Update CHANGELOG.md and checksums [skip ci] ([`a2d7a19`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/a2d7a19002d36f50962f78165376c2f4a6e2e92e))
 - Update CHANGELOG.md and checksums [skip ci] ([`0a40666`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/0a40666ceb5b8d2b9355a1ff8e3c85523d89a708))
 - Update CHANGELOG.md and checksums [skip ci] ([`f0e2b61`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/f0e2b61a717079ec8f6496a3012699fd3489a23e))
+- Update CHANGELOG.md and checksums [skip ci] ([`534d529`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/534d529d581224b60af3edf5689e0585bcd04c12))
 
 ### Features
 
