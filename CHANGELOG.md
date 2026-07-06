@@ -4,7 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[c58e8dc](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/c58e8dce2f9624c6eb21f56e72d8c8c7fe3ec3ec)...[2ac85ec](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/2ac85ec6db855b4d015fe977a50219dc8ecd9a8f)
+[6c10073](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/6c100735be5098814e3274e7080a1e8671f9b85f)...[e476291](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/e476291fbdd210f8ca6540aa2d96c1a9e78b010b)
+
+### Bug Fixes
+
+- Stop and disable suricata-wazuh.service during uninstallation to prevent user deletion errors ([`e476291`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/e476291fbdd210f8ca6540aa2d96c1a9e78b010b))
+
+## 0.2.1 - 2026-05-28
+
+[c58e8dc](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/c58e8dce2f9624c6eb21f56e72d8c8c7fe3ec3ec)...[6c10073](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/6c100735be5098814e3274e7080a1e8671f9b85f)
 
 ### Documentation
 
@@ -22,7 +30,7 @@ All notable changes to this project will be documented in this file.
 
 - Update default Suricata version to 8.0.4-1 in Windows install script ([`d217464`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/d2174645425e44dc49289c8706e00408fc97dffe))
 - Update Suricata version to 8.0.4 and dynamically configure rules URL ([`1184824`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/1184824b07a307fff6400417a836fc60fe50ace1))
-- Update WAZUH_SURICATA_REPO_REF to v0.2.1 across all installation and uninstallation scripts ([`2ac85ec`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/2ac85ec6db855b4d015fe977a50219dc8ecd9a8f))
+- Bump WAZUH_SURICATA_REPO_REF to v0.2.1 and update checksums ([`6c10073`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/6c100735be5098814e3274e7080a1e8671f9b85f))
 
 ## 0.2.0-rc.5 - 2026-05-22
 

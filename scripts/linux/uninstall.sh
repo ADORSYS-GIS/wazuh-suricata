@@ -187,6 +187,26 @@ stop_suricata_services() {
         else
             info_message "Suricata service is not running"
         fi
+
+        # Also stop the custom wazuh-plugins suricata service (suricata-wazuh.service),
+        # which runs suricata as the "wazuh" user. If left running, the wazuh-agent
+        # DEB postrm `userdel wazuh` fails with exit status 82. The unit may appear
+        # as "not-found active running" if the package prerm already removed the unit
+        # file but the process is still alive, so check both the unit file and the
+        # live status.
+        local suricata_wazuh_unit="suricata-wazuh.service"
+        if [ -f "/lib/systemd/system/${suricata_wazuh_unit}" ] \
+           || [ -f "/usr/lib/systemd/system/${suricata_wazuh_unit}" ] \
+           || [ -f "/etc/systemd/system/${suricata_wazuh_unit}" ] \
+           || maybe_sudo systemctl status "$suricata_wazuh_unit" >/dev/null 2>&1; then
+            info_message "Stopping ${suricata_wazuh_unit} (custom wazuh-plugins suricata)..."
+            maybe_sudo systemctl stop "$suricata_wazuh_unit" 2>/dev/null || \
+                warn_message "Failed to stop ${suricata_wazuh_unit}"
+            maybe_sudo systemctl disable "$suricata_wazuh_unit" 2>/dev/null || true
+            success_message "${suricata_wazuh_unit} stopped and disabled"
+        else
+            info_message "${suricata_wazuh_unit} is not present"
+        fi
     fi
 }
 
@@ -340,6 +360,10 @@ remove_systemd_service_files() {
         "/etc/systemd/system/suricata.service"
         "/usr/lib/systemd/system/suricata.service"
         "/lib/systemd/system/suricata.service"
+        # Custom wazuh-plugins suricata unit (runs suricata as the wazuh user)
+        "/etc/systemd/system/suricata-wazuh.service"
+        "/usr/lib/systemd/system/suricata-wazuh.service"
+        "/lib/systemd/system/suricata-wazuh.service"
     )
     
     for service_file in "${service_files[@]}"; do
