@@ -84,7 +84,12 @@ jobs:
 
     - name: Install Wazuh agent
       run: |
-        curl -sfL https://raw.githubusercontent.com/adorsys-gis/wazuh-agent/main/scripts/install.sh | sudo WAZUH_MANAGER=127.0.0.1 bash
+        if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
+          curl -sfL https://raw.githubusercontent.com/adorsys-gis/wazuh-agent/main/scripts/linux/install.sh | sudo WAZUH_MANAGER=127.0.0.1 bash
+        elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
+          curl -sfL https://raw.githubusercontent.com/adorsys-gis/wazuh-agent/main/scripts/macos/install.sh | sudo WAZUH_MANAGER=127.0.0.1 bash
+        fi
+        
 
     - name: Make script executable
       run: |
