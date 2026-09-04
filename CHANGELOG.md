@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[c58e8dc](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/c58e8dce2f9624c6eb21f56e72d8c8c7fe3ec3ec)...[521b577](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/521b577d4181ddae097e93e1ac1f554a704498a8)
+[c58e8dc](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/c58e8dce2f9624c6eb21f56e72d8c8c7fe3ec3ec)...[cb61c3e](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/cb61c3ea7c5c607270409008728f25ba81813a11)
 
 ### Bug Fixes
 
@@ -23,6 +23,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`f0e2b61`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/f0e2b61a717079ec8f6496a3012699fd3489a23e))
 - Update CHANGELOG.md and checksums [skip ci] ([`534d529`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/534d529d581224b60af3edf5689e0585bcd04c12))
 - Update CHANGELOG.md and checksums [skip ci] ([`5a1e41a`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/5a1e41a9805e6da761a490a5346d17e158affb48))
+- Update CHANGELOG.md and checksums [skip ci] ([`453e327`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/453e327d61f11e06009346e437f81ea96e4bb01b))
 
 ### Features
 
@@ -36,6 +37,7 @@ All notable changes to this project will be documented in this file.
 - Update Suricata version to 8.0.4 and dynamically configure rules URL ([`1184824`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/1184824b07a307fff6400417a836fc60fe50ace1))
 - Bump WAZUH_SURICATA_REPO_REF to v0.2.1 and update checksums ([`6c10073`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/6c100735be5098814e3274e7080a1e8671f9b85f))
 - Update WAZUH_SURICATA_REPO_REF to v0.2.1 across all installation and uninstallation scripts ([`2ac85ec`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/2ac85ec6db855b4d015fe977a50219dc8ecd9a8f))
+- Clean up sonarqube exclusions for scripting languages ([`cb61c3e`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/cb61c3ea7c5c607270409008728f25ba81813a11))
 
 ## 0.2.0-rc.5 - 2026-05-22
 
