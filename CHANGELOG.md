@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[6c10073](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/6c100735be5098814e3274e7080a1e8671f9b85f)...[56f12d5](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/56f12d542d2731fa87e8049ae4d6b8863a4c9166)
+[c58e8dc](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/c58e8dce2f9624c6eb21f56e72d8c8c7fe3ec3ec)...[521b577](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/521b577d4181ddae097e93e1ac1f554a704498a8)
 
 ### Bug Fixes
 
@@ -13,40 +13,29 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
-- Update CHANGELOG.md and checksums [skip ci] ([`a2d7a19`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/a2d7a19002d36f50962f78165376c2f4a6e2e92e))
-- Update CHANGELOG.md and checksums [skip ci] ([`0a40666`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/0a40666ceb5b8d2b9355a1ff8e3c85523d89a708))
-- Update CHANGELOG.md and checksums [skip ci] ([`f0e2b61`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/f0e2b61a717079ec8f6496a3012699fd3489a23e))
-- Update CHANGELOG.md and checksums [skip ci] ([`534d529`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/534d529d581224b60af3edf5689e0585bcd04c12))
-
-### Features
-
-- Update wazuh agent installation script to support platform-specific paths for ubuntu and macos ([`5e2a4f4`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/5e2a4f459926b7caded27b1549426dd36c63c326))
-
-### Miscellaneous Tasks
-
-- Update WAZUH_SURICATA_REPO_REF to v0.2.1 across all installation and uninstallation scripts ([`2ac85ec`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/2ac85ec6db855b4d015fe977a50219dc8ecd9a8f))
-
-## 0.2.1 - 2026-05-28
-
-[c58e8dc](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/c58e8dce2f9624c6eb21f56e72d8c8c7fe3ec3ec)...[6c10073](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/6c100735be5098814e3274e7080a1e8671f9b85f)
-
-### Documentation
-
 - Update CHANGELOG.md and checksums [skip ci] ([`e58bac8`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/e58bac8dc73414c488f6a5cb7603d1cb4fe082ab))
 - Update CHANGELOG.md and checksums [skip ci] ([`a822549`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/a822549c2c2e2ed4176f86d47b91e974e5ba893c))
 - Update CHANGELOG.md and checksums [skip ci] ([`e8dca9f`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/e8dca9fe9b47cd066e014317d88a41193f701b1d))
 - Update CHANGELOG.md and checksums [skip ci] ([`8004e35`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/8004e35db7b7c81653808fb1cdbcf7533dc9ea34))
 - Update CHANGELOG.md and checksums [skip ci] ([`37ee468`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/37ee4685db5665baf1bd0f67c135ca2919914f4d))
+- Update CHANGELOG.md and checksums [skip ci] ([`a2d7a19`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/a2d7a19002d36f50962f78165376c2f4a6e2e92e))
+- Update CHANGELOG.md and checksums [skip ci] ([`0a40666`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/0a40666ceb5b8d2b9355a1ff8e3c85523d89a708))
+- Update CHANGELOG.md and checksums [skip ci] ([`f0e2b61`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/f0e2b61a717079ec8f6496a3012699fd3489a23e))
+- Update CHANGELOG.md and checksums [skip ci] ([`534d529`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/534d529d581224b60af3edf5689e0585bcd04c12))
+- Update CHANGELOG.md and checksums [skip ci] ([`5a1e41a`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/5a1e41a9805e6da761a490a5346d17e158affb48))
 
 ### Features
 
 - Refactor install script to support Python-based suricata-update and automated configuration ([`1d9704d`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/1d9704d3ce5030be289c0c1250f07ea1ee5cd38f))
+- Update wazuh agent installation script to support platform-specific paths for ubuntu and macos ([`5e2a4f4`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/5e2a4f459926b7caded27b1549426dd36c63c326))
+- Integrate SonarQube scanning workflow ([`521b577`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/521b577d4181ddae097e93e1ac1f554a704498a8))
 
 ### Miscellaneous Tasks
 
 - Update default Suricata version to 8.0.4-1 in Windows install script ([`d217464`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/d2174645425e44dc49289c8706e00408fc97dffe))
 - Update Suricata version to 8.0.4 and dynamically configure rules URL ([`1184824`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/1184824b07a307fff6400417a836fc60fe50ace1))
 - Bump WAZUH_SURICATA_REPO_REF to v0.2.1 and update checksums ([`6c10073`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/6c100735be5098814e3274e7080a1e8671f9b85f))
+- Update WAZUH_SURICATA_REPO_REF to v0.2.1 across all installation and uninstallation scripts ([`2ac85ec`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/2ac85ec6db855b4d015fe977a50219dc8ecd9a8f))
 
 ## 0.2.0-rc.5 - 2026-05-22
 
