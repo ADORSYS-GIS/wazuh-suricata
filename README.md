@@ -1,5 +1,7 @@
 # wazuh-suricata
 
+[![Suricata CI](https://github.com/ADORSYS-GIS/wazuh-suricata/actions/workflows/release.yaml/badge.svg)](https://github.com/ADORSYS-GIS/wazuh-suricata/actions/workflows/release.yaml)
+
 ## Overview
 
 The `wazuh-suricata` project integrates the Wazuh agent with Suricata, a high-performance network intrusion detection system (NIDS). This project provides scripts and tests to automate the installation, configuration, and validation of Suricata on both Linux and macOS systems.
