@@ -4,13 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[c58e8dc](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/c58e8dce2f9624c6eb21f56e72d8c8c7fe3ec3ec)...[4aa4cb0](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/4aa4cb06045993e43de84e8a08b8bdbdc2af6f71)
+[c58e8dc](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/c58e8dce2f9624c6eb21f56e72d8c8c7fe3ec3ec)...[e569bc7](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/e569bc7996f4cf9282baffc77d703165ca83fac1)
 
 ### Bug Fixes
 
 - Stop and disable suricata-wazuh.service during uninstallation to prevent user deletion errors ([`e476291`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/e476291fbdd210f8ca6540aa2d96c1a9e78b010b))
 - Update Wazuh agent installation script path in release workflow ([`56f12d5`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/56f12d542d2731fa87e8049ae4d6b8863a4c9166))
 - Update macOS release tag to v0.5.3 ([`ad85ba6`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ad85ba627b8af8c6862838574c491560c67feb4d))
+- Bump WAZUH_SURICATA_REPO_REF to v0.2.2 across all scripts ([`e569bc7`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/e569bc7996f4cf9282baffc77d703165ca83fac1))
 
 ### Documentation
 
@@ -28,6 +29,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`631cb80`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/631cb80f75a6fa3d3f6e6b3c1df6a6e8c7d0d30d))
 - Update CHANGELOG.md and checksums [skip ci] ([`cfb72ed`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/cfb72edec82a855324623b3ae38408dbeddffa2a))
 - Update CHANGELOG.md and checksums [skip ci] ([`a0ddd6a`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/a0ddd6af1c4a1700862cfd18ac0f78a50dfe910b))
+- Update CHANGELOG.md and checksums [skip ci] ([`38e95ab`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/38e95abc8c2a5e84e798fe573e2b8fe38845c7fa))
 
 ### Features
 
