@@ -51,7 +51,7 @@ done
 
 # GitHub Release configuration for packages
 GITHUB_RELEASE_BASE_URL="https://github.com/ADORSYS-GIS/wazuh-plugins/releases/download"
-RELEASE_TAG="suricata-v0.5.2"
+RELEASE_TAG="suricata-v0.5.3"
 
 # Remote script URLs
 UNINSTALL_MODERN_URL="${WAZUH_SURICATA_REPO_URL}/scripts/macos/uninstall.sh"
