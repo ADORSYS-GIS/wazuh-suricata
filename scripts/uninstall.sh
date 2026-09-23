@@ -154,22 +154,8 @@ elif [ "$OS" = "darwin" ]; then
     fi
 fi
 
-# Uninstall yq if installed
-if command_exists yq; then
-    info_message "Uninstalling yq..."
-    if [ "$OS" = "linux" ]; then
-        maybe_sudo rm -f /usr/bin/yq || warn_message "Failed to uninstall yq."
-    elif [ "$OS" = "darwin" ]; then
-        # Check both Homebrew and manual installation locations
-        if brew_command list yq >/dev/null 2>&1; then
-            brew_command uninstall yq || warn_message "Failed to uninstall yq via Homebrew."
-        fi
-        # Also remove manual installation
-        maybe_sudo rm -f /usr/local/bin/yq || warn_message "Failed to remove manually installed yq."
-    fi
-else
-    info_message "yq is not installed. Skipping uninstallation."
-fi
+# We no longer uninstall yq because it is a shared dependency
+# and uninstalling it breaks other tools and leaves Homebrew in a bad state.
 
 # Remove Suricata dependencies on macOS (always check regardless of installation method)
 if [ "$OS" = "darwin" ] && command_exists brew; then

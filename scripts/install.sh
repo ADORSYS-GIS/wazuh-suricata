@@ -38,7 +38,10 @@ INTERFACE=""
 LAUNCH_AGENT_FILE="/Library/LaunchDaemons/com.suricata.suricata.plist"
 
 if [ "$(uname -s)" = "Darwin" ]; then
-    LOGGED_IN_USER=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /loginwindow/ {print $3}')
+    LOGGED_IN_USER="${SUDO_USER:-}"
+    if [ -z "$LOGGED_IN_USER" ] || [ "$LOGGED_IN_USER" = "root" ]; then
+        LOGGED_IN_USER=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /loginwindow/ {print $3}')
+    fi
 fi
 
 # Command Existence Check
@@ -421,10 +424,25 @@ update_config() {
         echo -e "\ndetect-engine:\n  - rule-reload: true" | maybe_sudo tee -a "$CONFIG_FILE" >/dev/null || error_exit "Failed to append detect-engine config"
     fi
 
-    maybe_sudo yq -i '(.outputs[] | select(has("eve-log"))."eve-log".types) = ["alert"]' "$CONFIG_FILE" || error_exit "Failed to update eve-log types with yq"
+    local yq_bin="yq"
+    if command_exists yq; then
+        yq_bin="$(command -v yq)"
+    elif [ -x "/usr/local/bin/yq" ]; then
+        yq_bin="/usr/local/bin/yq"
+    elif [ -x "/opt/homebrew/bin/yq" ]; then
+        yq_bin="/opt/homebrew/bin/yq"
+    elif command_exists brew; then
+        local brew_yq
+        brew_yq="$(brew_as_user --prefix yq 2>/dev/null)/bin/yq"
+        if [ -x "$brew_yq" ]; then
+            yq_bin="$brew_yq"
+        fi
+    fi
+
+    maybe_sudo "$yq_bin" -i '(.outputs[] | select(has("eve-log"))."eve-log".types) = ["alert"]' "$CONFIG_FILE" || error_exit "Failed to update eve-log types with yq"
     
     # Disable global stats
-    maybe_sudo yq -i '.stats.enabled = "no"' "$CONFIG_FILE" || error_exit "Failed to disable stats in $CONFIG_FILE"
+    maybe_sudo "$yq_bin" -i '.stats.enabled = "no"' "$CONFIG_FILE" || error_exit "Failed to disable stats in $CONFIG_FILE"
 
     if [[ "$MODE" == "ips" && "$OS" == "linux" ]]; then
         local SURICATA_DEFAULT_FILE="/etc/default/suricata"
@@ -560,7 +578,8 @@ download_and_install_suricata_macos() {
 
     info_message "Copying configuration files to /etc"
     if [ -d "${src_dir}/etc" ]; then
-        maybe_sudo rsync -av --progress "${src_dir}/etc/" /etc/ || { rm -rf "$temp_dir"; error_exit "Failed to copy configuration files to /etc"; }
+        maybe_sudo mkdir -p /etc/suricata
+        maybe_sudo rsync -av --progress "${src_dir}/etc/suricata/" /etc/suricata/ || { rm -rf "$temp_dir"; error_exit "Failed to copy configuration files to /etc"; }
     else
         warn_message "No etc directory found in archive"
     fi
@@ -743,6 +762,11 @@ elif [ "$OS" = "darwin" ]; then
                 brew_as_user install "$dep" || warn_message "Failed to install $dep"
             else
                 info_message "$dep is already installed."
+                # If the package is installed but the command is missing, try to link it
+                if ! command_exists "$dep" && [ ! -x "/usr/local/bin/$dep" ]; then
+                    info_message "Restoring missing symlink for $dep..."
+                    brew_as_user link --overwrite "$dep" || brew_as_user reinstall "$dep" || true
+                fi
             fi
         done
     else

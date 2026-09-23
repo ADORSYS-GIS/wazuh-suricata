@@ -35,7 +35,7 @@ jobs:
 
     - name: Install Wazuh agent
       run: |
-        curl -sfL https://raw.githubusercontent.com/adorsys-gis/wazuh-agent/main/scripts/install.sh | sudo WAZUH_MANAGER=127.0.0.1 bash
+        curl -sfL https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/tags/v1.8.0/scripts/install.sh | sudo WAZUH_MANAGER=127.0.0.1 bash
 
     - name: Make script executable
       run: chmod +x ./scripts/install.sh
@@ -62,7 +62,7 @@ jobs:
 
     - name: Install Wazuh agent
       run: |
-        curl -sfL https://raw.githubusercontent.com/adorsys-gis/wazuh-agent/main/scripts/install.sh | sudo WAZUH_MANAGER=127.0.0.1 bash
+        curl -sfL https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/tags/v1.8.0/scripts/install.sh | sudo WAZUH_MANAGER=127.0.0.1 bash
 
     - name: Make script executable
       run: chmod +x ./scripts/install.sh
@@ -89,12 +89,12 @@ jobs:
 
       - name: Create Release
         id: create_release
-        uses: actions/create-release@v1
+        uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/v')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ steps.get_version.outputs.VERSION }}
-          release_name: Release ${{ steps.get_version.outputs.VERSION }}
+          name: Release ${{ steps.get_version.outputs.VERSION }}
           draft: false
           prerelease: false
