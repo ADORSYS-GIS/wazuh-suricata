@@ -108,7 +108,10 @@ OSSEC_CONF_PATH="/Library/Ossec/etc/ossec.conf"
 WAZUH_CONTROL_BIN_PATH="/Library/Ossec/bin/wazuh-control"
 
 # Get logged in user for Homebrew operations
-LOGGED_IN_USER=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /loginwindow/ {print $3}')
+LOGGED_IN_USER="${SUDO_USER:-}"
+if [ -z "$LOGGED_IN_USER" ] || [ "$LOGGED_IN_USER" = "root" ]; then
+    LOGGED_IN_USER=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /loginwindow/ {print $3}')
+fi
 
 # macOS sed function
 sed_inplace() {
@@ -290,7 +293,7 @@ install_dependencies() {
     print_step 1 "Installing dependencies on macOS"
     if command_exists brew; then
         local brew_cmd=(brew install jq yq libpcap lz4 pcre2 jansson libyaml libmagic)
-        if [ "$(id -u)" -eq 0 ] && [ -n "$LOGGED_IN_USER" ] && [ "$LOGGED_IN_USER" != "loginwindow" ]; then
+        if [ "$(id -u)" -eq 0 ] && [ -n "$LOGGED_IN_USER" ] && [ "$LOGGED_IN_USER" != "loginwindow" ] && [ "$LOGGED_IN_USER" != "root" ]; then
             local brew_out=""
             brew_out=$(sudo -u "$LOGGED_IN_USER" "${brew_cmd[@]}" 2>&1) || {
                 warn_message "Could not install dependencies via Homebrew"
