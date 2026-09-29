@@ -4,7 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[c58e8dc](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/c58e8dce2f9624c6eb21f56e72d8c8c7fe3ec3ec)...[ea8eb04](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ea8eb044f6ff9ff6c981d70dc6e0ae7322b972d7)
+[675f569](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/675f569c64f4179342e59b6c15cb37b5152e86d2)...[8358ebd](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/8358ebde2e306fec4505ff3520da41ed96e698c4)
+
+## 0.2.2 - 2026-09-23
+
+[c58e8dc](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/c58e8dce2f9624c6eb21f56e72d8c8c7fe3ec3ec)...[675f569](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/675f569c64f4179342e59b6c15cb37b5152e86d2)
 
 ### Bug Fixes
 
@@ -33,6 +37,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`38e95ab`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/38e95abc8c2a5e84e798fe573e2b8fe38845c7fa))
 - Update CHANGELOG.md and checksums [skip ci] ([`84c66c2`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/84c66c2a4d3b9ffbadcabbb7caf6341fb7f9bc7e))
 - Update CHANGELOG.md and checksums [skip ci] ([`b2c145b`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/b2c145b9f97abdec5ef04f1d9db3102dd41768c4))
+- Update CHANGELOG.md and checksums [skip ci] ([`675f569`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/675f569c64f4179342e59b6c15cb37b5152e86d2))
 
 ### Features
 
@@ -178,10 +183,17 @@ All notable changes to this project will be documented in this file.
 
 ## 0.2.0-rc.1 - 2026-01-08
 
-[b5b99d4](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/b5b99d404c1ed116b6ea7705146c7fe291084b6f)...[9b971c6](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/9b971c670b959412f3aee8c216d7e8a24d91d4e2)
+[255470e](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/255470e28749d7fd0f4ce7d18134ad53c31acb2d)...[9b971c6](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/9b971c670b959412f3aee8c216d7e8a24d91d4e2)
 
 ### Bug Fixes
 
+- Optimize Npcap installation timing and verification ([`7206716`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/7206716516323f7d2d20c4a667328c22616122f7))
+- Remove check for npfs driver not used by mpcap ([`d3b5ef5`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/d3b5ef57d85945a21d3d61356abeb18a13469979))
+- String interpolation error ([`1b58c23`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/1b58c23752a5ccae1dc063d74d1c4312a07cdf93))
+- String interpolation error ([`0b56604`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/0b56604c858ad9a44fd5431795ea6ab7db17ef19))
+- Add check to install Suricata 7.x for EL9+ RHEL like systems ([`749f562`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/749f562c2f76cd0204b5e5fdebf4ecfb8b6619ab))
+- Update uninstall.sh to consider all installed components in install.sh ([`ade5caf`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ade5caf36cba7763c1f39facb840fae8057f4d62))
+- Remove dependency removal step, it is redundant ([`2d021f0`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/2d021f0a0643cfbc4804fda0aced31199330b072))
 - Update Suricata install script and improve macOS handling ([`fbe6a02`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/fbe6a025e458b5013d0d6767dc1d28d22e7ac767))
 - Remove misplaced message from install script ([`95edb9e`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/95edb9ef19c7dce5b12bdfab9309432281ed4d9d))
 - Correct script closing in install.sh ([`c2885b0`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/c2885b04b3d06daaf1f87d61ce079c3ffb8c8a47))
@@ -204,6 +216,7 @@ All notable changes to this project will be documented in this file.
 
 ### Features
 
+- Add automated PowerShell installation scripts for Npcap and Suricata ([`11a38b6`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/11a38b6d9f7b7224debcd2ab71616a49051bd0e9))
 - Enhance Suricata install script with pre-installation detection ([`b4085be`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/b4085beb1cadec0584f6087c7524677eba70f048))
 - Enhance Suricata binary detection logic and add debug information to installation validation. ([`5178fa3`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/5178fa3ad806c5a17f14281d4e03c9fd86ef0f42))
 - Add symlink creation verification to the Suricata installation script ([`43b87ff`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/43b87ff6ef05f6770bdae6143fa1f80db5726d36))
@@ -236,6 +249,7 @@ All notable changes to this project will be documented in this file.
 
 ### Miscellaneous Tasks
 
+- Update script url to reference main ([`b5b99d4`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/b5b99d404c1ed116b6ea7705146c7fe291084b6f))
 - Make install.sh executable ([`ca3ffdb`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ca3ffdb7a63407c885d109279dbe82ef811c759d))
 - Make uninstall.sh executable ([`b8008c2`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/b8008c2fb85c735bccecd843275d7a9fd221db93))
 - Remove trailing blank lines from install script. ([`d2a6ca5`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/d2a6ca5edc5fc0a0e48f01544ecd9c0d3f9d5020))
@@ -261,28 +275,6 @@ All notable changes to this project will be documented in this file.
 ### Build
 
 - Change default configuration missing warning to an informational message. ([`99c4b9c`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/99c4b9c0e93444051da58533442b3911c38e87d8))
-
-## 0.1.5 - 2025-09-28
-
-[255470e](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/255470e28749d7fd0f4ce7d18134ad53c31acb2d)...[b5b99d4](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/b5b99d404c1ed116b6ea7705146c7fe291084b6f)
-
-### Bug Fixes
-
-- Optimize Npcap installation timing and verification ([`7206716`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/7206716516323f7d2d20c4a667328c22616122f7))
-- Remove check for npfs driver not used by mpcap ([`d3b5ef5`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/d3b5ef57d85945a21d3d61356abeb18a13469979))
-- String interpolation error ([`1b58c23`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/1b58c23752a5ccae1dc063d74d1c4312a07cdf93))
-- String interpolation error ([`0b56604`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/0b56604c858ad9a44fd5431795ea6ab7db17ef19))
-- Add check to install Suricata 7.x for EL9+ RHEL like systems ([`749f562`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/749f562c2f76cd0204b5e5fdebf4ecfb8b6619ab))
-- Update uninstall.sh to consider all installed components in install.sh ([`ade5caf`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ade5caf36cba7763c1f39facb840fae8057f4d62))
-- Remove dependency removal step, it is redundant ([`2d021f0`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/2d021f0a0643cfbc4804fda0aced31199330b072))
-
-### Features
-
-- Add automated PowerShell installation scripts for Npcap and Suricata ([`11a38b6`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/11a38b6d9f7b7224debcd2ab71616a49051bd0e9))
-
-### Miscellaneous Tasks
-
-- Update script url to reference main ([`b5b99d4`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/b5b99d404c1ed116b6ea7705146c7fe291084b6f))
 
 ## 0.1.4 - 2025-09-15
 
