@@ -295,7 +295,7 @@ install_dependencies() {
         local brew_cmd=(brew install jq yq libpcap lz4 pcre2 jansson libyaml libmagic)
         if [ "$(id -u)" -eq 0 ] && [ -n "$LOGGED_IN_USER" ] && [ "$LOGGED_IN_USER" != "loginwindow" ] && [ "$LOGGED_IN_USER" != "root" ]; then
             local brew_out=""
-            brew_out=$(sudo -u "$LOGGED_IN_USER" "${brew_cmd[@]}" 2>&1) || {
+            brew_out=$(sudo -H -u "$LOGGED_IN_USER" "${brew_cmd[@]}" 2>&1) || {
                 warn_message "Could not install dependencies via Homebrew"
                 warn_message "Homebrew output: $brew_out"
             }
