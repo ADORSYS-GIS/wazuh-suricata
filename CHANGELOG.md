@@ -4,19 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[c256afb](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/c256afb55258616e89daad12f4c0d23eea6677e7)...[8d1b068](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/8d1b0686bd4d538369cccf87632436b7fcb4f796)
+[adb1ce9](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/adb1ce91d4bd59ed493ffcaea31d7584e1f741bb)...[febe783](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/febe7836f6fa0982b976757c36776903c5822bb3)
 
-### Bug Fixes
+### Features
 
-- Run brew with the user's HOME via sudo -H ([`2a920ec`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/2a920ec1b6f723357787439843c13c5bc0f14c79))
+- Add SAST workflow ([`febe783`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/febe7836f6fa0982b976757c36776903c5822bb3))
 
-### Documentation
+## 0.2.2 - 2026-10-06
 
-- Update CHANGELOG.md and checksums [skip ci] ([`c4315ff`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/c4315ffc7550cdc30cc0640ba69b406d70899d55))
-
-## 0.2.2 - 2026-09-29
-
-[c58e8dc](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/c58e8dce2f9624c6eb21f56e72d8c8c7fe3ec3ec)...[c256afb](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/c256afb55258616e89daad12f4c0d23eea6677e7)
+[c58e8dc](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/c58e8dce2f9624c6eb21f56e72d8c8c7fe3ec3ec)...[adb1ce9](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/adb1ce91d4bd59ed493ffcaea31d7584e1f741bb)
 
 ### Bug Fixes
 
@@ -25,6 +21,7 @@ All notable changes to this project will be documented in this file.
 - Update macOS release tag to v0.5.3 ([`ad85ba6`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ad85ba627b8af8c6862838574c491560c67feb4d))
 - Bump WAZUH_SURICATA_REPO_REF to v0.2.2 across all scripts ([`e569bc7`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/e569bc7996f4cf9282baffc77d703165ca83fac1))
 - Prevent homebrew from running as root on macOS ([`ea8eb04`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ea8eb044f6ff9ff6c981d70dc6e0ae7322b972d7))
+- Run brew with the user's HOME via sudo -H ([`2a920ec`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/2a920ec1b6f723357787439843c13c5bc0f14c79))
 
 ### Documentation
 
@@ -47,6 +44,8 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`b2c145b`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/b2c145b9f97abdec5ef04f1d9db3102dd41768c4))
 - Update CHANGELOG.md and checksums [skip ci] ([`675f569`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/675f569c64f4179342e59b6c15cb37b5152e86d2))
 - Update CHANGELOG.md and checksums [skip ci] ([`c256afb`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/c256afb55258616e89daad12f4c0d23eea6677e7))
+- Update CHANGELOG.md and checksums [skip ci] ([`c4315ff`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/c4315ffc7550cdc30cc0640ba69b406d70899d55))
+- Update CHANGELOG.md and checksums [skip ci] ([`adb1ce9`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/adb1ce91d4bd59ed493ffcaea31d7584e1f741bb))
 
 ### Features
 
