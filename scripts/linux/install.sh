@@ -873,12 +873,10 @@ EOF
         
         # Add NFQUEUE rules to before.rules
         local ufw_before="/etc/ufw/before.rules"
-        if [[ -f "$ufw_before" ]] ; then
-            if ! grep -q "NFQUEUE" "$ufw_before"; then
-                info_message "Adding NFQUEUE rules to $ufw_before"
-                # Insert after header comments
-                maybe_sudo sed_inplace -i '/# End required lines/a -I INPUT -j NFQUEUE\n-I OUTPUT -j NFQUEUE' "$ufw_before"
-            fi
+        if [[ -f "$ufw_before" ]] && ! grep -q "NFQUEUE" "$ufw_before"; then
+            info_message "Adding NFQUEUE rules to $ufw_before"
+            # Insert after header comments
+            maybe_sudo sed_inplace -i '/# End required lines/a -I INPUT -j NFQUEUE\n-I OUTPUT -j NFQUEUE' "$ufw_before"
         fi
         
         # Reload UFW if active
