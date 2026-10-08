@@ -8,8 +8,8 @@ if (-not (Test-Path $TEMP_DIR)) { New-Item -Path $TEMP_DIR -ItemType Directory -
 try {
     $ChecksumsURL = "$WAZUH_SURICATA_REPO_URL/checksums.sha256"
     $UtilsURL = "$WAZUH_SURICATA_REPO_URL/scripts/shared/utils.ps1"
-    
-    $global:ChecksumsPath = Join-Path $TEMP_DIR "checksums.sha256"
+
+    $script:ChecksumsPath = Join-Path $TEMP_DIR "checksums.sha256"
     $UtilsPath = Join-Path $TEMP_DIR "utils.ps1"
 
     Invoke-WebRequest -Uri $ChecksumsURL -OutFile $ChecksumsPath -ErrorAction Stop
@@ -42,7 +42,7 @@ catch {
 $SURICATA_VERSION = if ($env:SURICATA_VERSION) { $env:SURICATA_VERSION } else { "8.0.4" }
 
 # Global configuration
-$global:Config = @{
+$script:Config = @{
     TempDir                 = $TEMP_DIR
     SuricataInstallerUrl    = "https://www.openinfosecfoundation.org/download/windows/Suricata-$SURICATA_VERSION-1-64bit.msi"
     SuricataInstallerPath   = Join-Path $TEMP_DIR "Suricata_Installer.msi"
@@ -58,12 +58,12 @@ $global:Config = @{
 
 # ====================== FUNCTIONS ======================
 
-function Run-SuricataUpdate {
+function Invoke-SuricataUpdate {
     InfoMessage "Running manual Suricata rules update..."
 
     $rulesUrl = "https://rules.emergingthreats.net/open/suricata-$SURICATA_VERSION/emerging.rules.tar.gz"
-    $tempFile = Join-Path $global:Config.TempDir "emerging.rules.tar.gz"
-    $rulesDir = $global:Config.RulesDir
+    $tempFile = Join-Path $script:Config.TempDir "emerging.rules.tar.gz"
+    $rulesDir = $script:Config.RulesDir
 
     try {
         if (-not (Test-Path $rulesDir)) {
@@ -95,15 +95,15 @@ function Run-SuricataUpdate {
 }
 
 function Install-SuricataSoftware {
-    if (Test-Path $global:Config.SuricataExePath) {
+    if (Test-Path $script:Config.SuricataExePath) {
         WarnMessage "Suricata already installed. Skipping."
         return
     }
 
-    $installerPath = $global:Config.SuricataInstallerPath
+    $installerPath = $script:Config.SuricataInstallerPath
     if (-not (Test-Path $installerPath)) {
         InfoMessage "Downloading Suricata installer..."
-        Download-File -Url $global:Config.SuricataInstallerUrl -Destination $installerPath -Description "Suricata Installer"
+        Download-File -Url $script:Config.SuricataInstallerUrl -Destination $installerPath -Description "Suricata Installer"
     }
 
     InfoMessage "Installing Suricata..."
@@ -112,30 +112,34 @@ function Install-SuricataSoftware {
 }
 
 function Install-NpcapSoftware {
-    if (Test-Path $global:Config.NpcapPath) {
+    if (Test-Path $script:Config.NpcapPath) {
         WarnMessage "Npcap is already installed."
         return
     }
 
-    $installerPath = $global:Config.NpcapInstallerPath
+    $installerPath = $script:Config.NpcapInstallerPath
     if (-not (Test-Path $installerPath)) {
         InfoMessage "Downloading Npcap..."
-        Download-File -Url $global:Config.NpcapInstallerUrl -Destination $installerPath -Description "Npcap Installer"
+        Download-File -Url $script:Config.NpcapInstallerUrl -Destination $installerPath -Description "Npcap Installer"
     }
 
     InfoMessage "Installing Npcap... (Follow on-screen instructions)"
     Start-Process -FilePath $installerPath -Wait
 }
 
-function Update-EnvironmentVariables {
+function Update-EnvironmentVariable {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
+    param()
     $envPath = [Environment]::GetEnvironmentVariable("Path", "Machine")
-    $newPath = "$envPath;$($global:Config.SuricataDir);$($global:Config.NpcapPath)"
+    $newPath = "$envPath;$($script:Config.SuricataDir);$($script:Config.NpcapPath)"
     [Environment]::SetEnvironmentVariable("Path", $newPath, "Machine")
     InfoMessage "PATH environment variable updated."
 }
 
-function Configure-SuricataYaml {
-    $yamlPath = $global:Config.SuricataConfigPath
+function Set-SuricataYaml {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
+    param()
+    $yamlPath = $script:Config.SuricataConfigPath
     if (-not (Test-Path $yamlPath)) { WarnMessage "suricata.yaml not found."; return }
 
     InfoMessage "Configuring suricata.yaml for Windows..."
@@ -190,18 +194,18 @@ function Register-SuricataScheduledTask {
 
     InfoMessage "Using adapter: $adapterName"
 
-    $exePath = $global:Config.SuricataExePath
-    $arguments = "-c `"$($global:Config.SuricataConfigPath)`" -i `"$adapterName`" -l `"C:\Program Files\Suricata\log`""
+    $exePath = $script:Config.SuricataExePath
+    $arguments = "-c `"$($script:Config.SuricataConfigPath)`" -i `"$adapterName`" -l `"C:\Program Files\Suricata\log`""
 
     $action = New-ScheduledTaskAction -Execute $exePath -Argument $arguments
     $trigger = New-ScheduledTaskTrigger -AtStartup
     $settings = New-ScheduledTaskSettingsSet -Hidden -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
 
-    if (Get-ScheduledTask -TaskName $global:Config.TaskName -ErrorAction SilentlyContinue) {
-        Unregister-ScheduledTask -TaskName $global:Config.TaskName -Confirm:$false
+    if (Get-ScheduledTask -TaskName $script:Config.TaskName -ErrorAction SilentlyContinue) {
+        Unregister-ScheduledTask -TaskName $script:Config.TaskName -Confirm:$false
     }
 
-    Register-ScheduledTask -TaskName $global:Config.TaskName `
+    Register-ScheduledTask -TaskName $script:Config.TaskName `
                            -Action $action `
                            -Trigger $trigger `
                            -Settings $settings `
@@ -224,20 +228,20 @@ function Install-Suricata {
         Install-SuricataSoftware
 
         InfoMessage "=== Updating Environment Variables ==="
-        Update-EnvironmentVariables
+        Update-EnvironmentVariable
 
         InfoMessage "=== Configuring Suricata Yaml ==="
-        Configure-SuricataYaml
+        Set-SuricataYaml
 
         InfoMessage "=== Running Suricata Rules Update ==="
-        Run-SuricataUpdate
+        Invoke-SuricataUpdate
 
         # Clean up temporary files.
         try {
-            Remove-Item -Path $global:Config.TempDir -Recurse -Force -ErrorAction Stop
-            InfoMessage "Cleaned up temporary directory: $($global:Config.TempDir)"
+            Remove-Item -Path $script:Config.TempDir -Recurse -Force -ErrorAction Stop
+            InfoMessage "Cleaned up temporary directory: $($script:Config.TempDir)"
         } catch {
-            WarnMessage "Could not clean up temporary directory: $($global:Config.TempDir). $_"
+            WarnMessage "Could not clean up temporary directory: $($script:Config.TempDir). $_"
         }
 
         InfoMessage "=== Registering Suricata Scheduled Task ==="
@@ -252,26 +256,26 @@ function Install-Suricata {
 
 # Validate that the Suricata configuration file exists.
 function Test-SuricataConfigFile {
-    if (Test-Path $global:Config.SuricataConfigPath) {
-        SuccessMessage "Suricata configuration file exists: $($global:Config.SuricataConfigPath)"
+    if (Test-Path $script:Config.SuricataConfigPath) {
+        SuccessMessage "Suricata configuration file exists: $($script:Config.SuricataConfigPath)"
         return $true
     }
-    ErrorMessage "Suricata configuration file is missing: $($global:Config.SuricataConfigPath)"
+    ErrorMessage "Suricata configuration file is missing: $($script:Config.SuricataConfigPath)"
     return $false
 }
 
 # Validate that the Suricata executable exists and can run.
 function Test-SuricataExecutable {
-    if (-not (Test-Path $global:Config.SuricataExePath)) {
-        ErrorMessage "Suricata executable not found at: $($global:Config.SuricataExePath)"
+    if (-not (Test-Path $script:Config.SuricataExePath)) {
+        ErrorMessage "Suricata executable not found at: $($script:Config.SuricataExePath)"
         return $false
     }
 
     $versionOutput = $null
     try {
-        $versionOutput = & $global:Config.SuricataExePath --version 2>$null | Select-Object -First 1
+        $versionOutput = & $script:Config.SuricataExePath --version 2>$null | Select-Object -First 1
         if (-not $versionOutput) {
-            $versionOutput = & $global:Config.SuricataExePath -V 2>$null | Select-Object -First 1
+            $versionOutput = & $script:Config.SuricataExePath -V 2>$null | Select-Object -First 1
         }
     } catch {
         $versionOutput = $null
@@ -279,38 +283,38 @@ function Test-SuricataExecutable {
 
     if ($versionOutput) {
         SuccessMessage "Suricata version installed: $versionOutput"
-        SuccessMessage "Suricata executable validated at: $($global:Config.SuricataExePath)"
+        SuccessMessage "Suricata executable validated at: $($script:Config.SuricataExePath)"
         return $true
     }
-    ErrorMessage "Suricata executable exists but version check failed: $($global:Config.SuricataExePath)"
+    ErrorMessage "Suricata executable exists but version check failed: $($script:Config.SuricataExePath)"
     return $false
 }
 
 # Validate that at least one .rules file is present.
-function Test-SuricataRules {
-    if (-not (Test-Path $global:Config.RulesDir)) {
-        ErrorMessage "Suricata rules directory is missing: $($global:Config.RulesDir)"
+function Test-SuricataRule {
+    if (-not (Test-Path $script:Config.RulesDir)) {
+        ErrorMessage "Suricata rules directory is missing: $($script:Config.RulesDir)"
         return $false
     }
 
-    $rulesFiles = Get-ChildItem -Path $global:Config.RulesDir -Filter "*.rules" -File -ErrorAction SilentlyContinue
+    $rulesFiles = Get-ChildItem -Path $script:Config.RulesDir -Filter "*.rules" -File -ErrorAction SilentlyContinue
     if ($rulesFiles -and $rulesFiles.Count -gt 0) {
-        SuccessMessage "Suricata rules present in: $($global:Config.RulesDir)"
+        SuccessMessage "Suricata rules present in: $($script:Config.RulesDir)"
         return $true
     }
-    WarnMessage "Rules directory exists but no .rules files found: $($global:Config.RulesDir)"
+    WarnMessage "Rules directory exists but no .rules files found: $($script:Config.RulesDir)"
     return $false
 }
 
 # Validate that the scheduled task exists.
 function Test-SuricataScheduledTask {
     try {
-        $task = Get-ScheduledTask -TaskName $global:Config.TaskName -ErrorAction SilentlyContinue
+        $task = Get-ScheduledTask -TaskName $script:Config.TaskName -ErrorAction SilentlyContinue
         if ($task) {
-            SuccessMessage "Scheduled task exists: $($global:Config.TaskName)"
+            SuccessMessage "Scheduled task exists: $($script:Config.TaskName)"
             return $true
         }
-        WarnMessage "Scheduled task not found: $($global:Config.TaskName)"
+        WarnMessage "Scheduled task not found: $($script:Config.TaskName)"
         return $false
     } catch {
         WarnMessage "Could not validate scheduled task: $_"
@@ -319,7 +323,7 @@ function Test-SuricataScheduledTask {
 }
 
 # Validate that Suricata has been installed and configured correctly.
-function Validate-Installation {
+function Test-Installation {
     try {
         InfoMessage "=== Validating Suricata installation ==="
         $validationFailed = $false
@@ -328,7 +332,7 @@ function Validate-Installation {
         $checks = @(
             (Test-SuricataConfigFile),
             (Test-SuricataExecutable),
-            (Test-SuricataRules),
+            (Test-SuricataRule),
             (Test-SuricataScheduledTask)
         )
         $validationFailed = $checks -contains $false
@@ -348,4 +352,4 @@ function Validate-Installation {
 
 # Execute the main installation and validation functions.
 Install-Suricata
-Validate-Installation
+Test-Installation
