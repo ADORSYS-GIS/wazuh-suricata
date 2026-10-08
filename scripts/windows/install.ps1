@@ -125,6 +125,15 @@ function Install-NpcapSoftware {
 
     InfoMessage "Installing Npcap... (Follow on-screen instructions)"
     Start-Process -FilePath $installerPath -Wait
+
+    # Verify if Npcap installation succeeded or if user cancelled GUI
+    $sys32NpcapDll = Join-Path $env:SystemRoot "System32\Npcap\wpcap.dll"
+    $sys32Dll = Join-Path $env:SystemRoot "System32\wpcap.dll"
+    if ((Test-Path $script:Config.NpcapPath) -or (Test-Path $sys32NpcapDll) -or (Test-Path $sys32Dll)) {
+        SuccessMessage "Npcap installation verified."
+    } else {
+        WarnMessage "Npcap installation was not completed. Suricata requires Npcap (wpcap.dll) to capture packets."
+    }
 }
 
 function Set-SuricataYaml {

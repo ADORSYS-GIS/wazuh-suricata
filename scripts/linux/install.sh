@@ -476,10 +476,8 @@ create_symlinks() {
     fi
     
     # Create /usr/bin symlink (standard system PATH) - useful for sudo/root
-    if [[ -d /usr/bin ]]  && [[ ! -f /usr/bin/suricata ]] ; then
-        if maybe_sudo ln -sf "$target_binary" /usr/bin/suricata; then
-            info_message "Created symlink: /usr/bin/suricata -> $target_binary"
-        fi
+    if [[ -d /usr/bin ]]  && [[ ! -f /usr/bin/suricata ]] && maybe_sudo ln -sf "$target_binary" /usr/bin/suricata; then
+        info_message "Created symlink: /usr/bin/suricata -> $target_binary"
     fi
     
     # Verify installation
@@ -750,15 +748,11 @@ validate_installation() {
     fi
     
     # Method 3: Find and execute directly from installation path
-    if [[ $suricata_found -eq 0 ]] ; then
-        if bin_path=$(find_suricata_binary); then
-            # Verify the found binary is executable
-            if [[ -x "$bin_path" ]] ; then
-                actual_version=$("$bin_path" --version 2>/dev/null | head -n1 || echo "")
-                if [[ -n "$actual_version" ]] ; then
-                    suricata_found=1
-                fi
-            fi
+    # Verify the found binary is executable
+    if [[ $suricata_found -eq 0 ]] && bin_path=$(find_suricata_binary) && [[ -x "$bin_path" ]] ; then
+        actual_version=$("$bin_path" --version 2>/dev/null | head -n1 || echo "")
+        if [[ -n "$actual_version" ]] ; then
+            suricata_found=1
         fi
     fi
     

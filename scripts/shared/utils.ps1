@@ -214,6 +214,17 @@ function Test-SuricataExecutable {
         return $false
     }
 
+    # Check Npcap / wpcap.dll presence before running suricata.exe to avoid Windows System Error popup
+    $wpcapDll1 = Join-Path $env:SystemRoot "System32\wpcap.dll"
+    $wpcapDll2 = Join-Path $env:SystemRoot "System32\Npcap\wpcap.dll"
+    $hasWpcap = (Test-Path $wpcapDll1) -or (Test-Path $wpcapDll2) -or (Test-Path $script:Config.NpcapPath)
+
+    if (-not $hasWpcap) {
+        ErrorMessage "Npcap (wpcap.dll) is missing. Suricata requires Npcap driver to run."
+        ErrorMessage "Please run Npcap installer and ensure WinPcap API compatibility is selected."
+        return $false
+    }
+
     $versionOutput = $null
     try {
         $versionOutput = & $script:Config.SuricataExePath --version 2>$null | Select-Object -First 1
@@ -299,7 +310,18 @@ function Update-EnvironmentVariable {
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
     param()
     $envPath = [Environment]::GetEnvironmentVariable("Path", "Machine")
-    $newPath = "$envPath;$($script:Config.SuricataDir);$($script:Config.NpcapPath)"
+    $npcapSys32 = Join-Path $env:SystemRoot "System32\Npcap"
+
+    $pathsToAdd = @($script:Config.SuricataDir, $script:Config.NpcapPath, $npcapSys32)
+    $newPath = $envPath
+
+    foreach ($p in $pathsToAdd) {
+        if ($newPath -notlike "*$p*") {
+            $newPath = "$newPath;$p"
+        }
+    }
+
     [Environment]::SetEnvironmentVariable("Path", $newPath, "Machine")
+    $env:Path = "$env:Path;$($script:Config.SuricataDir);$($script:Config.NpcapPath);$npcapSys32"
     InfoMessage "Environment PATH updated with Suricata and Npcap directories."
 }
