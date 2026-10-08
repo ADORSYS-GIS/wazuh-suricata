@@ -167,17 +167,6 @@ function Install-NpcapSoftware {
 }
 
 
-# Update environment variables to include Suricata and Npcap directories.
-function Update-EnvironmentVariable {
-    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
-    param()
-    $envPath = [Environment]::GetEnvironmentVariable("Path", "Machine")
-    $newPath = "$envPath;$($script:Config.SuricataDir);$($script:Config.NpcapPath)"
-    [Environment]::SetEnvironmentVariable("Path", $newPath, "Machine")
-    InfoMessage "Environment PATH updated with Suricata and Npcap directories."
-}
-
-
 # Update local.rules file.
 function Update-RulesFile {
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
@@ -312,103 +301,6 @@ function Install-Suricata {
         InfoMessage "Suricata is now configured to run automatically at startup"
     } catch {
         ErrorMessage "Installation failed: $_"
-        exit 1
-    }
-}
-
-# Validate that the Suricata configuration file exists.
-function Test-SuricataConfigFile {
-    if (Test-Path $script:Config.SuricataConfigPath) {
-        SuccessMessage "Suricata configuration file exists: $($script:Config.SuricataConfigPath)"
-        return $true
-    }
-    ErrorMessage "Suricata configuration file is missing: $($script:Config.SuricataConfigPath)"
-    return $false
-}
-
-# Validate that the Suricata executable exists and can run.
-function Test-SuricataExecutable {
-    if (-not (Test-Path $script:Config.SuricataExePath)) {
-        ErrorMessage "Suricata executable not found at: $($script:Config.SuricataExePath)"
-        return $false
-    }
-
-    $versionOutput = $null
-    try {
-        $versionOutput = & $script:Config.SuricataExePath --version 2>$null | Select-Object -First 1
-        if (-not $versionOutput) {
-            $versionOutput = & $script:Config.SuricataExePath -V 2>$null | Select-Object -First 1
-        }
-    } catch {
-        $versionOutput = $null
-    }
-
-    if ($versionOutput) {
-        SuccessMessage "Suricata version installed: $versionOutput"
-        SuccessMessage "Suricata executable validated at: $($script:Config.SuricataExePath)"
-        return $true
-    }
-    ErrorMessage "Suricata executable exists but version check failed: $($script:Config.SuricataExePath)"
-    ErrorMessage "This usually indicates that Npcap is not correctly installed or drivers are not running."
-    return $false
-}
-
-# Validate that at least one .rules file is present.
-function Test-SuricataRule {
-    if (-not (Test-Path $script:Config.RulesDir)) {
-        ErrorMessage "Suricata rules directory is missing: $($script:Config.RulesDir)"
-        return $false
-    }
-
-    $rulesFiles = Get-ChildItem -Path $script:Config.RulesDir -Filter "*.rules" -File -ErrorAction SilentlyContinue
-    if ($rulesFiles -and @($rulesFiles).Count -gt 0) {
-        SuccessMessage "Suricata rules present in: $($script:Config.RulesDir)"
-        return $true
-    }
-    WarnMessage "Rules directory exists but no .rules files found: $($script:Config.RulesDir)"
-    return $false
-}
-
-# Validate that the scheduled task exists.
-function Test-SuricataScheduledTask {
-    try {
-        $task = Get-ScheduledTask -TaskName $script:Config.TaskName -ErrorAction SilentlyContinue
-        if ($task) {
-            SuccessMessage "Scheduled task exists: $($script:Config.TaskName)"
-            return $true
-        }
-        WarnMessage "Scheduled task not found: $($script:Config.TaskName)"
-        return $false
-    } catch {
-        WarnMessage "Could not validate scheduled task: $_"
-        return $false
-    }
-}
-
-# Validate that Suricata has been installed and configured correctly.
-function Test-Installation {
-    try {
-        InfoMessage "=== Validating Suricata installation ==="
-        $validationFailed = $false
-
-        # Validate each aspect independently so all failures are reported.
-        $checks = @(
-            (Test-SuricataConfigFile),
-            (Test-SuricataExecutable),
-            (Test-SuricataRule),
-            (Test-SuricataScheduledTask)
-        )
-        $validationFailed = $checks -contains $false
-
-        if (-not $validationFailed) {
-            SuccessMessage "Suricata installation and configuration validation completed successfully."
-        } else {
-            ErrorMessage "Suricata installation and configuration validation failed."
-            exit 1
-        }
-    }
-    catch {
-        ErrorMessage "Installation validation failed: $_"
         exit 1
     }
 }
