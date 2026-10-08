@@ -4,7 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[adb1ce9](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/adb1ce91d4bd59ed493ffcaea31d7584e1f741bb)...[febe783](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/febe7836f6fa0982b976757c36776903c5822bb3)
+[adb1ce9](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/adb1ce91d4bd59ed493ffcaea31d7584e1f741bb)...[73cc055](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/73cc055177d8de7dfc557001e67b5ac65278c0c7)
+
+### Bug Fixes
+
+- Add Npcap System32 path and prevent missing wpcap.dll system error popup ([`73cc055`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/73cc055177d8de7dfc557001e67b5ac65278c0c7))
+
+### Documentation
+
+- Update CHANGELOG.md and checksums [skip ci] ([`4eb3cfe`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/4eb3cfea0e0209fd356f61de4718b8eedb952dd7))
 
 ### Features
 
