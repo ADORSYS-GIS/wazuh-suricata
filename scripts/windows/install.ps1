@@ -125,12 +125,32 @@ function Install-NpcapSoftware {
 
     InfoMessage "Installing Npcap... (Follow on-screen instructions)"
     Start-Process -FilePath $installerPath -Wait
+
+    # Verify if Npcap installation succeeded or if user cancelled GUI
+    $sys32NpcapDll = Join-Path $env:SystemRoot "System32\Npcap\wpcap.dll"
+    $sys32Dll = Join-Path $env:SystemRoot "System32\wpcap.dll"
+    if ((Test-Path $global:Config.NpcapPath) -or (Test-Path $sys32NpcapDll) -or (Test-Path $sys32Dll)) {
+        SuccessMessage "Npcap installation verified."
+    } else {
+        WarnMessage "Npcap installation was not completed. Suricata requires Npcap (wpcap.dll) to capture packets."
+    }
 }
 
 function Update-EnvironmentVariables {
     $envPath = [Environment]::GetEnvironmentVariable("Path", "Machine")
-    $newPath = "$envPath;$($global:Config.SuricataDir);$($global:Config.NpcapPath)"
+    $npcapSys32 = Join-Path $env:SystemRoot "System32\Npcap"
+    
+    $pathsToAdd = @($global:Config.SuricataDir, $global:Config.NpcapPath, $npcapSys32)
+    $newPath = $envPath
+
+    foreach ($p in $pathsToAdd) {
+        if ($newPath -notlike "*$p*") {
+            $newPath = "$newPath;$p"
+        }
+    }
+
     [Environment]::SetEnvironmentVariable("Path", $newPath, "Machine")
+    $env:Path = "$env:Path;$($global:Config.SuricataDir);$($global:Config.NpcapPath);$npcapSys32"
     InfoMessage "PATH environment variable updated."
 }
 
@@ -265,24 +285,39 @@ function Validate-Installation {
             $validationFailed = $true
         }
 
+        # Check Npcap / wpcap.dll presence before running suricata.exe to avoid Windows System Error popup
+        $wpcapDll1 = Join-Path $env:SystemRoot "System32\wpcap.dll"
+        $wpcapDll2 = Join-Path $env:SystemRoot "System32\Npcap\wpcap.dll"
+        $hasWpcap = (Test-Path $wpcapDll1) -or (Test-Path $wpcapDll2) -or (Test-Path $global:Config.NpcapPath)
+
+        if (-not $hasWpcap) {
+            ErrorMessage "Npcap (wpcap.dll) is missing. Suricata requires Npcap driver to run."
+            ErrorMessage "Please run Npcap installer and ensure WinPcap API compatibility is selected."
+            $validationFailed = $true
+        }
+
         # Validate the Suricata executable exists and can run
         if (Test-Path $global:Config.SuricataExePath) {
-            $versionOutput = $null
-            try {
-                $versionOutput = & $global:Config.SuricataExePath --version 2>$null | Select-Object -First 1
-                if (-not $versionOutput) {
-                    $versionOutput = & $global:Config.SuricataExePath -V 2>$null | Select-Object -First 1
-                }
-            } catch {
+            if ($hasWpcap) {
                 $versionOutput = $null
-            }
+                try {
+                    $versionOutput = & $global:Config.SuricataExePath --version 2>$null | Select-Object -First 1
+                    if (-not $versionOutput) {
+                        $versionOutput = & $global:Config.SuricataExePath -V 2>$null | Select-Object -First 1
+                    }
+                } catch {
+                    $versionOutput = $null
+                }
 
-            if ($versionOutput) {
-                SuccessMessage "Suricata version installed: $versionOutput"
-                SuccessMessage "Suricata executable validated at: $($global:Config.SuricataExePath)"
+                if ($versionOutput) {
+                    SuccessMessage "Suricata version installed: $versionOutput"
+                    SuccessMessage "Suricata executable validated at: $($global:Config.SuricataExePath)"
+                } else {
+                    ErrorMessage "Suricata executable exists but version check failed: $($global:Config.SuricataExePath)"
+                    $validationFailed = $true
+                }
             } else {
-                ErrorMessage "Suricata executable exists but version check failed: $($global:Config.SuricataExePath)"
-                $validationFailed = $true
+                ErrorMessage "Skipping suricata.exe execution check because Npcap (wpcap.dll) is not installed."
             }
         }
         else {
