@@ -115,6 +115,9 @@ detect_suricata_installation() {
                 has_modern=1
             fi
             ;;
+        *)
+            # Unsupported/unknown distribution: no package-manager detection possible
+            ;;
     esac
     
     # Return result as "legacy,modern,softlink" format
