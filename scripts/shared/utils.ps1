@@ -127,13 +127,12 @@ function Download-File {
 
 function Download-And-VerifyFile {
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseApprovedVerbs', '')]
-    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidGlobalVars', '')]
     param(
         [string]$Url,
         [string]$Destination,
         [string]$ChecksumPattern,
         [string]$FileName = "Unknown file",
-        [string]$ChecksumFile = $global:ChecksumsPath,
+        [string]$ChecksumFile = $script:ChecksumsPath,
         [string]$ChecksumUrl = $null
     )
 
