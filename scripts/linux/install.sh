@@ -124,7 +124,7 @@ sed_inplace() {
 check_installed_version() {
     local installed_bin="/opt/wazuh/suricata/bin/suricata"
     
-    if [ ! -x "$installed_bin" ]; then
+    if [[ ! -x "$installed_bin" ]] ; then
         return 1
     fi
     
@@ -340,12 +340,12 @@ install_suricata_package() {
     )
     local removed_any_unit=0
     for unit_file in "${unit_candidates[@]}"; do
-        if [ -f "$unit_file" ]; then
+        if [[ -f "$unit_file" ]] ; then
             removed_any_unit=1
         fi
     done
 
-    if [ "$removed_any_unit" -eq 1 ] || [ -f "/etc/init.d/suricata" ]; then
+    if [[ "$removed_any_unit" -eq 1 ]]  || [[ -f "/etc/init.d/suricata" ]] ; then
         info_message "Removing Suricata service integration (managed by Wazuh)"
         maybe_sudo systemctl disable suricata.service --now 2>/dev/null || true
         maybe_sudo systemctl stop suricata.service 2>/dev/null || true
@@ -356,7 +356,7 @@ install_suricata_package() {
         done
 
         # Remove SysV init script if present (prevents systemd "generated" unit)
-        if [ -f "/etc/init.d/suricata" ]; then
+        if [[ -f "/etc/init.d/suricata" ]] ; then
             if command_exists update-rc.d; then
                 maybe_sudo update-rc.d -f suricata remove >/dev/null 2>&1 || true
             elif command_exists chkconfig; then
@@ -377,7 +377,7 @@ install_suricata_package() {
     print_step 3 "Configuring system library path"
     # Binaries with Linux capabilities (cap_net_admin, cap_net_raw) ignore LD_LIBRARY_PATH
     # for security. We must add the library path to the system configuration.
-    if [ "$OS" = "linux" ]; then
+    if [[ "$OS" = "linux" ]] ; then
         info_message "Adding Suricata libraries to system library path"
         echo "/opt/wazuh/suricata/lib" | maybe_sudo tee /etc/ld.so.conf.d/suricata.conf > /dev/null
         maybe_sudo ldconfig
@@ -404,14 +404,14 @@ find_suricata_binary() {
         "$base/suricata"
     )
     for candidate in "${candidates[@]}"; do
-        if [ -f "$candidate" ] && [ -x "$candidate" ]; then
+        if [[ -f "$candidate" ]]  && [[ -x "$candidate" ]] ; then
             echo "$candidate"; return 0
         fi
     done
     # Deep search up to depth 6 for any file named 'suricata' or starting with 'suricata'
     local found
     found=$(find "$base" -maxdepth 6 -type f \( -name 'suricata' -o -name 'suricata*' \) 2>/dev/null | sort | head -n1)
-    if [ -n "$found" ] && [ -x "$found" ]; then
+    if [[ -n "$found" ]]  && [[ -x "$found" ]] ; then
         echo "$found"; return 0
     fi
     return 1
@@ -428,7 +428,7 @@ ensure_symlinks() {
         maybe_sudo chmod +x "$bin_path" 2>/dev/null || true
         
         # Verify the binary is executable
-        if [ -x "$bin_path" ]; then
+        if [[ -x "$bin_path" ]] ; then
             info_message "Binary is executable: $bin_path"
         else
             warn_message "Binary exists but is not executable: $bin_path"
@@ -464,7 +464,7 @@ create_symlinks() {
     
     # Check if we should use the wrapper or real binary
     # Since we configured ld.so.conf, we can use suricata.real directly
-    if [ ! -f "$target_binary" ]; then
+    if [[ ! -f "$target_binary" ]] ; then
         target_binary="/opt/wazuh/suricata/bin/suricata"
     fi
     
@@ -476,10 +476,8 @@ create_symlinks() {
     fi
     
     # Create /usr/bin symlink (standard system PATH) - useful for sudo/root
-    if [ -d /usr/bin ] && [ ! -f /usr/bin/suricata ]; then
-        if maybe_sudo ln -sf "$target_binary" /usr/bin/suricata; then
-            info_message "Created symlink: /usr/bin/suricata -> $target_binary"
-        fi
+    if [[ -d /usr/bin ]]  && [[ ! -f /usr/bin/suricata ]] && maybe_sudo ln -sf "$target_binary" /usr/bin/suricata; then
+        info_message "Created symlink: /usr/bin/suricata -> $target_binary"
     fi
     
     # Verify installation
@@ -492,7 +490,7 @@ create_symlinks() {
 
 # Set Linux capabilities to allow non-root usage where possible
 set_linux_capabilities() {
-    if [ "$(uname -s)" != "Linux" ]; then
+    if [[ "$(uname -s)" != "Linux" ]] ; then
         return 0
     fi
     if ! command -v setcap >/dev/null 2>&1; then
@@ -503,7 +501,7 @@ set_linux_capabilities() {
         # Some builds use a wrapper that execs suricata.real; set caps on both if present
         local real_path="${bin_path}.real"
         maybe_sudo setcap cap_net_admin,cap_net_raw+eip "$bin_path" 2>/dev/null || true
-        if [ -f "$real_path" ]; then
+        if [[ -f "$real_path" ]] ; then
             maybe_sudo setcap cap_net_admin,cap_net_raw+eip "$real_path" 2>/dev/null || true
         fi
     fi
@@ -520,7 +518,7 @@ detect_wifi_interface() {
         INTERFACE=""
     fi
     
-    if [ -z "$INTERFACE" ]; then
+    if [[ -z "$INTERFACE" ]] ; then
         INTERFACE="eth0"
         warn_message "No active interface detected. Defaulting to: $INTERFACE"
     fi
@@ -580,7 +578,7 @@ download_rules() {
     info_message "Combining .rules files into $rules_file"
     local rules_files
     rules_files=$(find "$temp_dir" -type f -name "*.rules")
-    if [ -n "$rules_files" ]; then
+    if [[ -n "$rules_files" ]] ; then
         maybe_sudo bash -c "cat $rules_files > \"$rules_file\"" || {
             rm -rf "$temp_dir"
             error_message "Failed to combine rules into $rules_file"
@@ -611,13 +609,13 @@ setup_suricata_config() {
     if ! maybe_sudo test -f "$CONFIG_FILE"; then
         # Try to find a default config from the installation
         local default_config=""
-        if [ -f "/opt/wazuh/suricata/etc/suricata/suricata.yaml" ]; then
+        if [[ -f "/opt/wazuh/suricata/etc/suricata/suricata.yaml" ]] ; then
             default_config="/opt/wazuh/suricata/etc/suricata/suricata.yaml"
-        elif [ -f "/usr/share/suricata/suricata.yaml" ]; then
+        elif [[ -f "/usr/share/suricata/suricata.yaml" ]] ; then
             default_config="/usr/share/suricata/suricata.yaml"
         fi
         
-        if [ -n "$default_config" ]; then
+        if [[ -n "$default_config" ]] ; then
             info_message "Copying default configuration from $default_config"
             maybe_sudo cp "$default_config" "$CONFIG_FILE"
         else
@@ -698,11 +696,11 @@ setup_suricata_config() {
         local yq_bin=""
         if command_exists yq; then
             yq_bin="$(command -v yq)"
-        elif [ -x "/usr/local/bin/yq" ]; then
+        elif [[ -x "/usr/local/bin/yq" ]] ; then
             yq_bin="/usr/local/bin/yq"
         fi
 
-        if [ -n "$yq_bin" ] && [ -x "$yq_bin" ]; then
+        if [[ -n "$yq_bin" ]]  && [[ -x "$yq_bin" ]] ; then
             if maybe_sudo "$yq_bin" eval '.outputs[] | select(has("eve-log"))' "$CONFIG_FILE" >/dev/null 2>&1; then
                 maybe_sudo "$yq_bin" eval -i '(.outputs[] | select(has("eve-log")) | .["eve-log"].types) |= ((. // []) + ["alert"] | unique)' "$CONFIG_FILE" >/dev/null 2>&1 || \
                     warn_message "Could not update eve-log types via yq"
@@ -732,38 +730,34 @@ validate_installation() {
     local bin_path=""
     
     # Method 1: Try direct execution from /usr/local/bin (user PATH)
-    if [ -x /usr/local/bin/suricata ]; then
+    if [[ -x /usr/local/bin/suricata ]] ; then
         actual_version=$(/usr/local/bin/suricata --version 2>/dev/null | head -n1 || echo "")
-        if [ -n "$actual_version" ]; then
+        if [[ -n "$actual_version" ]] ; then
             suricata_found=1
             bin_path="/usr/local/bin/suricata"
         fi
     fi
     
     # Method 2: Try /usr/bin symlink (sudo secure_path)
-    if [ $suricata_found -eq 0 ] && [ -x /usr/bin/suricata ]; then
+    if [[ $suricata_found -eq 0 ]]  && [[ -x /usr/bin/suricata ]] ; then
         actual_version=$(/usr/bin/suricata --version 2>/dev/null | head -n1 || echo "")
-        if [ -n "$actual_version" ]; then
+        if [[ -n "$actual_version" ]] ; then
             suricata_found=1
             bin_path="/usr/bin/suricata"
         fi
     fi
     
     # Method 3: Find and execute directly from installation path
-    if [ $suricata_found -eq 0 ]; then
-        if bin_path=$(find_suricata_binary); then
-            # Verify the found binary is executable
-            if [ -x "$bin_path" ]; then
-                actual_version=$("$bin_path" --version 2>/dev/null | head -n1 || echo "")
-                if [ -n "$actual_version" ]; then
-                    suricata_found=1
-                fi
-            fi
+    # Verify the found binary is executable
+    if [[ $suricata_found -eq 0 ]] && bin_path=$(find_suricata_binary) && [[ -x "$bin_path" ]] ; then
+        actual_version=$("$bin_path" --version 2>/dev/null | head -n1 || echo "")
+        if [[ -n "$actual_version" ]] ; then
+            suricata_found=1
         fi
     fi
     
     # Report results
-    if [ $suricata_found -eq 1 ] && [ -n "$actual_version" ]; then
+    if [[ $suricata_found -eq 1 ]]  && [[ -n "$actual_version" ]] ; then
         success_message "Suricata version installed: $actual_version"
         info_message "Suricata binary location: $bin_path"
     else
@@ -784,11 +778,11 @@ validate_installation() {
                 ver_output=$("$kbin" --version 2>&1 | head -n1 || echo "ERROR_EXEC")
                 
                 # If checking failed, try with sudo
-                if [ "$ver_output" = "ERROR_EXEC" ] || [ -z "$ver_output" ]; then
+                if [[ "$ver_output" = "ERROR_EXEC" ]]  || [[ -z "$ver_output" ]] ; then
                      ver_output=$(maybe_sudo "$kbin" --version 2>&1 | head -n1 || echo "ERROR_EXEC_SUDO")
                 fi
 
-                if [ -n "$ver_output" ] && [ "$ver_output" != "ERROR_EXEC" ] && [ "$ver_output" != "ERROR_EXEC_SUDO" ]; then
+                if [[ -n "$ver_output" ]]  && [[ "$ver_output" != "ERROR_EXEC" ]]  && [[ "$ver_output" != "ERROR_EXEC_SUDO" ]] ; then
                     actual_version="$ver_output"
                     suricata_found=1
                     bin_path="$kbin"
@@ -802,7 +796,7 @@ validate_installation() {
         done
     fi
     
-    if [ $suricata_found -eq 0 ]; then
+    if [[ $suricata_found -eq 0 ]] ; then
         error_message "Suricata command is not available. Please check the installation."
         # Add debugging information
         warn_message "Debug: Checking for binary at expected locations:"
@@ -831,7 +825,7 @@ validate_installation() {
         success_message "Suricata rules file exists at $RULES_DIR/suricata.rules"
     fi
     
-    if [ $validation_failed -eq 0 ]; then
+    if [[ $validation_failed -eq 0 ]] ; then
         success_message "Suricata installation and configuration validation completed successfully."
     else
         error_message "Suricata installation and configuration validation failed."
@@ -841,7 +835,7 @@ validate_installation() {
 
 # Configure IPS mode settings
 configure_ips_mode() {
-    if [ "$MODE" != "ips" ]; then
+    if [[ "$MODE" != "ips" ]] ; then
         return 0
     fi
 
@@ -861,7 +855,7 @@ rules:
 EOF
 
     # 2. Configure /etc/default/suricata for NFQUEUE
-    if [ -f "/etc/default/suricata" ]; then
+    if [[ -f "/etc/default/suricata" ]] ; then
         info_message "Configuring /etc/default/suricata for NFQUEUE"
         if grep -q "^LISTENMODE=" "/etc/default/suricata"; then
             sed_inplace 's/^LISTENMODE=.*/LISTENMODE=nfqueue/' "/etc/default/suricata"
@@ -871,7 +865,7 @@ EOF
     fi
 
     # 3. Configure UFW if present
-    if command_exists ufw && [ -f "/etc/default/ufw" ]; then
+    if command_exists ufw && [[ -f "/etc/default/ufw" ]] ; then
         info_message "Configuring UFW for IPS mode"
         
         # Set default input policy to ACCEPT (as per tests/requirements for IPS)
@@ -879,12 +873,10 @@ EOF
         
         # Add NFQUEUE rules to before.rules
         local ufw_before="/etc/ufw/before.rules"
-        if [ -f "$ufw_before" ]; then
-            if ! grep -q "NFQUEUE" "$ufw_before"; then
-                info_message "Adding NFQUEUE rules to $ufw_before"
-                # Insert after header comments
-                maybe_sudo sed_inplace -i '/# End required lines/a -I INPUT -j NFQUEUE\n-I OUTPUT -j NFQUEUE' "$ufw_before"
-            fi
+        if [[ -f "$ufw_before" ]] && ! grep -q "NFQUEUE" "$ufw_before"; then
+            info_message "Adding NFQUEUE rules to $ufw_before"
+            # Insert after header comments
+            maybe_sudo sed_inplace -i '/# End required lines/a -I INPUT -j NFQUEUE\n-I OUTPUT -j NFQUEUE' "$ufw_before"
         fi
         
         # Reload UFW if active
@@ -895,7 +887,7 @@ EOF
 
     # 4. Add custom drop test rule
     local drop_rule='drop tcp any any -> any any (msg:"Test drop rule"; sid:992002087; rev:1;)'
-    if [ -f "$RULES_DIR/suricata.rules" ]; then
+    if [[ -f "$RULES_DIR/suricata.rules" ]] ; then
         info_message "Adding test drop rule to suricata.rules"
         if ! grep -q "sid:992002087" "$RULES_DIR/suricata.rules"; then
             maybe_sudo bash -c "echo '$drop_rule' >> '$RULES_DIR/suricata.rules'"
@@ -911,7 +903,7 @@ check_disk_space() {
     local available_space
     available_space=$(df /tmp | awk 'NR==2 {print $4}')
     
-    if [ "$available_space" -lt "$required_space" ]; then
+    if [[ "$available_space" -lt "$required_space" ]] ; then
         error_message "Insufficient disk space. At least 200MB required in /tmp"
         error_message "Available: $((available_space / 1024)) MB"
         exit 1
@@ -944,7 +936,7 @@ suricata_installation() {
     install_dependencies
     
     # If SKIP_INSTALL is set, skip download and installation
-    if [ "${SKIP_INSTALL:-0}" -eq 1 ]; then
+    if [[ "${SKIP_INSTALL:-0}" -eq 1 ]] ; then
         info_message "Suricata is already installed (checked in pre-checks)."
         info_message "Skipping package download and installation..."
     else
@@ -990,7 +982,7 @@ main() {
     info_message "Detected OS: ${OS}"
     
     # Check if Wazuh agent is installed (do this early for all platforms)
-    if [ ! -d "/var/ossec" ]; then
+    if [[ ! -d "/var/ossec" ]] ; then
         error_message "Wazuh agent not installed at /var/ossec"
         error_message "Please install the Wazuh agent before running this script"
         exit 1
@@ -1002,7 +994,7 @@ main() {
     pre_installation_check
     
     # If existing installation was verified, still download rules but skip binary installation
-    if [ "${SKIP_INSTALL:-0}" -eq 1 ]; then
+    if [[ "${SKIP_INSTALL:-0}" -eq 1 ]] ; then
         info_message "Suricata $SURICATA_VERSION is already installed. Refreshing rules..."
         download_rules
         success_message "Suricata $SURICATA_VERSION is already installed and rules updated. Exiting."
