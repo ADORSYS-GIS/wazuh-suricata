@@ -109,7 +109,7 @@ WAZUH_CONTROL_BIN_PATH="/Library/Ossec/bin/wazuh-control"
 
 # Get logged in user for Homebrew operations
 LOGGED_IN_USER="${SUDO_USER:-}"
-if [ -z "$LOGGED_IN_USER" ] || [ "$LOGGED_IN_USER" = "root" ]; then
+if [[ -z "$LOGGED_IN_USER" ]]  || [[ "$LOGGED_IN_USER" = "root" ]] ; then
     LOGGED_IN_USER=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /loginwindow/ {print $3}')
 fi
 
@@ -209,7 +209,7 @@ create_launchd_plist_file() {
 check_installed_version() {
     local installed_bin="/opt/wazuh/suricata/bin/suricata"
     
-    if [ ! -x "$installed_bin" ]; then
+    if [[ ! -x "$installed_bin" ]] ; then
         return 1
     fi
     
@@ -293,13 +293,13 @@ install_dependencies() {
     print_step 1 "Installing dependencies on macOS"
     if command_exists brew; then
         local brew_cmd=(brew install jq yq libpcap lz4 pcre2 jansson libyaml libmagic)
-        if [ "$(id -u)" -eq 0 ] && [ -n "$LOGGED_IN_USER" ] && [ "$LOGGED_IN_USER" != "loginwindow" ] && [ "$LOGGED_IN_USER" != "root" ]; then
+        if [[ "$(id -u)" -eq 0 ]]  && [[ -n "$LOGGED_IN_USER" ]]  && [[ "$LOGGED_IN_USER" != "loginwindow" ]]  && [[ "$LOGGED_IN_USER" != "root" ]] ; then
             local brew_out=""
             brew_out=$(sudo -H -u "$LOGGED_IN_USER" "${brew_cmd[@]}" 2>&1) || {
                 warn_message "Could not install dependencies via Homebrew"
                 warn_message "Homebrew output: $brew_out"
             }
-        elif [ "$(id -u)" -ne 0 ]; then
+        elif [[ "$(id -u)" -ne 0 ]] ; then
             local brew_out=""
             brew_out=$("${brew_cmd[@]}" 2>&1) || {
                 warn_message "Could not install dependencies via Homebrew"
@@ -314,9 +314,9 @@ install_dependencies() {
     fi
     
     # Fix for libpcap linkage on Apple Silicon where binary expects specific path
-    if [ "$(uname -m)" = "arm64" ]; then
+    if [[ "$(uname -m)" = "arm64" ]] ; then
         local expected_lib="/opt/homebrew/opt/libpcap/lib/libpcap.A.dylib"
-        if [ ! -f "$expected_lib" ]; then
+        if [[ ! -f "$expected_lib" ]] ; then
              local actual_lib=""
              
              # Try to find libpcap in common locations
@@ -324,17 +324,17 @@ install_dependencies() {
                  actual_lib=$(brew --prefix libpcap 2>/dev/null)/lib/libpcap.dylib
              fi
              
-             if [ -z "$actual_lib" ] || [ ! -f "$actual_lib" ]; then
-                 if [ -f "/opt/homebrew/lib/libpcap.dylib" ]; then
+             if [[ -z "$actual_lib" ]]  || [[ ! -f "$actual_lib" ]] ; then
+                 if [[ -f "/opt/homebrew/lib/libpcap.dylib" ]] ; then
                      actual_lib="/opt/homebrew/lib/libpcap.dylib"
-                 elif [ -f "/opt/homebrew/opt/libpcap/lib/libpcap.dylib" ]; then
+                 elif [[ -f "/opt/homebrew/opt/libpcap/lib/libpcap.dylib" ]] ; then
                      actual_lib="/opt/homebrew/opt/libpcap/lib/libpcap.dylib"
-                 elif [ -f "/usr/local/lib/libpcap.dylib" ]; then
+                 elif [[ -f "/usr/local/lib/libpcap.dylib" ]] ; then
                      actual_lib="/usr/local/lib/libpcap.dylib"
                  fi
              fi
 
-             if [ -n "$actual_lib" ] && [ -f "$actual_lib" ]; then
+             if [[ -n "$actual_lib" ]]  && [[ -f "$actual_lib" ]] ; then
                  info_message "Fixing libpcap linkage... Linking $actual_lib to $expected_lib"
                  maybe_sudo mkdir -p "$(dirname "$expected_lib")"
                  maybe_sudo ln -sf "$actual_lib" "$expected_lib"
@@ -374,13 +374,13 @@ install_suricata_macos_dmg() {
     maybe_sudo mkdir -p "/opt/wazuh/suricata/bin/"
     
     local suricata_binary=""
-    if [ -f "$mount_point/suricata" ]; then
+    if [[ -f "$mount_point/suricata" ]] ; then
         suricata_binary="$mount_point/suricata"
     else
         suricata_binary=$(find "$mount_point" -name "suricata" -type f -perm +111 2>/dev/null | head -n 1)
     fi
     
-    if [ -z "$suricata_binary" ] || [ ! -f "$suricata_binary" ]; then
+    if [[ -z "$suricata_binary" ]]  || [[ ! -f "$suricata_binary" ]] ; then
         maybe_sudo hdiutil detach "$mount_point" -quiet
         error_message "Could not find Suricata binary in DMG"
         exit 1
@@ -389,7 +389,7 @@ install_suricata_macos_dmg() {
     maybe_sudo cp "$suricata_binary" "/opt/wazuh/suricata/bin/"
     
     # Copy configuration file if present
-    if [ -f "$mount_point/suricata.yaml" ]; then
+    if [[ -f "$mount_point/suricata.yaml" ]] ; then
         maybe_sudo mkdir -p "/opt/wazuh/suricata/etc/suricata/"
         maybe_sudo cp "$mount_point/suricata.yaml" "/opt/wazuh/suricata/etc/suricata/"
     fi
@@ -423,14 +423,14 @@ find_suricata_binary() {
         "$base/suricata"
     )
     for candidate in "${candidates[@]}"; do
-        if [ -f "$candidate" ] && [ -x "$candidate" ]; then
+        if [[ -f "$candidate" ]]  && [[ -x "$candidate" ]] ; then
             echo "$candidate"; return 0
         fi
     done
     # Deep search up to depth 6 for any file named 'suricata' or starting with 'suricata'
     local found
     found=$(find "$base" -maxdepth 6 -type f \( -name 'suricata' -o -name 'suricata*' \) 2>/dev/null | sort | head -n1)
-    if [ -n "$found" ] && [ -x "$found" ]; then
+    if [[ -n "$found" ]]  && [[ -x "$found" ]] ; then
         echo "$found"; return 0
     fi
     return 1
@@ -473,7 +473,7 @@ detect_wifi_interface() {
         INTERFACE="en0"
     fi
     
-    if [ -z "$INTERFACE" ]; then
+    if [[ -z "$INTERFACE" ]] ; then
         INTERFACE="en0"
         warn_message "No active interface detected. Defaulting to: $INTERFACE"
     fi
@@ -541,7 +541,7 @@ download_rules() {
     info_message "Combining .rules files into $rules_file"
     local rules_files
     rules_files=$(find "$temp_dir" -type f -name "*.rules")
-    if [ -n "$rules_files" ]; then
+    if [[ -n "$rules_files" ]] ; then
         maybe_sudo bash -c "cat $rules_files > \"$rules_file\"" || {
             rm -rf "$temp_dir"
             error_message "Failed to combine rules into $rules_file"
@@ -572,13 +572,13 @@ setup_suricata_config() {
     if ! maybe_sudo test -f "$CONFIG_FILE"; then
         # Try to find a default config from the installation
         local default_config=""
-        if [ -f "/opt/wazuh/suricata/etc/suricata/suricata.yaml" ]; then
+        if [[ -f "/opt/wazuh/suricata/etc/suricata/suricata.yaml" ]] ; then
             default_config="/opt/wazuh/suricata/etc/suricata/suricata.yaml"
-        elif [ -f "/usr/share/suricata/suricata.yaml" ]; then
+        elif [[ -f "/usr/share/suricata/suricata.yaml" ]] ; then
             default_config="/usr/share/suricata/suricata.yaml"
         fi
         
-        if [ -n "$default_config" ]; then
+        if [[ -n "$default_config" ]] ; then
             info_message "Copying default configuration from $default_config"
             maybe_sudo cp "$default_config" "$CONFIG_FILE"
         else
@@ -677,11 +677,11 @@ setup_suricata_config() {
         local yq_bin=""
         if command_exists yq; then
             yq_bin="$(command -v yq)"
-        elif [ -x "/usr/local/bin/yq" ]; then
+        elif [[ -x "/usr/local/bin/yq" ]] ; then
             yq_bin="/usr/local/bin/yq"
         fi
 
-        if [ -n "$yq_bin" ] && [ -x "$yq_bin" ]; then
+        if [[ -n "$yq_bin" ]]  && [[ -x "$yq_bin" ]] ; then
             if maybe_sudo "$yq_bin" eval '.outputs[] | select(has("eve-log"))' "$CONFIG_FILE" >/dev/null 2>&1; then
                 maybe_sudo "$yq_bin" eval -i '(.outputs[] | select(has("eve-log")) | .["eve-log"].types) |= ((. // []) + ["alert"] | unique)' "$CONFIG_FILE" >/dev/null 2>&1 || \
                     warn_message "Could not update eve-log types via yq"
@@ -719,7 +719,7 @@ main() {
     info_message "Target version: $SURICATA_VERSION"
     
     # Check if Wazuh agent is installed (required dependency)
-    if [ ! -d "/Library/Ossec" ]; then
+    if [[ ! -d "/Library/Ossec" ]] ; then
         error_message "Wazuh agent not installed at /Library/Ossec"
         error_message "Please install the Wazuh agent before running this script"
         exit 1
@@ -729,7 +729,7 @@ main() {
     pre_installation_check
     
     # Skip installation if already installed correctly
-    if [ "${SKIP_INSTALL:-0}" -eq 1 ]; then
+    if [[ "${SKIP_INSTALL:-0}" -eq 1 ]] ; then
         info_message "Suricata $SURICATA_VERSION is already installed. Refreshing rules..."
         download_rules
         success_message "Suricata $SURICATA_VERSION is already installed and rules updated. Exiting."
@@ -737,7 +737,7 @@ main() {
     fi
 
     # Special case: macOS Intel (amd64) - no package available, delegate to v0.1.5 installer
-    if [ "$OS" = "darwin" ] && [ "$(detect_architecture)" = "amd64" ]; then
+    if [[ "$OS" = "darwin" ]]  && [[ "$(detect_architecture)" = "amd64" ]] ; then
         info_message "macOS Intel detected. No amd64 package available - delegating to v0.1.5 installer."
         local remote_installer="$TMP_DIR/remote-install.sh"
         if ! download_file "$REMOTE_MAC_AMD64_INSTALL_URL" "$remote_installer" "macOS intel installer"; then

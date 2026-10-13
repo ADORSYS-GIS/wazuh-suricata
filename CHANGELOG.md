@@ -4,24 +4,22 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[adb1ce9](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/adb1ce91d4bd59ed493ffcaea31d7584e1f741bb)...[c672ef4](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/c672ef482178c90c10fd60ff021180fe32cc622d)
+[ffd3813](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ffd3813eb7660979476c1ce6fac45cb105eb3ba9)...[47048ca](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/47048ca64ecae0662a07b22bca0c11357f24ebf4)
 
 ### Bug Fixes
 
-- Add Npcap System32 path and prevent missing wpcap.dll system error popup ([`73cc055`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/73cc055177d8de7dfc557001e67b5ac65278c0c7))
+- Merge collapsible if statement in UFW NFQUEUE setup ([`e8ea2d9`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/e8ea2d90dcda189e1a90da2543285b384fd03d01))
+- Replace repeated path literals with constants in uninstall scripts ([`4cc7aaf`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/4cc7aafd5df677fe89986c582b4d98f6095fa68b))
+- Use script-scoped ChecksumsPath default in Download-And-VerifyFile ([`47048ca`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/47048ca64ecae0662a07b22bca0c11357f24ebf4))
 
 ### Documentation
 
-- Update CHANGELOG.md and checksums [skip ci] ([`4eb3cfe`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/4eb3cfea0e0209fd356f61de4718b8eedb952dd7))
-- Update CHANGELOG.md and checksums [skip ci] ([`f0c6370`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/f0c6370ab9d26ba0bc3b54a6e1e105bd25f01909))
+- Update CHANGELOG.md and checksums [skip ci] ([`f03b417`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/f03b417b32619891c64dbe0ca84a4d0a9e90d807))
+- Update CHANGELOG.md and checksums [skip ci] ([`43bc7ca`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/43bc7ca0a96f823cb8d2f965492398d82a47896d))
 
-### Features
+## 0.2.2 - 2026-10-08
 
-- Add SAST workflow ([`febe783`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/febe7836f6fa0982b976757c36776903c5822bb3))
-
-## 0.2.2 - 2026-10-06
-
-[c58e8dc](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/c58e8dce2f9624c6eb21f56e72d8c8c7fe3ec3ec)...[adb1ce9](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/adb1ce91d4bd59ed493ffcaea31d7584e1f741bb)
+[c58e8dc](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/c58e8dce2f9624c6eb21f56e72d8c8c7fe3ec3ec)...[ffd3813](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ffd3813eb7660979476c1ce6fac45cb105eb3ba9)
 
 ### Bug Fixes
 
@@ -31,6 +29,10 @@ All notable changes to this project will be documented in this file.
 - Bump WAZUH_SURICATA_REPO_REF to v0.2.2 across all scripts ([`e569bc7`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/e569bc7996f4cf9282baffc77d703165ca83fac1))
 - Prevent homebrew from running as root on macOS ([`ea8eb04`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ea8eb044f6ff9ff6c981d70dc6e0ae7322b972d7))
 - Run brew with the user's HOME via sudo -H ([`2a920ec`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/2a920ec1b6f723357787439843c13c5bc0f14c79))
+- Resolve SonarQube criticals ([`1d326bd`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/1d326bd25f80eb47df70caef785618663b5fa340))
+- Use [[ instead of [ in conditionals ([`83ab8bd`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/83ab8bd4683d66dba16435ee025da952bb9a1ca2))
+- Satisfy PSScriptAnalyzer rules ([`654b5e5`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/654b5e541ecdc6baddb6f8f5d5a5a620693f40ce))
+- Add Npcap System32 path and prevent missing wpcap.dll system error popup ([`73cc055`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/73cc055177d8de7dfc557001e67b5ac65278c0c7))
 
 ### Documentation
 
@@ -55,12 +57,18 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`c256afb`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/c256afb55258616e89daad12f4c0d23eea6677e7))
 - Update CHANGELOG.md and checksums [skip ci] ([`c4315ff`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/c4315ffc7550cdc30cc0640ba69b406d70899d55))
 - Update CHANGELOG.md and checksums [skip ci] ([`adb1ce9`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/adb1ce91d4bd59ed493ffcaea31d7584e1f741bb))
+- Update CHANGELOG.md and checksums [skip ci] ([`4eb3cfe`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/4eb3cfea0e0209fd356f61de4718b8eedb952dd7))
+- Update CHANGELOG.md and checksums [skip ci] ([`f0c6370`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/f0c6370ab9d26ba0bc3b54a6e1e105bd25f01909))
+- Update CHANGELOG.md and checksums [skip ci] ([`3f7b13f`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/3f7b13ff8870707f0e6325689dff74f77eeb3947))
+- Update CHANGELOG.md and checksums [skip ci] ([`d5110b9`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/d5110b94a7ba0e13346f7514abccc1a78c20d7e0))
+- Update CHANGELOG.md and checksums [skip ci] ([`ffd3813`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ffd3813eb7660979476c1ce6fac45cb105eb3ba9))
 
 ### Features
 
 - Refactor install script to support Python-based suricata-update and automated configuration ([`1d9704d`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/1d9704d3ce5030be289c0c1250f07ea1ee5cd38f))
 - Update wazuh agent installation script to support platform-specific paths for ubuntu and macos ([`5e2a4f4`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/5e2a4f459926b7caded27b1549426dd36c63c326))
 - Integrate SonarQube scanning workflow ([`521b577`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/521b577d4181ddae097e93e1ac1f554a704498a8))
+- Add SAST workflow ([`febe783`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/febe7836f6fa0982b976757c36776903c5822bb3))
 
 ### Miscellaneous Tasks
 
@@ -70,6 +78,10 @@ All notable changes to this project will be documented in this file.
 - Update WAZUH_SURICATA_REPO_REF to v0.2.1 across all installation and uninstallation scripts ([`2ac85ec`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/2ac85ec6db855b4d015fe977a50219dc8ecd9a8f))
 - Clean up sonarqube exclusions for scripting languages ([`cb61c3e`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/cb61c3ea7c5c607270409008728f25ba81813a11))
 - Add SonarQube status badge to README ([`daddd75`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/daddd7517538f4f781b8bfa632ec87969b067816))
+
+### Refactor
+
+- Move shared helpers to utils.ps1 ([`b35e029`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/b35e0296afe7fbcc22e27637a90adfa41ac88fb5))
 
 ## 0.2.0-rc.5 - 2026-05-22
 
