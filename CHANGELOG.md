@@ -4,13 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[ffd3813](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ffd3813eb7660979476c1ce6fac45cb105eb3ba9)...[ea0a97a](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ea0a97ae910b81c51dbbdc7bcaf46d468a2168b8)
+[ffd3813](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ffd3813eb7660979476c1ce6fac45cb105eb3ba9)...[1bc0b83](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/1bc0b83875e9dc7fa8f4cfaa32bdac2180e80a06)
 
 ### Bug Fixes
 
 - Merge collapsible if statement in UFW NFQUEUE setup ([`e8ea2d9`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/e8ea2d90dcda189e1a90da2543285b384fd03d01))
 - Replace repeated path literals with constants in uninstall scripts ([`4cc7aaf`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/4cc7aafd5df677fe89986c582b4d98f6095fa68b))
 - Use script-scoped ChecksumsPath default in Download-And-VerifyFile ([`47048ca`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/47048ca64ecae0662a07b22bca0c11357f24ebf4))
+- Use ubuntu-22.04 with fallback compilation for kcov installation ([`1bc0b83`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/1bc0b83875e9dc7fa8f4cfaa32bdac2180e80a06))
 
 ### Documentation
 
@@ -18,6 +19,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`43bc7ca`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/43bc7ca0a96f823cb8d2f965492398d82a47896d))
 - Update CHANGELOG.md and checksums [skip ci] ([`dcb653d`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/dcb653db2652d5439a41e5f8e3c86218b1b7faea))
 - Update CHANGELOG.md and checksums [skip ci] ([`e8c19e9`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/e8c19e9a4d01bced547d6eee7cd8684bd5cbb8f9))
+- Update CHANGELOG.md and checksums [skip ci] ([`7a8f995`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/7a8f9958c1ce6f8cdffe64eca217bb3f7b948c5a))
 
 ### Testing
 
