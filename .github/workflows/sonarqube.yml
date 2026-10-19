@@ -11,12 +11,39 @@ permissions:
   contents: read
 
 jobs:
+  test:
+    name: Run Unit Tests & Generate Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Bats and Kcov
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq bats kcov
+
+      - name: Run Bats Tests with Coverage
+        run: ./tests/run-coverage.sh
+
+      - name: Upload Coverage Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: suricata-coverage-report
+          path: coverage/sonar-coverage.xml
+          retention-days: 1
+
   scan:
     name: SonarQube Scan
-    uses: ADORSYS-GIS/adorsys-ci-cd-templates/.github/workflows/sonarqube.yml@1566ed0da26bd29f41625655dd7171a5464762fd # main
+    needs: test
+    uses: ADORSYS-GIS/adorsys-ci-cd-templates/.github/workflows/sonarqube.yml@880208e1099b257c2bcd8abfbc6f1bfcc8aa88cc
     with:
       project-key: wazuh-suricata
+      generic-coverage-report-paths: "coverage/sonar-coverage.xml"
+      coverage-artifact-name: "suricata-coverage-report"
+      coverage-artifact-path: "coverage"
       exclusions: "**/coverage/**"
+      extra-sonar-args: -Dsonar.coverage.exclusions="tests/**"
     secrets:
       SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
