@@ -43,7 +43,7 @@ jobs:
   scan:
     name: SonarQube Scan
     needs: test
-    uses: ADORSYS-GIS/adorsys-ci-cd-templates/.github/workflows/sonarqube.yml@880208e1099b257c2bcd8abfbc6f1bfcc8aa88cc
+    uses: ADORSYS-GIS/adorsys-ci-cd-templates/.github/workflows/sonarqube.yml@8617a17cfc5f5a8897c2a3806bb543c20b4b57e0 # main
     with:
       project-key: wazuh-suricata
       generic-coverage-report-paths: "coverage/sonar-coverage.xml"
