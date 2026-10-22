@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[ffd3813](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ffd3813eb7660979476c1ce6fac45cb105eb3ba9)...[90ae0d9](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/90ae0d9661ee50b34876d9a605513dae0db95d98)
+[ffd3813](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ffd3813eb7660979476c1ce6fac45cb105eb3ba9)...[ff45871](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ff45871fb3cdaffa49abb01a8cdf44b39cd93b47)
 
 ### Bug Fixes
 
@@ -12,6 +12,7 @@ All notable changes to this project will be documented in this file.
 - Replace repeated path literals with constants in uninstall scripts ([`4cc7aaf`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/4cc7aafd5df677fe89986c582b4d98f6095fa68b))
 - Use script-scoped ChecksumsPath default in Download-And-VerifyFile ([`47048ca`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/47048ca64ecae0662a07b22bca0c11357f24ebf4))
 - Use ubuntu-22.04 with fallback compilation for kcov installation ([`1bc0b83`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/1bc0b83875e9dc7fa8f4cfaa32bdac2180e80a06))
+- Drop quotes from extra-sonar-args in sonarqube workflow ([`ff45871`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ff45871fb3cdaffa49abb01a8cdf44b39cd93b47))
 
 ### Documentation
 
@@ -21,6 +22,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`e8c19e9`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/e8c19e9a4d01bced547d6eee7cd8684bd5cbb8f9))
 - Update CHANGELOG.md and checksums [skip ci] ([`7a8f995`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/7a8f9958c1ce6f8cdffe64eca217bb3f7b948c5a))
 - Update CHANGELOG.md and checksums [skip ci] ([`3a329c3`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/3a329c3a54409e23f4db3f155c0c2b59dfe4aa32))
+- Update CHANGELOG.md and checksums [skip ci] ([`4e5ceea`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/4e5ceeac09789a86db05a38c15feb7808fd3e96c))
 
 ### Miscellaneous Tasks
 
