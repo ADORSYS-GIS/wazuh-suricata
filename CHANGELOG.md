@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[ffd3813](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ffd3813eb7660979476c1ce6fac45cb105eb3ba9)...[ba67732](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ba677321bb7dd019d1f4675694cd7393e62a8629)
+[ffd3813](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ffd3813eb7660979476c1ce6fac45cb105eb3ba9)...[232b56d](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/232b56d708f89b66c69810c309faad4ef9fbfbb6)
 
 ### Bug Fixes
 
@@ -24,10 +24,12 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`3a329c3`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/3a329c3a54409e23f4db3f155c0c2b59dfe4aa32))
 - Update CHANGELOG.md and checksums [skip ci] ([`4e5ceea`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/4e5ceeac09789a86db05a38c15feb7808fd3e96c))
 - Update CHANGELOG.md and checksums [skip ci] ([`105bd0a`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/105bd0a71abf020c8b725bcb68553929e3c1cf99))
+- Update CHANGELOG.md and checksums [skip ci] ([`e403f9f`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/e403f9fd634c82734b7d7116da3d2e6fa00e2ef0))
 
 ### Miscellaneous Tasks
 
 - Pin reusable workflow to merged main commit 8617a17 ([`90ae0d9`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/90ae0d9661ee50b34876d9a605513dae0db95d98))
+- Add issue and PR templates ([`232b56d`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/232b56d708f89b66c69810c309faad4ef9fbfbb6))
 
 ### Testing
 
