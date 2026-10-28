@@ -7,7 +7,7 @@
 | Field             | Value                                         |
 | :---------------- | :-------------------------------------------- |
 | **Document ID**   | ADR-0001                                      |
-| **Status**        | `Proposed`                                    |
+| **Status**        | `Accepted`                                    |
 | **Date**          | 2026-10-28                                    |
 | **Deciders**      | SIEM Security Engineering Team                |
 | **Governs**       | `.github/workflows/sast.yml` (the `sbom` job) |
@@ -72,9 +72,9 @@ The shared workflow reference is pinned to a commit SHA, like the other reusable
 
 ### Done when
 
-- [ ] The `sbom` job runs in the SAST workflow on push to the default branch and on pull requests.
-- [ ] The run uploads `sbom.json` as the `sbom` artifact.
-- [ ] The shared workflow reference is pinned to a commit SHA, not `@main`.
+- [x] The `sbom` job runs in the SAST workflow on push to the default branch and on pull requests.
+- [x] The run uploads `sbom.json` as the `sbom` artifact.
+- [x] The shared workflow reference is pinned to a commit SHA, not `@main`.
 
 ### Revisit when
 
@@ -101,7 +101,9 @@ Nothing to roll back.
 
 ## Solution implementation
 
-| Kind  | Tracking                      | Status | What it covers                   |
-| :---- | :---------------------------- | :----- | :------------------------------- |
-| Issue | ADORSYS-GIS/wazuh-suricata#57 | Open   | Requests SBOM generation in CI   |
-| PR    | ADORSYS-GIS/wazuh-suricata#61 | Open   | Adds the `sbom` job and this ADR |
+| Kind   | Tracking                      | Status            | What it covers                   |
+| :----- | :---------------------------- | :---------------- | :------------------------------- |
+| Issue  | ADORSYS-GIS/wazuh-suricata#57 | Closed            | Requests SBOM generation in CI   |
+| PR     | ADORSYS-GIS/wazuh-suricata#61 | Merged 2026-10-28 | Adds the `sbom` job and this ADR |
+| Commit | b7d9bb4                       | 2026-10-28        | Adds the `sbom` job and this ADR |
+| Commit | 6d833c9                       | 2026-10-28        | Merge commit for PR #61          |
