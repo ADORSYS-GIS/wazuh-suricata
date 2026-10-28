@@ -104,4 +104,4 @@ Nothing to roll back.
 | Kind  | Tracking                      | Status | What it covers                   |
 | :---- | :---------------------------- | :----- | :------------------------------- |
 | Issue | ADORSYS-GIS/wazuh-suricata#57 | Open   | Requests SBOM generation in CI   |
-| PR    | ADORSYS-GIS/wazuh-suricata    | Open   | Adds the `sbom` job and this ADR |
+| PR    | ADORSYS-GIS/wazuh-suricata#61 | Open   | Adds the `sbom` job and this ADR |
