@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[ffd3813](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ffd3813eb7660979476c1ce6fac45cb105eb3ba9)...[b7d9bb4](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/b7d9bb46329340e8a309922b2e9cc2d72593b603)
+[ffd3813](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ffd3813eb7660979476c1ce6fac45cb105eb3ba9)...[a92c796](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/a92c796264ab4b8e108ceb8508503661563e8d1f)
 
 ### Bug Fixes
 
@@ -25,6 +25,8 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`4e5ceea`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/4e5ceeac09789a86db05a38c15feb7808fd3e96c))
 - Update CHANGELOG.md and checksums [skip ci] ([`105bd0a`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/105bd0a71abf020c8b725bcb68553929e3c1cf99))
 - Update CHANGELOG.md and checksums [skip ci] ([`e403f9f`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/e403f9fd634c82734b7d7116da3d2e6fa00e2ef0))
+- Update CHANGELOG.md and checksums [skip ci] ([`9377b2d`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/9377b2d82eca24d24b06ac1816a2f86cd8ddd921))
+- Reference PR 61 in solution implementation ([`a92c796`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/a92c796264ab4b8e108ceb8508503661563e8d1f)), Signed-off-by:mbiti2 <louisembiti@gmail.com>
 
 ### Features
 
