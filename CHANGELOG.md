@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[ffd3813](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ffd3813eb7660979476c1ce6fac45cb105eb3ba9)...[ba67732](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ba677321bb7dd019d1f4675694cd7393e62a8629)
+[ffd3813](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ffd3813eb7660979476c1ce6fac45cb105eb3ba9)...[b7d9bb4](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/b7d9bb46329340e8a309922b2e9cc2d72593b603)
 
 ### Bug Fixes
 
@@ -24,6 +24,11 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`3a329c3`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/3a329c3a54409e23f4db3f155c0c2b59dfe4aa32))
 - Update CHANGELOG.md and checksums [skip ci] ([`4e5ceea`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/4e5ceeac09789a86db05a38c15feb7808fd3e96c))
 - Update CHANGELOG.md and checksums [skip ci] ([`105bd0a`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/105bd0a71abf020c8b725bcb68553929e3c1cf99))
+- Update CHANGELOG.md and checksums [skip ci] ([`e403f9f`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/e403f9fd634c82734b7d7116da3d2e6fa00e2ef0))
+
+### Features
+
+- Generate CycloneDX SBOM in CI ([`b7d9bb4`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/b7d9bb46329340e8a309922b2e9cc2d72593b603)), Signed-off-by:mbiti2 <louisembiti@gmail.com>
 
 ### Miscellaneous Tasks
 
