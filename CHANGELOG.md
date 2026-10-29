@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[ffd3813](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ffd3813eb7660979476c1ce6fac45cb105eb3ba9)...[9f74130](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/9f74130a60696d91d6eaca25e151f6f006f890e7)
+[ffd3813](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ffd3813eb7660979476c1ce6fac45cb105eb3ba9)...[3f8a0c2](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/3f8a0c2cb32988d306f69a902b74b019062d0669)
 
 ### Bug Fixes
 
@@ -32,6 +32,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`957fe20`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/957fe20aa04e6d11e151b7bc8b273df882cec97f))
 - Update CHANGELOG.md and checksums [skip ci] ([`04abe77`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/04abe774dac7c39a9f4db39ba2cba9fde1fa3877))
 - Update CHANGELOG.md and checksums [skip ci] ([`164b3b4`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/164b3b42479698a9c11df7aa760f60949709d1f6))
+- Update CHANGELOG.md and checksums [skip ci] ([`16cdabb`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/16cdabb2439c09f5e389976a87ba99bfba676b41))
 
 ### Features
 
