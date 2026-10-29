@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[ffd3813](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ffd3813eb7660979476c1ce6fac45cb105eb3ba9)...[a436076](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/a436076203eb936b416f3afcfce67d94b8a9e34a)
+[ffd3813](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ffd3813eb7660979476c1ce6fac45cb105eb3ba9)...[9f74130](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/9f74130a60696d91d6eaca25e151f6f006f890e7)
 
 ### Bug Fixes
 
@@ -25,11 +25,13 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`4e5ceea`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/4e5ceeac09789a86db05a38c15feb7808fd3e96c))
 - Update CHANGELOG.md and checksums [skip ci] ([`105bd0a`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/105bd0a71abf020c8b725bcb68553929e3c1cf99))
 - Update CHANGELOG.md and checksums [skip ci] ([`e403f9f`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/e403f9fd634c82734b7d7116da3d2e6fa00e2ef0))
+- Improve formatting with prettier formatter ([`446cc77`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/446cc775f7be95d22aeaf469a2666e81f0b1b71c))
 - Update CHANGELOG.md and checksums [skip ci] ([`c39dc60`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/c39dc6032a587637d0d8cb05ff4bb565a302b5a1))
 - Update CHANGELOG.md and checksums [skip ci] ([`9377b2d`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/9377b2d82eca24d24b06ac1816a2f86cd8ddd921))
 - Reference PR 61 in solution implementation ([`a92c796`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/a92c796264ab4b8e108ceb8508503661563e8d1f)), Signed-off-by:mbiti2 <louisembiti@gmail.com>
 - Update CHANGELOG.md and checksums [skip ci] ([`957fe20`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/957fe20aa04e6d11e151b7bc8b273df882cec97f))
 - Update CHANGELOG.md and checksums [skip ci] ([`04abe77`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/04abe774dac7c39a9f4db39ba2cba9fde1fa3877))
+- Update CHANGELOG.md and checksums [skip ci] ([`164b3b4`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/164b3b42479698a9c11df7aa760f60949709d1f6))
 
 ### Features
 
