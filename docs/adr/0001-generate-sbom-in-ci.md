@@ -101,9 +101,9 @@ Nothing to roll back.
 
 ## Solution implementation
 
-| Kind   | Tracking                      | Status            | What it covers                   |
-| :----- | :---------------------------- | :---------------- | :------------------------------- |
-| Issue  | ADORSYS-GIS/wazuh-suricata#57 | Closed            | Requests SBOM generation in CI   |
-| PR     | ADORSYS-GIS/wazuh-suricata#61 | Merged 2026-10-28 | Adds the `sbom` job and this ADR |
-| Commit | b7d9bb4                       | 2026-10-28        | Adds the `sbom` job and this ADR |
-| Commit | 6d833c9                       | 2026-10-28        | Merge commit for PR #61          |
+| Kind   | Tracking                                                                                                                                     | Status            | What it covers                   |
+| :----- | :------------------------------------------------------------------------------------------------------------------------------------------- | :---------------- | :------------------------------- |
+| Issue  | [ADORSYS-GIS/wazuh-suricata#57](https://github.com/ADORSYS-GIS/wazuh-suricata/issues/57)                                                     | Closed            | Requests SBOM generation in CI   |
+| PR     | [ADORSYS-GIS/wazuh-suricata#61](https://github.com/ADORSYS-GIS/wazuh-suricata/pull/61)                                                       | Merged 2026-10-28 | Adds the `sbom` job and this ADR |
+| Commit | [`b7d9bb4`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/b7d9bb46329340e8a309922b2e9cc2d72593b603)                                 | 2026-10-28        | Adds the `sbom` job and this ADR |
+| Commit | [`6d833c9`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/6d833c9194ff497d72b68ed28b0fa09e86c0dfca)                                 | 2026-10-28        | Merge commit for PR #61          |
