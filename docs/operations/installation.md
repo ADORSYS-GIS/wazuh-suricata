@@ -76,7 +76,7 @@ The macOS installer supports macOS systems on both Intel (amd64) and Apple Silic
 
 The script will:
 1. Detect your hardware architecture.
-2. Install Suricata and required libraries using Homebrew or pre-built binaries.
+2. Install the required libraries using Homebrew, then install Suricata from pre-built binaries.
 3. Automatically set up Emerging Threats rules.
 4. Configure network interface monitoring.
 5. Register a launchd background service.
@@ -151,7 +151,7 @@ To remove Suricata, the scheduled task, and related files:
 
 ## 4. Connecting Suricata to Wazuh Agent
 
-To allow the Wazuh agent to read Suricata events and forward them to your manager, add this block to your agent configuration file (`ossec.conf`):
+To allow the Wazuh agent to read Suricata events and forward them to your manager, add this block to your agent configuration file (`ossec.conf`). This configuration applies to both Linux and macOS, since both use the same `eve.json` path:
 
 ```xml
 <ossec_config>

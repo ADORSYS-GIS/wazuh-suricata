@@ -4,7 +4,7 @@ This document explains how Suricata integrates with the Wazuh agent to monitor n
 
 ## How It Works
 
-Suricata is a network threat detection engine. It inspects network traffic passing through your computer or server. When Suricata spots malicious activity, it writes a detailed event to an alert log. The Wazuh agent reads this log in real time and sends the alerts to the Wazuh manager.
+Suricata is a network threat detection engine that can run either as a Network Intrusion Detection System (NIDS), which monitors traffic and raises alerts, or as a Network Intrusion Prevention System (NIPS), which can also block traffic inline. In this project, Suricata is used only as a NIDS: it observes and alerts, but does not block traffic. It inspects network traffic passing through your computer or server. When Suricata spots malicious activity, it writes a detailed event to an alert log. The Wazuh agent reads this log in real time and sends the alerts to the Wazuh manager.
 
 ```
        Network Traffic
@@ -53,8 +53,8 @@ Our installation automatically turns on `community-id: true` in the Suricata con
 
 | Component | Linux | macOS | Windows |
 | :--- | :--- | :--- | :--- |
-| **Config File** | `/opt/wazuh/suricata/etc/suricata/suricata.yaml` | `/opt/wazuh/suricata/etc/suricata/suricata.yaml` | `C:\Program Files\Suricata\suricata.yaml` |
+| **Configuration File** | `/opt/wazuh/suricata/etc/suricata/suricata.yaml` | `/opt/wazuh/suricata/etc/suricata/suricata.yaml` | `C:\Program Files\Suricata\suricata.yaml` |
 | **Log File (`eve.json`)** | `/opt/wazuh/suricata/var/log/suricata/eve.json` | `/opt/wazuh/suricata/var/log/suricata/eve.json` | `C:\Program Files\Suricata\log\eve.json` |
 | **Rules Directory** | `/opt/wazuh/suricata/var/lib/suricata/rules` | `/opt/wazuh/suricata/var/lib/suricata/rules` | `C:\Program Files\Suricata\rules` |
-| **Wazuh Config** | `/var/ossec/etc/ossec.conf` | `/Library/Ossec/etc/ossec.conf` | `C:\Program Files (x86)\ossec-agent\ossec.conf` |
+| **Wazuh Configuration File** | `/var/ossec/etc/ossec.conf` | `/Library/Ossec/etc/ossec.conf` | `C:\Program Files (x86)\ossec-agent\ossec.conf` |
 | **Service Name** | `suricata.service` (systemd) | `org.openinfosecfoundation.suricata` (launchd) | `Suricata` / Scheduled Task |
