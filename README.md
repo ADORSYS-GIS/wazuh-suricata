@@ -15,10 +15,25 @@ The `wazuh-suricata` project integrates the Wazuh agent with Suricata, a high-pe
 - Bats tests to validate the installation and configuration.
 - Support for both IDS and IPS modes on Linux.
 
+## Documentation
+
+Full project documentation is available in the [`docs/`](./docs/README.md) directory:
+- [Architecture Overview](./docs/architecture/overview.md): System design, event flow, and Wazuh integration.
+- [Installation Guide](./docs/operations/installation.md): Step by step setup for Linux, macOS, and Windows.
+- [Architecture Decision Records](./docs/adr/README.md): Recorded engineering and architecture choices.
+
 ## Project Structure
 
 ```
 README.md
+docs/
+    README.md
+    architecture/
+        overview.md
+    operations/
+        installation.md
+    adr/
+        README.md
 scripts/
     linux/
         install.sh
@@ -26,25 +41,27 @@ scripts/
     macos/
         install.sh
         uninstall.sh
-    install-npcap-automated.ps1
-    install-suricata-silent.ps1
-    install.ps1
-    install.sh
-    uninstall-automated.ps1
-    uninstall.ps1
-    uninstall.sh
+    windows/
+        install.ps1
+        uninstall.ps1
+        install-npcap-automated.ps1
+        install-suricata-silent.ps1
+        uninstall-automated.ps1
+    shared/
+        utils.sh
+        utils.ps1
 tests/
     test-install.bats
+    test-utils.bats
+    run-coverage.sh
 ```
 
-- **README.md**: Documentation for the project.
-- **scripts/linux/install.sh**: Bash script to install and configure Suricata on Linux.
-- **scripts/linux/uninstall.sh**: Bash script to uninstall Suricata on Linux.
-- **scripts/macos/install.sh**: Bash script to install and configure Suricata on macOS.
-- **scripts/macos/uninstall.sh**: Bash script to uninstall Suricata on macOS.
-- **scripts/install.sh**: Legacy unified installation script (deprecated).
-- **scripts/uninstall.sh**: Legacy unified uninstallation script (deprecated).
-- **tests/test-install.bats**: Bats tests to validate the installation and configuration of Suricata.
+- **docs/**: Project documentation organized by lifecycle phase.
+- **scripts/linux/**: Scripts to install, configure, and remove Suricata on Linux.
+- **scripts/macos/**: Scripts to install, configure, and remove Suricata on macOS.
+- **scripts/windows/**: PowerShell scripts for automated Npcap and Suricata installation on Windows.
+- **scripts/shared/**: Shared utility functions for shell and PowerShell environments.
+- **tests/**: Automated Bats tests and test coverage runner.
 
 ## Prerequisites
 
