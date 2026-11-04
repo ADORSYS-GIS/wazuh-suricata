@@ -6,6 +6,10 @@
 
 The `wazuh-suricata` project integrates the Wazuh agent with Suricata, a high-performance network intrusion detection system (NIDS). This project provides scripts and tests to automate the installation, configuration, and validation of Suricata on both Linux and macOS systems.
 
+## Documentation
+
+The full documentation is maintained under the [`docs/`](docs/) folder. Start at the [documentation entry point](docs/README.md) for the SDLC map and quick links.
+
 ## Features
 
 - Automated installation of Suricata and its dependencies.
