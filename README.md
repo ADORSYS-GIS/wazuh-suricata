@@ -1,6 +1,9 @@
 # wazuh-suricata
 
 [![Suricata CI](https://github.com/ADORSYS-GIS/wazuh-suricata/actions/workflows/release.yaml/badge.svg)](https://github.com/ADORSYS-GIS/wazuh-suricata/actions/workflows/release.yaml)
+[![SonarQube](https://github.com/ADORSYS-GIS/wazuh-suricata/actions/workflows/sonarqube.yml/badge.svg)](https://github.com/ADORSYS-GIS/wazuh-suricata/actions/workflows/sonarqube.yml)
+[![Static Application Security Testing](https://github.com/ADORSYS-GIS/wazuh-suricata/actions/workflows/sast.yml/badge.svg)](https://github.com/ADORSYS-GIS/wazuh-suricata/actions/workflows/sast.yml)
+[![Dependabot Updates](https://github.com/ADORSYS-GIS/wazuh-suricata/actions/workflows/dependabot/dependabot-updates/badge.svg)](https://github.com/ADORSYS-GIS/wazuh-suricata/actions/workflows/dependabot/dependabot-updates)
 
 ## Overview
 
