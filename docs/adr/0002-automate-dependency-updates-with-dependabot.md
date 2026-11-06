@@ -104,5 +104,5 @@ To roll back, remove or revert `.github/dependabot.yml`. Dependabot will cease o
 
 | Kind   | Tracking                                                                               | Status | What it covers                                 |
 | :----- | :------------------------------------------------------------------------------------- | :----- | :--------------------------------------------- |
-| Issue  | [ADORSYS-GIS/wazuh#2357](https://github.com/ADORSYS-GIS/wazuh/issues/2357)             | Open   | Add dependabot configuration to wazuh-suricata |
-| PR     | [ADORSYS-GIS/wazuh-suricata#66](https://github.com/ADORSYS-GIS/wazuh-suricata/pull/66) | Open   | Adds .github/dependabot.yml and ADR-0002       |
+| Issue  | [ADORSYS-GIS/wazuh#2357](https://github.com/ADORSYS-GIS/wazuh/issues/2357)             | Closed | Add dependabot configuration to wazuh-suricata |
+| PR     | [ADORSYS-GIS/wazuh-suricata#66](https://github.com/ADORSYS-GIS/wazuh-suricata/pull/66) | Merged | Adds .github/dependabot.yml and ADR-0002       |
