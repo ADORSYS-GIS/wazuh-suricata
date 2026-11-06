@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[ffd3813](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ffd3813eb7660979476c1ce6fac45cb105eb3ba9)...[9df5974](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/9df5974dcc7366bd54999b22ee0e60cca818976c)
+[ffd3813](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ffd3813eb7660979476c1ce6fac45cb105eb3ba9)...[679eea4](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/679eea4feae4cd8970e6d15586938be8b4dbe1fb)
 
 ### Bug Fixes
 
@@ -41,6 +41,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`6a40c9a`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/6a40c9aaba51af5585ba8b41fbbc59ceecee188b))
 - Add SonarQube, SAST, and Dependabot status badges to README ([`ef5e454`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ef5e4548e28838dcd8f0ce7dc8a93e3110e5fc09))
 - Update CHANGELOG.md and checksums [skip ci] ([`289ea45`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/289ea459dbff238b5d770bd4357f7d8990681298))
+- Update CHANGELOG.md and checksums [skip ci] ([`a76e37d`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/a76e37d45e35263d73563d16b45b87f7dac44908))
 
 ### Features
 
