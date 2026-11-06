@@ -33,13 +33,6 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`04abe77`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/04abe774dac7c39a9f4db39ba2cba9fde1fa3877))
 - Update CHANGELOG.md and checksums [skip ci] ([`164b3b4`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/164b3b42479698a9c11df7aa760f60949709d1f6))
 - Update CHANGELOG.md and checksums [skip ci] ([`16cdabb`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/16cdabb2439c09f5e389976a87ba99bfba676b41))
-- Update CHANGELOG.md and checksums [skip ci] ([`631e8f8`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/631e8f84363c5db25699981264f69a8dda2f35f0))
-- Mark ADR-0001 as accepted ([`65e0d37`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/65e0d37ec5143937d55a7267bc853658739f0d41)), Signed-off-by:mbiti2 <louisembiti@gmail.com>
-- Add permalinks to tracking in ADR-0001 ([`441de39`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/441de39ec2986f2449ca42d6d4ce7e4735b11093)), Signed-off-by:mbiti2 <louisembiti@gmail.com>
-- Add core architecture and installation documentation ([`af0fadd`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/af0fadd5581729b545af275aa57ef321b0bb5e46))
-- Address review feedback on architecture and installation docs ([`f224542`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/f2245429bf1ed363b1d32666e969feb388bca844))
-- Update CHANGELOG.md and checksums [skip ci] ([`6a40c9a`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/6a40c9aaba51af5585ba8b41fbbc59ceecee188b))
-- Add SonarQube, SAST, and Dependabot status badges to README ([`ef5e454`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ef5e4548e28838dcd8f0ce7dc8a93e3110e5fc09))
 
 ### Features
 
