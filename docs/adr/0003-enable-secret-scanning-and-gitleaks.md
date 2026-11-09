@@ -95,3 +95,4 @@ Disable Secret scanning and Push protection in the repository security settings 
 | Epic  | [ADORSYS-GIS/wazuh#2376](https://github.com/ADORSYS-GIS/wazuh/issues/2376)                               | Open              | Enable secret scanning across Wazuh repositories |
 | Issue | [ADORSYS-GIS/wazuh-suricata#67](https://github.com/ADORSYS-GIS/wazuh-suricata/issues/67)                 | Open              | Child issue for this decision                    |
 | PR    | [ADORSYS-GIS/adorsys-ci-cd-templates#76](https://github.com/ADORSYS-GIS/adorsys-ci-cd-templates/pull/76) | Merged 2026-11-09 | Adds the shared `secret-scan.yml` workflow       |
+| PR    | [ADORSYS-GIS/wazuh-suricata#72](https://github.com/ADORSYS-GIS/wazuh-suricata/pull/72)                   | Open              | Adds the `secret-scan` job and ADR-0003          |
