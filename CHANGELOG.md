@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[ffd3813](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ffd3813eb7660979476c1ce6fac45cb105eb3ba9)...[679eea4](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/679eea4feae4cd8970e6d15586938be8b4dbe1fb)
+[ffd3813](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ffd3813eb7660979476c1ce6fac45cb105eb3ba9)...[47cb464](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/47cb464f5ad3cd7cce7ca32614ffaf1e658429d4)
 
 ### Bug Fixes
 
@@ -42,10 +42,14 @@ All notable changes to this project will be documented in this file.
 - Add SonarQube, SAST, and Dependabot status badges to README ([`ef5e454`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ef5e4548e28838dcd8f0ce7dc8a93e3110e5fc09))
 - Update CHANGELOG.md and checksums [skip ci] ([`289ea45`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/289ea459dbff238b5d770bd4357f7d8990681298))
 - Update CHANGELOG.md and checksums [skip ci] ([`a76e37d`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/a76e37d45e35263d73563d16b45b87f7dac44908))
+- Update CHANGELOG.md and checksums [skip ci] ([`ecd1e9b`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ecd1e9b3ab682e24afc1073b3fcae44e38f5e119))
+- Update ADR-0002 implementation status to Closed and Merged ([`25bb478`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/25bb478d036fb070f3d2d44dd4cc20e9e2c35370))
+- Record solution implementation for ADR-0003 ([`47cb464`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/47cb464f5ad3cd7cce7ca32614ffaf1e658429d4))
 
 ### Features
 
 - Generate CycloneDX SBOM in CI ([`b7d9bb4`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/b7d9bb46329340e8a309922b2e9cc2d72593b603)), Signed-off-by:mbiti2 <louisembiti@gmail.com>
+- Add gitleaks secret scanning and CI job ([`1b6f11d`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/1b6f11d43e731ca16e131a671ed7aeae33e905a2))
 
 ### Miscellaneous Tasks
 
