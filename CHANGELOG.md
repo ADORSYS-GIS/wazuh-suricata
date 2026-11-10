@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[ffd3813](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ffd3813eb7660979476c1ce6fac45cb105eb3ba9)...[8da314a](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/8da314a66e5da206a16ea7a26633b34e10924d5c)
+[ffd3813](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ffd3813eb7660979476c1ce6fac45cb105eb3ba9)...[8c5fa4e](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/8c5fa4e3a0ceba52d1d593806777a48e76356ce5)
 
 ### Bug Fixes
 
@@ -17,6 +17,7 @@ All notable changes to this project will be documented in this file.
 - Clear psscriptanalyzer findings in windows uninstall scripts ([`d3a1391`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/d3a1391fc893b4d66466fb241ad262062826894d))
 - Correct suppress attribute placement ([`47f6128`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/47f6128d46211f4196829b12526d54476d53fc84))
 - Add param block to suppress analyzer warning ([`8da314a`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/8da314a66e5da206a16ea7a26633b34e10924d5c))
+- Replace Write-Host with Write-Output in uninstall script ([`8c5fa4e`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/8c5fa4e3a0ceba52d1d593806777a48e76356ce5))
 
 ### Documentation
 
@@ -53,6 +54,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`b756449`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/b756449bafc854d1fa85555bad51a5e4bbbb6e3b))
 - Update CHANGELOG.md and checksums [skip ci] ([`c617d26`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/c617d26c311b2e25186fcd50b28bd54de4a591a9))
 - Update CHANGELOG.md and checksums [skip ci] ([`372266c`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/372266c46a231a5065a548e2152f5837a799ce49))
+- Update CHANGELOG.md and checksums [skip ci] ([`f9287cc`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/f9287cc8522038a5acc38a0dee233c81cb845ccf))
 
 ### Features
 
