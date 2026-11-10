@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[ffd3813](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ffd3813eb7660979476c1ce6fac45cb105eb3ba9)...[47cb464](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/47cb464f5ad3cd7cce7ca32614ffaf1e658429d4)
+[ffd3813](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ffd3813eb7660979476c1ce6fac45cb105eb3ba9)...[0ea77ba](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/0ea77ba2d9b7809da42fbb9260b77505d768b75c)
 
 ### Bug Fixes
 
@@ -13,6 +13,7 @@ All notable changes to this project will be documented in this file.
 - Use script-scoped ChecksumsPath default in Download-And-VerifyFile ([`47048ca`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/47048ca64ecae0662a07b22bca0c11357f24ebf4))
 - Use ubuntu-22.04 with fallback compilation for kcov installation ([`1bc0b83`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/1bc0b83875e9dc7fa8f4cfaa32bdac2180e80a06))
 - Drop quotes from extra-sonar-args in sonarqube workflow ([`ff45871`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ff45871fb3cdaffa49abb01a8cdf44b39cd93b47))
+- Resolve sonarqube code smells in install scripts ([`0ea77ba`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/0ea77ba2d9b7809da42fbb9260b77505d768b75c))
 
 ### Documentation
 
@@ -45,6 +46,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`ecd1e9b`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ecd1e9b3ab682e24afc1073b3fcae44e38f5e119))
 - Update ADR-0002 implementation status to Closed and Merged ([`25bb478`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/25bb478d036fb070f3d2d44dd4cc20e9e2c35370))
 - Record solution implementation for ADR-0003 ([`47cb464`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/47cb464f5ad3cd7cce7ca32614ffaf1e658429d4))
+- Update CHANGELOG.md and checksums [skip ci] ([`4c3fe4d`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/4c3fe4ded28b39f8a71f88e75b1eed75327fd28e))
 
 ### Features
 
