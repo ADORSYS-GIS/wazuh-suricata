@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[ffd3813](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ffd3813eb7660979476c1ce6fac45cb105eb3ba9)...[bbc42cd](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/bbc42cdb8466eb9153c4df73929316863456cf8c)
+[ffd3813](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ffd3813eb7660979476c1ce6fac45cb105eb3ba9)...[b8af4ba](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/b8af4ba983754a4d4fd3b4aca91b184dc0f52527)
 
 ### Bug Fixes
 
@@ -57,6 +57,8 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`372266c`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/372266c46a231a5065a548e2152f5837a799ce49))
 - Update CHANGELOG.md and checksums [skip ci] ([`f9287cc`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/f9287cc8522038a5acc38a0dee233c81cb845ccf))
 - Update CHANGELOG.md and checksums [skip ci] ([`a641a72`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/a641a7219fe578da5160a6c0ccf8aa67a6cb14fb))
+- Update CHANGELOG.md and checksums [skip ci] ([`dc105e5`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/dc105e56c7d530944e111b41617dcca7071ed875))
+- Mark secret scanning and push protection enabled ([`b8af4ba`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/b8af4ba983754a4d4fd3b4aca91b184dc0f52527))
 
 ### Features
 
