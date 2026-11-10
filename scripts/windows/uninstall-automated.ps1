@@ -13,8 +13,8 @@ if (-not (Test-Path $TEMP_DIR)) {
 try {
     $ChecksumsURL = "$WAZUH_SURICATA_REPO_URL/checksums.sha256"
     $UtilsURL = "$WAZUH_SURICATA_REPO_URL/scripts/shared/utils.ps1"
-    
-    $global:ChecksumsPath = Join-Path $TEMP_DIR "checksums.sha256"
+
+    $script:ChecksumsPath = Join-Path $TEMP_DIR "checksums.sha256"
     $UtilsPath = Join-Path $TEMP_DIR "utils.ps1"
 
     Invoke-WebRequest -Uri $ChecksumsURL -OutFile $ChecksumsPath -ErrorAction Stop
@@ -44,21 +44,22 @@ catch {
 }
 
 # Global configuration
-$global:Config = @{
+$script:Config = @{
     TaskName = "SuricataStartup"
 }
 
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
 function Remove-SuricataScheduledTask {
     try {
-        $task = Get-ScheduledTask -TaskName $global:Config.TaskName -ErrorAction SilentlyContinue
+        $task = Get-ScheduledTask -TaskName $script:Config.TaskName -ErrorAction SilentlyContinue
         if ($task) {
             try {
-                Stop-ScheduledTask -TaskName $global:Config.TaskName -ErrorAction SilentlyContinue
+                Stop-ScheduledTask -TaskName $script:Config.TaskName -ErrorAction SilentlyContinue
                 InfoMessage "Stopped Suricata scheduled task."
             } catch {
                 WarnMessage "Could not stop Suricata scheduled task (it may not be running). $_"
             }
-            Unregister-ScheduledTask -TaskName $global:Config.TaskName -Confirm:$false
+            Unregister-ScheduledTask -TaskName $script:Config.TaskName -Confirm:$false
             InfoMessage "Removed Suricata scheduled task."
         } else {
             WarnMessage "No Suricata scheduled task found."
