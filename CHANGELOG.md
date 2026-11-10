@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[ffd3813](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ffd3813eb7660979476c1ce6fac45cb105eb3ba9)...[d3a1391](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/d3a1391fc893b4d66466fb241ad262062826894d)
+[ffd3813](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ffd3813eb7660979476c1ce6fac45cb105eb3ba9)...[47f6128](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/47f6128d46211f4196829b12526d54476d53fc84)
 
 ### Bug Fixes
 
@@ -15,6 +15,7 @@ All notable changes to this project will be documented in this file.
 - Drop quotes from extra-sonar-args in sonarqube workflow ([`ff45871`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ff45871fb3cdaffa49abb01a8cdf44b39cd93b47))
 - Resolve sonarqube code smells in install scripts ([`0ea77ba`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/0ea77ba2d9b7809da42fbb9260b77505d768b75c))
 - Clear psscriptanalyzer findings in windows uninstall scripts ([`d3a1391`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/d3a1391fc893b4d66466fb241ad262062826894d))
+- Correct suppress attribute placement ([`47f6128`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/47f6128d46211f4196829b12526d54476d53fc84))
 
 ### Documentation
 
@@ -49,6 +50,7 @@ All notable changes to this project will be documented in this file.
 - Record solution implementation for ADR-0003 ([`47cb464`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/47cb464f5ad3cd7cce7ca32614ffaf1e658429d4))
 - Update CHANGELOG.md and checksums [skip ci] ([`4c3fe4d`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/4c3fe4ded28b39f8a71f88e75b1eed75327fd28e))
 - Update CHANGELOG.md and checksums [skip ci] ([`b756449`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/b756449bafc854d1fa85555bad51a5e4bbbb6e3b))
+- Update CHANGELOG.md and checksums [skip ci] ([`c617d26`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/c617d26c311b2e25186fcd50b28bd54de4a591a9))
 
 ### Features
 
