@@ -53,8 +53,8 @@ $script:Config = @{
     TaskName            = "SuricataStartup"
 }
 
-[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
 function Remove-SuricataScheduledTask {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
     try {
         $task = Get-ScheduledTask -TaskName $script:Config.TaskName -ErrorAction SilentlyContinue
         if ($task) {
