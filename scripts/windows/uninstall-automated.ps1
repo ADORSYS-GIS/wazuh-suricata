@@ -70,14 +70,14 @@ function Remove-SuricataScheduledTask {
     }
 }
 
-Write-Host "--- Starting Total Silent Uninstall ---" -ForegroundColor Cyan
+Write-Output "--- Starting Total Silent Uninstall ---"
 
 # Step 1: Remove Suricata scheduled task
-Write-Host "Removing Suricata scheduled task..."
+Write-Output "Removing Suricata scheduled task..."
 Remove-SuricataScheduledTask
 
 # Step 2: Kill any running Suricata process to unlock files
-Write-Host "Stopping any suricata.exe process..."
+Write-Output "Stopping any suricata.exe process..."
 Stop-Process -Name "suricata" -Force -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 1
 
@@ -87,29 +87,29 @@ Set-Location C:\
 # Step 4: Forcefully delete the entire Suricata directory
 $suricataDir = "C:\Program Files\Suricata"
 if (Test-Path $suricataDir) {
-    Write-Host "Deleting Suricata directory..."
+    Write-Output "Deleting Suricata directory..."
     Remove-Item -Path $suricataDir -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 # Step 5: Silently run the Npcap uninstaller
 $npcapUninstaller = "C:\Program Files\Npcap\uninstall.exe"
 if (Test-Path $npcapUninstaller) {
-    Write-Host "Running Npcap silent uninstaller..."
+    Write-Output "Running Npcap silent uninstaller..."
     Start-Process -FilePath $npcapUninstaller -ArgumentList "/S" -Wait
 }
 
 # Step 6: Forcefully delete the leftover Npcap directory
 $npcapDir = "C:\Program Files\Npcap"
 if (Test-Path $npcapDir) {
-    Write-Host "Cleaning up leftover Npcap directory..."
+    Write-Output "Cleaning up leftover Npcap directory..."
     Remove-Item -Path $npcapDir -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 # Step 7: Final Verification
 if ((-not (Test-Path $suricataDir)) -and (-not (Test-Path $npcapDir))) {
-    Write-Host "SUCCESS: Suricata and Npcap have been totally removed." -ForegroundColor Green
+    Write-Output "SUCCESS: Suricata and Npcap have been totally removed."
 } else {
-    Write-Host "WARNING: Some files may remain. A system reboot may be required to unlock them." -ForegroundColor Yellow
+    Write-Output "WARNING: Some files may remain. A system reboot may be required to unlock them."
 }
 
-Write-Host "--- Process Complete ---" -ForegroundColor Cyan
+Write-Output "--- Process Complete ---"
