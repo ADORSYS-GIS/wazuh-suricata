@@ -79,7 +79,7 @@ function Uninstall-Suricata {
     try {
         $suricataProduct = Get-CimInstance -ClassName Win32_Product | Where-Object { $_.Name -like "*Suricata*" }
         if ($suricataProduct) {
-            $suricataProduct.Uninstall() | Out-Null
+            Invoke-CimMethod -InputObject $suricataProduct -MethodName Uninstall | Out-Null
             InfoMessage "Uninstalled Suricata via MSI."
         } else {
             WarnMessage "Suricata MSI product not found. Attempting manual removal."
