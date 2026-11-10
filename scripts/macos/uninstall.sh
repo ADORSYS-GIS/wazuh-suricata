@@ -53,6 +53,7 @@ calculate_sha256_bootstrap() {
     else
         shasum -a 256 "$file" | awk '{print $1}'
     fi
+    return 0
 }
 
 # Download checksums and verify utils.sh
@@ -111,6 +112,7 @@ detect_suricata_installation() {
     
     # Return result as "legacy,modern,softlink" format
     echo "${has_legacy},${has_modern},${has_softlink}"
+    return 0
 }
 
 # Download and execute legacy cleanup script
@@ -155,6 +157,7 @@ run_legacy_cleanup_script() {
         error_message "Legacy uninstall script failed"
         return 1
     fi
+    return 0
 }
 
 # Restart Wazuh agent
@@ -164,6 +167,7 @@ restart_wazuh_agent() {
     else
         warn_message "Could not restart Wazuh agent (may not be running)."
     fi
+    return 0
 }
 
 # Stop Suricata services
@@ -179,6 +183,7 @@ stop_suricata_services() {
     else
         info_message "No Suricata LaunchDaemon found"
     fi
+    return 0
 }
 
 # Remove Suricata packages installed via package managers
@@ -248,6 +253,7 @@ remove_custom_suricata_installation() {
     if [[ $removed -eq 0 ]] ; then
         info_message "No custom Suricata installation found"
     fi
+    return 0
 }
 
 # Remove Suricata configuration and data directories
@@ -280,6 +286,7 @@ remove_suricata_directories() {
     else
         info_message "No Suricata directories found"
     fi
+    return 0
 }
 
 # Validate complete removal
@@ -333,6 +340,7 @@ validate_removal() {
         warn_message "Manual cleanup may be required for complete removal"
         return 0
     fi
+    return 0
 }
 
 # Main uninstallation function
@@ -434,6 +442,7 @@ main() {
     
     echo ""
     success_message "Suricata uninstallation process completed!"
+    return 0
 }
 
 # Execute main function

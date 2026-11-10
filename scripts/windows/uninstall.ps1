@@ -75,7 +75,7 @@ function Remove-SuricataScheduledTask {
 
 function Uninstall-Suricata {
     try {
-        $suricataProduct = Get-WmiObject -Class Win32_Product | Where-Object { $_.Name -like "*Suricata*" }
+        $suricataProduct = Get-CimInstance -ClassName Win32_Product | Where-Object { $_.Name -like "*Suricata*" }
         if ($suricataProduct) {
             $suricataProduct.Uninstall() | Out-Null
             InfoMessage "Uninstalled Suricata via MSI."
@@ -97,7 +97,7 @@ function Uninstall-Suricata {
 function Uninstall-NpCap {
     InfoMessage "Uninstalling Npcap"
     try {
-        if (-Not (Test-Path $global:Config.NpcapUninstallPath)) {
+        if (-not (Test-Path $global:Config.NpcapUninstallPath)) {
             WarnMessage "Npcap uninstaller not found: $($global:Config.NpcapUninstallPath). Skipping."
         } else {
             Start-Process -FilePath $global:Config.NpcapUninstallPath -NoNewWindow -Wait

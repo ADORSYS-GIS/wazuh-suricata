@@ -60,28 +60,31 @@ TMP_DIR=$(mktemp -d)
 
 # Source shared utilities
 if ! curl -fsSL "${WAZUH_SURICATA_REPO_URL}/scripts/shared/utils.sh" -o "$TMP_DIR/utils.sh"; then
-    echo "Failed to download utils.sh"
+    echo "Failed to download utils.sh" >&2
     exit 1
 fi
+
+# Constant used to extract the first whitespace-separated field (used in checksums)
+readonly AWK_FIRST_FIELD='{print $1}'
 
 # Function to calculate SHA256 (cross-platform bootstrap)
 calculate_sha256_bootstrap() {
     local file="$1"
     if command -v sha256sum >/dev/null 2>&1; then
-        sha256sum "$file" | awk '{print $1}'
+        sha256sum "$file" | awk "$AWK_FIRST_FIELD"
     else
-        shasum -a 256 "$file" | awk '{print $1}'
+        shasum -a 256 "$file" | awk "$AWK_FIRST_FIELD"
     fi
     return 0
 }
 
 # Download checksums and verify utils.sh integrity BEFORE sourcing it
 if ! curl -fsSL "${WAZUH_SURICATA_REPO_URL}/checksums.sha256" -o "$TMP_DIR/checksums.sha256"; then
-    echo "Failed to download checksums.sha256"
+    echo "Failed to download checksums.sha256" >&2
     exit 1
 fi
 
-EXPECTED_HASH=$(grep "scripts/shared/utils.sh" "$TMP_DIR/checksums.sha256" | awk '{print $1}')
+EXPECTED_HASH=$(grep "scripts/shared/utils.sh" "$TMP_DIR/checksums.sha256" | awk "$AWK_FIRST_FIELD")
 ACTUAL_HASH=$(calculate_sha256_bootstrap "$TMP_DIR/utils.sh")
 
 if [[ -z "$EXPECTED_HASH" ]] || [[ "$EXPECTED_HASH" != "$ACTUAL_HASH" ]]; then
@@ -114,6 +117,7 @@ DISTRO=$(detect_distro)
 # Linux sed_inplace function
 sed_inplace() {
     maybe_sudo sed -i "$@" 2>/dev/null || true
+    return 0
 }
 
 #=============================================================================
@@ -141,6 +145,7 @@ check_installed_version() {
         success_message "Suricata $SURICATA_VERSION is already installed ($output)"
         return 0
     fi
+    return 0
 }
 
 # Download and execute uninstall script
@@ -162,6 +167,7 @@ run_uninstall_script() {
         error_message "Uninstall script failed"
         return 1
     fi
+    return 0
 }
 
 # Pre-installation check and automatic cleanup
@@ -196,6 +202,7 @@ pre_installation_check() {
     
     # Brief pause to let user see the messages
     sleep 2
+    return 0
 }
 
 #=============================================================================
@@ -276,6 +283,7 @@ install_dependencies() {
     install_yq || warn_message "yq could not be installed automatically"
     
     success_message "Dependencies installation attempted successfully"
+    return 0
 }
 
 # Download Suricata package based on distro and architecture
@@ -302,6 +310,7 @@ download_suricata_package() {
     esac
     
     download_file "$url" "$output" "Suricata package" || exit 1
+    return 0
 }
 
 
@@ -391,6 +400,7 @@ install_suricata_package() {
     
     success_message "Suricata package installed successfully"
 
+    return 0
 }
 
 # Try to locate the Suricata binary under the managed prefix
@@ -441,7 +451,7 @@ ensure_symlinks() {
             warn_message "Binary execution test: FAILED"
             # Try to capture error details
             local error_output
-            error_output=$("$bin_path" --version 2>&1 | head -n3 || echo "No error output")
+            error_output=$("$bin_path" --version 2>&1 | head -n3 || echo "No error output" >&2)
             warn_message "Error output: $error_output"
         fi
         
@@ -449,6 +459,7 @@ ensure_symlinks() {
     else
         warn_message "Could not locate Suricata binary under /opt/wazuh/suricata"
     fi
+    return 0
 }
 
 
@@ -486,6 +497,7 @@ create_symlinks() {
     else
         warn_message "Suricata symlinks created but not found in PATH"
     fi
+    return 0
 }
 
 # Set Linux capabilities to allow non-root usage where possible
@@ -505,6 +517,7 @@ set_linux_capabilities() {
             maybe_sudo setcap cap_net_admin,cap_net_raw+eip "$real_path" 2>/dev/null || true
         fi
     fi
+    return 0
 }
 
 
@@ -523,6 +536,7 @@ detect_wifi_interface() {
         warn_message "No active interface detected. Defaulting to: $INTERFACE"
     fi
     info_message "Detected interface: $INTERFACE"
+    return 0
 }
 
 # Download and Extract Rules
@@ -593,6 +607,7 @@ download_rules() {
     info_message "Cleaning up temporary files"
     rm -rf "$temp_dir"
     success_message "Rules download and installation completed successfully"
+    return 0
 }
 
 # Create and Update Suricata Configuration
@@ -714,6 +729,7 @@ setup_suricata_config() {
         
         success_message "Suricata configuration updated successfully"
     fi
+    return 0
 }
 
 # Validate installation
@@ -831,6 +847,7 @@ validate_installation() {
         error_message "Suricata installation and configuration validation failed."
         exit 1
     fi
+    return 0
 }
 
 # Configure IPS mode settings
@@ -895,6 +912,7 @@ EOF
     fi
     
     success_message "IPS mode configuration completed"
+    return 0
 }
 
 # Check disk space
@@ -910,6 +928,7 @@ check_disk_space() {
     fi
     
     info_message "Sufficient disk space available: $((available_space / 1024)) MB"
+    return 0
 }
 
 # Main Suricata installation for Linux
@@ -974,6 +993,7 @@ suricata_installation() {
     info_message "========================================="
     echo ""
 
+    return 0
 }
 
 # Main function
@@ -1011,6 +1031,7 @@ main() {
             exit 1
             ;;
     esac
+    return 0
 }
 
 # Execute main function

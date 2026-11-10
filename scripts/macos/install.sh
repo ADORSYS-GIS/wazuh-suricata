@@ -61,27 +61,31 @@ TMP_DIR=$(mktemp -d)
 
 # Source shared utilities
 if ! curl -fsSL "${WAZUH_SURICATA_REPO_URL}/scripts/shared/utils.sh" -o "$TMP_DIR/utils.sh"; then
-    echo "Failed to download utils.sh"
+    echo "Failed to download utils.sh" >&2
     exit 1
 fi
+
+# Constant used to extract the first whitespace-separated field (used in checksums)
+readonly AWK_FIRST_FIELD='{print $1}'
 
 # Function to calculate SHA256 (bootstrap)
 calculate_sha256_bootstrap() {
     local file="$1"
     if command -v sha256sum >/dev/null 2>&1; then
-        sha256sum "$file" | awk '{print $1}'
+        sha256sum "$file" | awk "$AWK_FIRST_FIELD"
     else
-        shasum -a 256 "$file" | awk '{print $1}'
+        shasum -a 256 "$file" | awk "$AWK_FIRST_FIELD"
     fi
+    return 0
 }
 
 # Download checksums and verify utils.sh
 if ! curl -fsSL "${WAZUH_SURICATA_REPO_URL}/checksums.sha256" -o "$TMP_DIR/checksums.sha256"; then
-    echo "Failed to download checksums.sha256"
+    echo "Failed to download checksums.sha256" >&2
     exit 1
 fi
 
-EXPECTED_HASH=$(grep "scripts/shared/utils.sh" "$TMP_DIR/checksums.sha256" | awk '{print $1}')
+EXPECTED_HASH=$(grep "scripts/shared/utils.sh" "$TMP_DIR/checksums.sha256" | awk "$AWK_FIRST_FIELD")
 ACTUAL_HASH=$(calculate_sha256_bootstrap "$TMP_DIR/utils.sh")
 
 if [[ -z "$EXPECTED_HASH" ]] || [[ "$EXPECTED_HASH" != "$ACTUAL_HASH" ]]; then
@@ -104,6 +108,7 @@ CONFIG_DIR="/opt/wazuh/suricata/etc/suricata"
 CONFIG_FILE="$CONFIG_DIR/suricata.yaml"
 RULES_DIR="/opt/wazuh/suricata/var/lib/suricata/rules"
 LOG_DIR="/opt/wazuh/suricata/var/log/suricata"
+readonly SURICATA_BIN="/opt/wazuh/suricata/bin/suricata"
 OSSEC_CONF_PATH="/Library/Ossec/etc/ossec.conf"
 WAZUH_CONTROL_BIN_PATH="/Library/Ossec/bin/wazuh-control"
 
@@ -116,6 +121,7 @@ fi
 # macOS sed function
 sed_inplace() {
     maybe_sudo sed -i '' "$@" 2>/dev/null || true
+    return 0
 }
 
 # Replace a literal string in a file (portable).
@@ -132,6 +138,7 @@ replace_literal_in_file() {
 
     # Fallback to sed (best-effort)
     sed_inplace "s|$from|$to|g" "$file"
+    return 0
 }
 
 # Replace a literal string in a file (portable).
@@ -148,6 +155,7 @@ replace_literal_in_file() {
 
     # Fallback to sed (best-effort)
     sed_inplace "s|$from|$to|g" "$file"
+    return 0
 }
 
 replace_required_in_file() {
@@ -159,6 +167,7 @@ replace_required_in_file() {
         error_message "Failed to replace placeholder $from in $file"
         exit 1
     fi
+    return 0
 }
 
 # Create macOS Launchd plist
@@ -199,6 +208,7 @@ create_launchd_plist_file() {
     info_message "Loading new daemon plist file..."
     maybe_sudo launchctl load -w "$filepath" 2>/dev/null || warn_message "Loading plist failed: $filepath"
     info_message "macOS Launchd plist file created and loaded: $filepath"
+    return 0
 }
 
 #=============================================================================
@@ -207,7 +217,7 @@ create_launchd_plist_file() {
 
 # Check if Suricata is already installed with the correct version
 check_installed_version() {
-    local installed_bin="/opt/wazuh/suricata/bin/suricata"
+    local installed_bin="$SURICATA_BIN"
     
     if [[ ! -x "$installed_bin" ]] ; then
         return 1
@@ -226,6 +236,7 @@ check_installed_version() {
         success_message "Suricata $SURICATA_VERSION is already installed ($output)"
         return 0
     fi
+    return 0
 }
 
 # Download and execute uninstall script
@@ -246,6 +257,7 @@ run_uninstall_script() {
         error_message "Uninstall script failed"
         return 1
     fi
+    return 0
 }
 
 # Pre-installation check and automatic cleanup
@@ -280,6 +292,7 @@ pre_installation_check() {
     
     # Brief pause to let user see the messages
     sleep 2
+    return 0
 }
 
 #=============================================================================
@@ -346,6 +359,7 @@ install_dependencies() {
     fi
     
     success_message "Dependencies installation attempted successfully"
+    return 0
 }
 
 # Download Suricata DMG for macOS based on architecture
@@ -355,6 +369,7 @@ download_suricata_macos_dmg() {
     
     print_step 1 "Downloading Suricata DMG for macOS $arch"
     download_file "$url" "$TMP_DIR/suricata.dmg" "Suricata DMG" || exit 1
+    return 0
 }
 
 # Install Suricata from DMG on macOS
@@ -398,18 +413,19 @@ install_suricata_macos_dmg() {
     
     print_step 3 "Setting permissions"
     # Set executable permissions for all users to ensure it can be run without sudo
-    maybe_sudo chmod 755 "/opt/wazuh/suricata/bin/suricata"
-    maybe_sudo chown root:wheel "/opt/wazuh/suricata/bin/suricata" 2>/dev/null || \
-    maybe_sudo chown root:staff "/opt/wazuh/suricata/bin/suricata" 2>/dev/null || \
-    maybe_sudo chown root:root "/opt/wazuh/suricata/bin/suricata"
+    maybe_sudo chmod 755 "$SURICATA_BIN"
+    maybe_sudo chown root:wheel "$SURICATA_BIN" 2>/dev/null || \
+    maybe_sudo chown root:staff "$SURICATA_BIN" 2>/dev/null || \
+    maybe_sudo chown root:root "$SURICATA_BIN"
     
     # Ensure /usr/local/bin exists and create symlink
     maybe_sudo mkdir -p /usr/local/bin
-    maybe_sudo ln -sf "/opt/wazuh/suricata/bin/suricata" /usr/local/bin/suricata
+    maybe_sudo ln -sf "$SURICATA_BIN" /usr/local/bin/suricata
     # Also ensure the symlink has proper permissions
     maybe_sudo chmod 755 /usr/local/bin/suricata
     
     success_message "Suricata installed successfully from DMG on macOS"
+    return 0
 }
 
 # Try to locate the Suricata binary under the managed prefix
@@ -443,7 +459,7 @@ create_symlinks() {
     # Remove old symlinks
     maybe_sudo rm -f /usr/local/bin/suricata /usr/bin/suricata 2>/dev/null || true
     
-    local target_binary="/opt/wazuh/suricata/bin/suricata"
+    local target_binary="$SURICATA_BIN"
     
     # Create /usr/local/bin symlink (standard user PATH)
     if maybe_sudo ln -sf "$target_binary" /usr/local/bin/suricata; then
@@ -458,6 +474,7 @@ create_symlinks() {
     else
         warn_message "Suricata symlinks created but not found in PATH"
     fi
+    return 0
 }
 
 # Detect Network Interface for macOS
@@ -478,6 +495,7 @@ detect_wifi_interface() {
         warn_message "No active interface detected. Defaulting to: $INTERFACE"
     fi
     info_message "Detected interface: $INTERFACE"
+    return 0
 }
 
 # Download and Extract Rules
@@ -556,6 +574,7 @@ download_rules() {
     info_message "Cleaning up temporary files"
     rm -rf "$temp_dir"
     success_message "Rules download and installation completed successfully"
+    return 0
 }
 
 # Create and Update Suricata Configuration
@@ -695,6 +714,7 @@ setup_suricata_config() {
         
         success_message "Suricata configuration updated successfully"
     fi
+    return 0
 }
 
 # Create macOS LaunchDaemon for automatic startup
@@ -702,11 +722,12 @@ create_launchd_service() {
     info_message "Creating macOS LaunchDaemon for Suricata..."
     
     local plist_file="/Library/LaunchDaemons/com.suricata.suricata.plist"
-    local suricata_bin="/opt/wazuh/suricata/bin/suricata"
+    local suricata_bin="$SURICATA_BIN"
     
     create_launchd_plist_file "$plist_file" "$suricata_bin"
     
     success_message "LaunchDaemon created successfully"
+    return 0
 }
 
 #=============================================================================
@@ -780,12 +801,13 @@ main() {
     
     echo ""
     success_message "Suricata installation completed successfully!"
-    info_message "Binary location: /opt/wazuh/suricata/bin/suricata"
+    info_message "Binary location: $SURICATA_BIN"
     info_message "Configuration file: $CONFIG_FILE"
     info_message "Rules directory: $RULES_DIR"
     info_message "Log directory: $LOG_DIR"
     echo ""
     success_message "Suricata is now installed and ready to use with Wazuh!"
+    return 0
 }
 
 # Execute main function
