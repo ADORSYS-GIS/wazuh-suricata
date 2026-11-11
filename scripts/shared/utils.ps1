@@ -51,7 +51,7 @@ function ErrorExit {
 function Ensure-Admin {
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseApprovedVerbs', '')]
     param()
-    if (-Not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
+    if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
         ErrorExit "This script requires administrative privileges. Please run it as Administrator."
     }
 }
@@ -62,7 +62,7 @@ function Ensure-Directory {
         [Parameter(Mandatory)]
         [string]$Path
     )
-    if (-Not (Test-Path -Path $Path)) {
+    if (-not (Test-Path -Path $Path)) {
         New-Item -ItemType Directory -Path $Path -Force | Out-Null
         InfoMessage "Created directory: $Path"
     }

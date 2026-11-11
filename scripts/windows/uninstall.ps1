@@ -11,8 +11,8 @@ if (-not (Test-Path $TEMP_DIR)) {
 try {
     $ChecksumsURL = "$WAZUH_SURICATA_REPO_URL/checksums.sha256"
     $UtilsURL = "$WAZUH_SURICATA_REPO_URL/scripts/shared/utils.ps1"
-    
-    $global:ChecksumsPath = Join-Path $TEMP_DIR "checksums.sha256"
+
+    $script:ChecksumsPath = Join-Path $TEMP_DIR "checksums.sha256"
     $UtilsPath = Join-Path $TEMP_DIR "utils.ps1"
 
     Invoke-WebRequest -Uri $ChecksumsURL -OutFile $ChecksumsPath -ErrorAction Stop
@@ -42,7 +42,7 @@ catch {
 }
 
 # Global config (reuse from install.ps1)
-$global:Config = @{
+$script:Config = @{
     SuricataDir         = "C:\Program Files\Suricata"
     SuricataExePath     = "C:\Program Files\Suricata\suricata.exe"
     NpcapPath           = "C:\Program Files\Npcap"
@@ -54,16 +54,18 @@ $global:Config = @{
 }
 
 function Remove-SuricataScheduledTask {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
+    param()
     try {
-        $task = Get-ScheduledTask -TaskName $global:Config.TaskName -ErrorAction SilentlyContinue
+        $task = Get-ScheduledTask -TaskName $script:Config.TaskName -ErrorAction SilentlyContinue
         if ($task) {
             try {
-                Stop-ScheduledTask -TaskName $global:Config.TaskName -ErrorAction SilentlyContinue
+                Stop-ScheduledTask -TaskName $script:Config.TaskName -ErrorAction SilentlyContinue
                 InfoMessage "Stopped Suricata scheduled task."
             } catch {
                 WarnMessage "Could not stop Suricata scheduled task (it may not be running). $_"
             }
-            Unregister-ScheduledTask -TaskName $global:Config.TaskName -Confirm:$false
+            Unregister-ScheduledTask -TaskName $script:Config.TaskName -Confirm:$false
             InfoMessage "Removed Suricata scheduled task."
         } else {
             WarnMessage "No Suricata scheduled task found."
@@ -75,20 +77,20 @@ function Remove-SuricataScheduledTask {
 
 function Uninstall-Suricata {
     try {
-        $suricataProduct = Get-WmiObject -Class Win32_Product | Where-Object { $_.Name -like "*Suricata*" }
+        $suricataProduct = Get-CimInstance -ClassName Win32_Product | Where-Object { $_.Name -like "*Suricata*" }
         if ($suricataProduct) {
-            $suricataProduct.Uninstall() | Out-Null
+            Invoke-CimMethod -InputObject $suricataProduct -MethodName Uninstall | Out-Null
             InfoMessage "Uninstalled Suricata via MSI."
         } else {
             WarnMessage "Suricata MSI product not found. Attempting manual removal."
         }
-        if (Test-Path $global:Config.SuricataDir) {
-            Remove-Item -Path $global:Config.SuricataDir -Recurse -Force -ErrorAction Stop
+        if (Test-Path $script:Config.SuricataDir) {
+            Remove-Item -Path $script:Config.SuricataDir -Recurse -Force -ErrorAction Stop
             InfoMessage "Removed Suricata directory."
         } else {
             WarnMessage "Suricata directory not found."
         }
-        Remove-SystemPath $global:Config.SuricataDir
+        Remove-SystemPath $script:Config.SuricataDir
     } catch {
         ErrorMessage "Failed to uninstall Suricata: $_"
     }
@@ -97,15 +99,15 @@ function Uninstall-Suricata {
 function Uninstall-NpCap {
     InfoMessage "Uninstalling Npcap"
     try {
-        if (-Not (Test-Path $global:Config.NpcapUninstallPath)) {
-            WarnMessage "Npcap uninstaller not found: $($global:Config.NpcapUninstallPath). Skipping."
+        if (-not (Test-Path $script:Config.NpcapUninstallPath)) {
+            WarnMessage "Npcap uninstaller not found: $($script:Config.NpcapUninstallPath). Skipping."
         } else {
-            Start-Process -FilePath $global:Config.NpcapUninstallPath -NoNewWindow -Wait
+            Start-Process -FilePath $script:Config.NpcapUninstallPath -NoNewWindow -Wait
             InfoMessage "Successfully removed Npcap."
         }
-        Remove-SystemPath $global:Config.NpcapPath
-        if (Test-Path $global:Config.NpcapPath) {
-            Remove-Item -Path $global:Config.NpcapPath -Recurse -Force -ErrorAction Stop
+        Remove-SystemPath $script:Config.NpcapPath
+        if (Test-Path $script:Config.NpcapPath) {
+            Remove-Item -Path $script:Config.NpcapPath -Recurse -Force -ErrorAction Stop
             InfoMessage "Removed Npcap directory."
         } else {
             WarnMessage "Npcap directory not found."

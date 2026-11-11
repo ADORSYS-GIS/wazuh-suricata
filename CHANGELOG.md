@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[ffd3813](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ffd3813eb7660979476c1ce6fac45cb105eb3ba9)...[679eea4](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/679eea4feae4cd8970e6d15586938be8b4dbe1fb)
+[ffd3813](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ffd3813eb7660979476c1ce6fac45cb105eb3ba9)...[b8af4ba](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/b8af4ba983754a4d4fd3b4aca91b184dc0f52527)
 
 ### Bug Fixes
 
@@ -13,6 +13,12 @@ All notable changes to this project will be documented in this file.
 - Use script-scoped ChecksumsPath default in Download-And-VerifyFile ([`47048ca`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/47048ca64ecae0662a07b22bca0c11357f24ebf4))
 - Use ubuntu-22.04 with fallback compilation for kcov installation ([`1bc0b83`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/1bc0b83875e9dc7fa8f4cfaa32bdac2180e80a06))
 - Drop quotes from extra-sonar-args in sonarqube workflow ([`ff45871`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ff45871fb3cdaffa49abb01a8cdf44b39cd93b47))
+- Resolve sonarqube code smells in install scripts ([`0ea77ba`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/0ea77ba2d9b7809da42fbb9260b77505d768b75c))
+- Clear psscriptanalyzer findings in windows uninstall scripts ([`d3a1391`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/d3a1391fc893b4d66466fb241ad262062826894d))
+- Correct suppress attribute placement ([`47f6128`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/47f6128d46211f4196829b12526d54476d53fc84))
+- Add param block to suppress analyzer warning ([`8da314a`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/8da314a66e5da206a16ea7a26633b34e10924d5c))
+- Replace Write-Host with Write-Output in uninstall script ([`8c5fa4e`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/8c5fa4e3a0ceba52d1d593806777a48e76356ce5))
+- Use Invoke-CimMethod for CimInstance uninstall ([`bbc42cd`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/bbc42cdb8466eb9153c4df73929316863456cf8c))
 
 ### Documentation
 
@@ -42,10 +48,22 @@ All notable changes to this project will be documented in this file.
 - Add SonarQube, SAST, and Dependabot status badges to README ([`ef5e454`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ef5e4548e28838dcd8f0ce7dc8a93e3110e5fc09))
 - Update CHANGELOG.md and checksums [skip ci] ([`289ea45`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/289ea459dbff238b5d770bd4357f7d8990681298))
 - Update CHANGELOG.md and checksums [skip ci] ([`a76e37d`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/a76e37d45e35263d73563d16b45b87f7dac44908))
+- Update CHANGELOG.md and checksums [skip ci] ([`ecd1e9b`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/ecd1e9b3ab682e24afc1073b3fcae44e38f5e119))
+- Update ADR-0002 implementation status to Closed and Merged ([`25bb478`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/25bb478d036fb070f3d2d44dd4cc20e9e2c35370))
+- Record solution implementation for ADR-0003 ([`47cb464`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/47cb464f5ad3cd7cce7ca32614ffaf1e658429d4))
+- Update CHANGELOG.md and checksums [skip ci] ([`4c3fe4d`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/4c3fe4ded28b39f8a71f88e75b1eed75327fd28e))
+- Update CHANGELOG.md and checksums [skip ci] ([`b756449`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/b756449bafc854d1fa85555bad51a5e4bbbb6e3b))
+- Update CHANGELOG.md and checksums [skip ci] ([`c617d26`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/c617d26c311b2e25186fcd50b28bd54de4a591a9))
+- Update CHANGELOG.md and checksums [skip ci] ([`372266c`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/372266c46a231a5065a548e2152f5837a799ce49))
+- Update CHANGELOG.md and checksums [skip ci] ([`f9287cc`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/f9287cc8522038a5acc38a0dee233c81cb845ccf))
+- Update CHANGELOG.md and checksums [skip ci] ([`a641a72`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/a641a7219fe578da5160a6c0ccf8aa67a6cb14fb))
+- Update CHANGELOG.md and checksums [skip ci] ([`dc105e5`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/dc105e56c7d530944e111b41617dcca7071ed875))
+- Mark secret scanning and push protection enabled ([`b8af4ba`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/b8af4ba983754a4d4fd3b4aca91b184dc0f52527))
 
 ### Features
 
 - Generate CycloneDX SBOM in CI ([`b7d9bb4`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/b7d9bb46329340e8a309922b2e9cc2d72593b603)), Signed-off-by:mbiti2 <louisembiti@gmail.com>
+- Add gitleaks secret scanning and CI job ([`1b6f11d`](https://github.com/ADORSYS-GIS/wazuh-suricata/commit/1b6f11d43e731ca16e131a671ed7aeae33e905a2))
 
 ### Miscellaneous Tasks
 

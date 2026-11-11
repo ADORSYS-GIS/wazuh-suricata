@@ -55,7 +55,8 @@ print_step() {
 }
 
 error_exit() {
-    error_message "$1"
+    local message="$1"
+    error_message "$message"
     exit 1
 }
 
@@ -206,6 +207,7 @@ detect_distro() {
     else
         error_exit "Unable to detect Linux distribution"
     fi
+    return 0
 }
 
 detect_architecture() {
@@ -232,9 +234,11 @@ create_file() {
     maybe_sudo bash -c "cat > '$filepath'" <<EOF
 $content
 EOF
+    return 0
 }
 
 cleanup() {
     info_message "Cleaning up temporary files..."
     rm -rf "$TMP_DIR"
+    return 0
 }
